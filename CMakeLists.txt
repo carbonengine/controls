@@ -1,25 +1,54 @@
 cmake_minimum_required(VERSION 3.16)
-project(CarbonTemplateProject VERSION 1.0.0)
+project(carbon_controls VERSION 1.0.0)
 
 include(cmake/CcpBuildConfigurations.cmake)
 include(cmake/CcpTargetConfigurations.cmake)
 
-ccp_add_library(target_name SHARED)
-
-get_target_property(_SOURCES target_name SOURCES)
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
-        PREFIX "Sources"
-        FILES ${_SOURCES}
+find_package(carbon-blueexposure CONFIG REQUIRED)
+  
+set(PUBLIC_HEADER_FILES
+    include/IControllerInput.h
+)
+set(PRIVATE_HEADER_FILES
+    include/stub/ControllerInputStub.h   
+    include/windows/ControllerInputWin.h
 )
 
-set_target_properties(target_name PROPERTIES OUTPUT_NAME "_target_name")
+set(CARBON_CONTROLS_SOURCE_FILES
+    ${PUBLIC_HEADER_FILES}
+    ${PRIVATE_HEADER_FILES}
+    src/carbon_controls.cpp
+    src/stub/ControllerInputStub.cpp
+    src/windows/ControllerInputWin.cpp
+)
 
-target_include_directories(target_name
+ccp_add_library(carbon-controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
+
+set_target_properties(carbon-controls PROPERTIES
+    VS_GLOBAL_RunCodeAnalysis false
+    VS_GLOBAL_EnableMicrosoftCodeAnalysis false
+    VS_GLOBAL_EnableClangTidyCodeAnalysis true
+)
+
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
+        PREFIX "Sources"
+        FILES ${CARBON_CONTROLS_SOURCE_FILES}
+)
+
+set_target_properties(carbon-controls PROPERTIES OUTPUT_NAME "carbon-controls")
+
+target_include_directories(carbon-controls
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
+target_link_libraries(carbon-controls PRIVATE BlueExposure)
+  
+if( WIN32 )
+        find_package(ms-gdk CONFIG REQUIRED)
+        target_link_libraries(carbon-controls PRIVATE Xbox::GameRuntime)
+endif() 
 # Provide an install target if this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Determine if/when to generate/build documentation. The rules are as follows:
@@ -53,7 +82,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
                 INSTALL_DESTINATION documentation
         )
 
-        add_dependencies(Sphinx target_name)
+        add_dependencies(Sphinx carbon-controls)
     endif()
 
 
@@ -64,7 +93,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
         install(
-                TARGETS target_name
+                TARGETS carbon-controls
                 EXPORT package_nameTarget
                 CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
                 LIBRARY DESTINATION ${CCP_VENDOR_LIB_PATH}
@@ -74,32 +103,32 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Generate target configuration for the monolith
         configure_ccp_vendor_config_file(
-                TARGET target_name
-                DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/package_nameConfig.cmake"
-                DEPENDENCIES ""
+                TARGET carbon-controls
+                DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/CarbonControlsConfig.cmake"
+                DEPENDENCIES "BLUEEXPOSURE"
         )
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/package_nameConfig.cmake DESTINATION .)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CarbonControlsConfig.cmake DESTINATION .)
         install(DIRECTORY python DESTINATION . FILES_MATCHING PATTERN "*.py")
     else ()
         # Install rule for available public headers
         install(
-                TARGETS target_name
-                EXPORT package_nameTarget
+                TARGETS carbon-controls
+                EXPORT CarbonControlsTarget
                 CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/package_name
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/CarbonControls
                 ARCHIVE DESTINATION lib
                 LIBRARY DESTINATION lib
                 RUNTIME DESTINATION bin
         )
 
-        install(EXPORT package_nameTarget
-                DESTINATION share/package_name
-                FILE package_name.cmake
+        install(EXPORT CarbonControlsTarget
+                DESTINATION share/CarbonControls
+                FILE CarbonControls.cmake
         )
 
         install(
-                FILES package_nameConfig.cmake
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/package_name)
+                FILES CarbonControlsConfig.cmake
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/CarbonControls)
     endif()
 
     install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
