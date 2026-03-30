@@ -4,12 +4,17 @@
       "name": "python3",
       "version>=": "3.12.3"
     },
-    {
+      {
       "name": "carbon-blueexposure",
-      "version>=": "2.0.4#1"
+      "version>=": "2.0.4"
     },
     {
-      "name": "ms-gdk"
+      "name": "carbon-core",
+      "version>=": "2.3.2#1"
+    },
+    {
+      "name": "ms-gdk",
+      "version>=": "2510.2.6247"
     }
   ],
   "overrides": [  

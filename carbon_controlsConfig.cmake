@@ -1,7 +1,10 @@
 include(CMakeFindDependencyMacro)
 
 # ${CMAKE_CURRENT_LIST_DIR}/project_name.cmake is generated automatically by cmake as part of the install step
-include(${CMAKE_CURRENT_LIST_DIR}/package_name.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/carbon_controls.cmake)
+
+find_dependency(carbon-blue CONFIG NO_CMAKE_PATH REQUIRED)
+find_dependency(Python3 CONFIG NO_CMAKE_PATH REQUIRED)
 
 # Please specify all of this projects transitive dependencies here
 # In order for a consuming cmake project system to locate any transitive dependencies of this project, they must be

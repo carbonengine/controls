@@ -1,30 +1,66 @@
 cmake_minimum_required(VERSION 3.16)
-project(carbon_controls VERSION 1.0.0)
+project(_carbon_controls VERSION 1.0.0)
 
 include(cmake/CcpBuildConfigurations.cmake)
 include(cmake/CcpTargetConfigurations.cmake)
-
-find_package(carbon-blueexposure CONFIG REQUIRED)
   
-set(PUBLIC_HEADER_FILES
-    include/IControllerInput.h
-)
-set(PRIVATE_HEADER_FILES
-    include/stub/ControllerInputStub.h   
-    include/windows/ControllerInputWin.h
-)
+find_package(Python3 COMPONENTS Development REQUIRED)
+find_package(carbon-blueexposure CONFIG REQUIRED)
+find_package(carbon-core REQUIRED CONFIG)
 
 set(CARBON_CONTROLS_SOURCE_FILES
-    ${PUBLIC_HEADER_FILES}
-    ${PRIVATE_HEADER_FILES}
     src/carbon_controls.cpp
-    src/stub/ControllerInputStub.cpp
-    src/windows/ControllerInputWin.cpp
+    src/ControlManager.cpp
+    src/ControlManager_Blue.cpp
+    src/ControlManager.h
+    src/DeviceEnums.h
+    src/InputDevice.h
+    src/InputDevice.cpp
+    src/InputDevice_Blue.cpp
+    src/StdAfx.h
+    src/events/IInputEvent.h
+    src/events/InputEventTrigger_Blue.cpp
+    src/events/InputEventTrigger.cpp
+    src/events/InputEventTrigger.h
+    src/events/battery/BatteryChargingEvent_Blue.cpp
+    src/events/battery/BatteryChargingEvent.cpp
+    src/events/battery/BatteryChargingEvent.h
+    src/events/battery/BatteryLowEvent_Blue.cpp
+    src/events/battery/BatteryLowEvent.cpp
+    src/events/battery/BatteryLowEvent.h
+    src/events/flightstick/FlightStickButtonInputEvent_Blue.cpp
+    src/events/flightstick/FlightStickButtonInputEvent.cpp
+    src/events/flightstick/FlightStickButtonInputEvent.h
+    src/events/flightstick/FlightStickMovementInputEvent_Blue.cpp
+    src/events/flightstick/FlightStickMovementInputEvent.cpp
+    src/events/flightstick/FlightStickMovementInputEvent.h
+    src/events/gamepad/GamePadButtonInputEvent_Blue.cpp
+    src/events/gamepad/GamePadButtonInputEvent.cpp
+    src/events/gamepad/GamePadButtonInputEvent.h
+    src/events/gamepad/GamePadDirectionPadInputEvent_Blue.cpp
+    src/events/gamepad/GamePadDirectionPadInputEvent.cpp
+    src/events/gamepad/GamePadDirectionPadInputEvent.h
+    src/events/gamepad/GamePadThumbStickMovedInputEvent_Blue.cpp
+    src/events/gamepad/GamePadThumbStickMovedInputEvent.cpp
+    src/events/gamepad/GamePadThumbStickMovedInputEvent.h
+    src/events/gamepad/GamePadThumbStickPressedInputEvent_Blue.cpp
+    src/events/gamepad/GamePadThumbStickPressedInputEvent.cpp
+    src/events/gamepad/GamePadThumbStickPressedInputEvent.h
+    src/events/gamepad/GamePadTriggerInputEvent_Blue.cpp
+    src/events/gamepad/GamePadTriggerInputEvent.cpp
+    src/events/gamepad/GamePadTriggerInputEvent.h
+    src/handlers/IInputHandler.h
+    src/handlers/InputHandlerWin.cpp
+    src/handlers/InputHandlerWin.h
+    src/handlers/InputHandlerStub.cpp
+    src/handlers/InputHandlerStub.h
 )
 
-ccp_add_library(carbon-controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
+ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
 
-set_target_properties(carbon-controls PROPERTIES
+target_precompile_headers(_carbon_controls PRIVATE src/StdAfx.h)
+
+set_target_properties(_carbon_controls PROPERTIES
     VS_GLOBAL_RunCodeAnalysis false
     VS_GLOBAL_EnableMicrosoftCodeAnalysis false
     VS_GLOBAL_EnableClangTidyCodeAnalysis true
@@ -35,20 +71,22 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
         FILES ${CARBON_CONTROLS_SOURCE_FILES}
 )
 
-set_target_properties(carbon-controls PROPERTIES OUTPUT_NAME "carbon-controls")
+set_target_properties(_carbon_controls PROPERTIES OUTPUT_NAME "_carbon_controls")
 
-target_include_directories(carbon-controls
+target_include_directories(_carbon_controls
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(carbon-controls PRIVATE BlueExposure)
-  
+target_compile_definitions(_carbon_controls PRIVATE BLUE_WITH_PYTHON=1 TRACY_ENABLE=1 BLUEBUILD)
 if( WIN32 )
-        find_package(ms-gdk CONFIG REQUIRED)
-        target_link_libraries(carbon-controls PRIVATE Xbox::GameRuntime)
-endif() 
+    find_package(ms-gdk CONFIG REQUIRED)
+    target_link_libraries(_carbon_controls PRIVATE Xbox::GameRuntime GameInput BlueExposure Python3::Python)
+else()
+    target_link_libraries(_carbon_controls PRIVATE BlueExposure Python3::Python)
+endif()
+
 # Provide an install target if this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Determine if/when to generate/build documentation. The rules are as follows:
@@ -82,7 +120,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
                 INSTALL_DESTINATION documentation
         )
 
-        add_dependencies(Sphinx carbon-controls)
+        add_dependencies(Sphinx _carbon_controls)
     endif()
 
 
@@ -93,32 +131,32 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
         install(
-                TARGETS carbon-controls
+                TARGETS _carbon_controls
                 EXPORT package_nameTarget
                 CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
-                LIBRARY DESTINATION ${CCP_VENDOR_LIB_PATH}
-                ARCHIVE DESTINATION ${CCP_VENDOR_LIB_PATH}
-                RUNTIME DESTINATION ${CCP_VENDOR_BIN_PATH}
+                LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
+                ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
+                RUNTIME DESTINATION bin/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
         )
 
         # Generate target configuration for the monolith
         configure_ccp_vendor_config_file(
-                TARGET carbon-controls
-                DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/CarbonControlsConfig.cmake"
-                DEPENDENCIES "BLUEEXPOSURE"
+                TARGET _carbon_controls
+                DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/carbon_controlsConfig.cmake"
+                DEPENDENCIES ""
         )
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CarbonControlsConfig.cmake DESTINATION .)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/carbon_controlsConfig.cmake DESTINATION .)
         install(DIRECTORY python DESTINATION . FILES_MATCHING PATTERN "*.py")
     else ()
         # Install rule for available public headers
         install(
-                TARGETS carbon-controls
+                TARGETS _carbon_controls
                 EXPORT CarbonControlsTarget
                 CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
                 DESTINATION ${CMAKE_INSTALL_PREFIX}/share/CarbonControls
-                ARCHIVE DESTINATION lib
-                LIBRARY DESTINATION lib
-                RUNTIME DESTINATION bin
+                LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
+                ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
+                RUNTIME DESTINATION bin/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
         )
 
         install(EXPORT CarbonControlsTarget
@@ -127,7 +165,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         )
 
         install(
-                FILES CarbonControlsConfig.cmake
+                FILES carbon_controlsConfig.cmake
                 DESTINATION ${CMAKE_INSTALL_PREFIX}/share/CarbonControls)
     endif()
 
