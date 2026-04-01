@@ -21,6 +21,6 @@ void InputEventTrigger::Process( Events::State state )
 
 	if( m_callback && matches )
 	{
-		m_callback.CallVoid();
+		m_callback.CallVoid( m_events.GetRawRoot() );
 	}
 }

@@ -2,6 +2,17 @@
 
 #include "IInputHandler.h"
 #include <GameInput.h>
+#ifndef GAMEINPUT_API_VERSION
+#define GAMEINPUT_API_VERSION 0
+#endif
+
+#if GAMEINPUT_API_VERSION == 1
+using namespace GameInput::v1;
+#elif GAMEINPUT_API_VERSION == 2
+using namespace GameInput::v2;
+#elif GAMEINPUT_API_VERSION == 3
+using namespace GameInput::v3;
+#endif
 #include <array>
 #include <mutex>
 #include "../events/IInputEvent.h"
@@ -13,12 +24,14 @@ public:
 	~InputHandlerWin();
 	Events::State Update( DeviceEnums::DeviceId deviceID ) override;
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
+	void RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback ) override;
 
 private:
 	// Per-device bookkeeping
 	struct DeviceSlot
 	{
 		IGameInputDevice* device = nullptr;
+		GameInputDeviceInfo const* info = nullptr;
 		bool needDelete = false;
 		DeviceEnums::DeviceIdentifier identifier{};
 	};
@@ -30,6 +43,7 @@ private:
 	void GetBatteryState( IGameInputReading* reading, IGameInputDevice* device, Events::BatteryState& state );
 	void GetGamePadState( IGameInputReading* reading, IGameInputDevice* device, Events::GamePadState& state );
 	void GetFlightStickState( IGameInputReading* reading, IGameInputDevice* device, Events::FlightStickState& state );
+	void GetControllerState( IGameInputReading* reading, IGameInputDevice* device, Events::ControllerState& state );
 
 	// Reads the current hardware state for a single device into its slot
 	Events::State ReadDeviceState( IGameInputDevice* device );
@@ -52,6 +66,9 @@ private:
 	bool m_initialized = false;
 	GameInputCallbackToken m_deviceCallbackToken = 0;
 
-	static const GameInputKind SUPPORTED_INPUTS =
-		static_cast<GameInputKind>( GameInputKindGamepad | GameInputKindFlightStick );
+	std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> m_deviceChangedCallback = nullptr;
+
+	static const GameInputKind SUPPORTED_INPUTS = static_cast<GameInputKind>(
+	GameInputKindGamepad |
+	GameInputKindController );
 };

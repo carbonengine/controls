@@ -7,7 +7,7 @@ namespace
 {
 Be::VarChooser DeviceTypeChooser[] = {
 	{ "Gamepad", BeCast( DeviceEnums::DeviceType::DeviceType_Gamepad ), "A gamepad device" },
-	{ "Flight Stick", BeCast( DeviceEnums::DeviceType::DeviceType_FlightStick ), "A flight stick device" },
+	{ "Controller", BeCast( DeviceEnums::DeviceType::DeviceType_Controller ), "A controller device" },
 	{ 0 }
 };
 BLUE_REGISTER_ENUM_EX( "DeviceType", DeviceEnums::DeviceType, DeviceTypeChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
@@ -22,6 +22,9 @@ const Be::ClassInfo* InputDeviceIdentifier::ExposeToBlue()
 		MAP_ATTRIBUTE_WITH_CHOOSER( "deviceType", identifier.deviceType, "The type of the device", Be::READ | Be::ENUM, DeviceTypeChooser )
 		MAP_ATTRIBUTE( "manufacturer", identifier.manufacturer, "The manufacturer of the device", Be::READ )
 		MAP_ATTRIBUTE( "product", identifier.product, "The product name of the device", Be::READ )
+		MAP_ATTRIBUTE( "buttonCount", identifier.buttonCount, "The number of buttons on the device", Be::READ )
+		MAP_ATTRIBUTE( "axisCount", identifier.axisCount, "The number of axes on the device", Be::READ )
+		MAP_ATTRIBUTE( "switchCount", identifier.switchCount, "The number of switches on the device", Be::READ )
 	EXPOSURE_END()
 }
 

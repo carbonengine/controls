@@ -26,11 +26,15 @@ public:
 
 	// Updates the state of the active device. Should be called once per frame.
 	void Update();
-private:
 
+private:
+	void SetHoldTimeInMs( float holdTime );
+	float GetHoldTimeInMs();
+	void UpdateDeviceList( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers );
+
+	PInputDeviceIdentifierVector m_deviceIdentifiers;
 	IInputHandler* m_inputHandler;
 	InputDevicePtr m_activeDevice;
-	PInputDeviceIdentifierVector m_deviceIdentifiers;
 	DeviceEnums::DeviceId m_activeDeviceID = 0;
 	BlueScriptCallback m_activeDeviceLostCallback;
 	BlueScriptCallback m_deviceConnectedCallback;

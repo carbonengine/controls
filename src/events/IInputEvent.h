@@ -6,6 +6,8 @@ namespace Events
   
 enum class ButtonState
 {
+	Up, 
+	Down,
 	Released,
 	Held,
 	Pressed
@@ -22,7 +24,7 @@ struct Button
 	uint32_t buttonId; 
 	bool _pressed; // device internal button state
 	ButtonState state; // the interpreted button state
-	Be::Time m_stateChangeTime; // The time at which the button state last changed
+	std::chrono::steady_clock::time_point m_stateChangeTime; // The time at which the button state last changed
 };
 
 struct Trigger
@@ -83,11 +85,32 @@ struct BatteryState
 	bool charging;
 };
 
+enum class SwitchPosition :uint32_t
+{
+	Center,
+	Up,
+	UpRight,
+	Right,
+	DownRight,
+	Down,
+	DownLeft,
+	Left,
+	UpLeft
+};
+
+struct ControllerState
+{
+	std::vector<Button> buttons;
+	std::vector<float> axis;
+	std::vector<SwitchPosition> switches;
+};
+
 struct State
 {
 	GamePadState gamePadState;
 	FlightStickState flightStickState;
 	BatteryState batteryState;
+	ControllerState controllerState;
 };
 
 extern const Be::VarChooser ButtonStateChooser[];

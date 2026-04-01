@@ -15,18 +15,57 @@ ControlManager::ControlManager( IRoot* lockobj ) :
 	m_inputHandler( new InputHandlerStub() )
 #endif
 {
-	for( const auto& identifier : m_inputHandler->GetAllDeviceIdentifiers() )
+	m_inputHandler->RegisterForDeviceChange( [this]( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers )
 	{
-		InputDeviceIdentifierPtr deviceIdentifier;
-		deviceIdentifier.CreateInstance();
-		deviceIdentifier->SetData( identifier );
-		m_deviceIdentifiers.Append(deviceIdentifier);
-	}
+		UpdateDeviceList( deviceIdentifiers );
+		if( m_activeDevice && std::none_of( deviceIdentifiers.begin(), deviceIdentifiers.end(), [this]( const DeviceEnums::DeviceIdentifier& identifier )
+		{
+			return identifier.deviceID == m_activeDeviceID;
+		} ) )
+		{
+			CCP_LOGNOTICE( "Active device (ID: %u) was disconnected", m_activeDeviceID );
+			m_activeDevice = nullptr;
+			m_activeDeviceID = 0;
+			if( m_activeDeviceLostCallback )
+			{
+				m_activeDeviceLostCallback.CallVoid();
+			}
+		}
+		else
+		{
+			if( m_deviceConnectedCallback )
+			{
+				m_deviceConnectedCallback.CallVoid();
+			}
+		}
+	} );
 }
 
 ControlManager::~ControlManager()
 {
 	m_inputHandler = nullptr;
+}
+
+void ControlManager::UpdateDeviceList( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers )
+{
+	m_deviceIdentifiers.Remove(-1);
+	for( const auto& identifier : deviceIdentifiers )
+	{
+		InputDeviceIdentifierPtr id;
+		id.CreateInstance();
+		id->SetData( identifier );
+		m_deviceIdentifiers.Append( id );
+	}
+}
+
+void ControlManager::SetHoldTimeInMs( float holdTime )
+{
+	InputDevice::g_holdTimeInMs = holdTime;
+}
+
+float ControlManager::GetHoldTimeInMs()
+{
+	return InputDevice::g_holdTimeInMs;
 }
 
 void ControlManager::Update()

@@ -2,6 +2,60 @@
 #include "InputHandlerWin.h"
 
 #include <algorithm>
+#include <Windows.h>
+#include "../ControlManager.h"
+
+namespace RegistryValues
+{
+std::wstring GetStringValueFromHKLM( const std::wstring& regSubKey, const std::wstring& regValue )
+{
+	size_t bufferSize = 0xFFF; // If too small, will be resized down below.
+	std::wstring valueBuf; // Contiguous buffer since C++11.
+	valueBuf.resize( bufferSize );
+	auto cbData = static_cast<DWORD>( bufferSize * sizeof( wchar_t ) );
+	auto rc = RegGetValueW(
+		HKEY_LOCAL_MACHINE,
+		regSubKey.c_str(),
+		regValue.c_str(),
+		RRF_RT_REG_SZ,
+		nullptr,
+		static_cast<void*>( valueBuf.data() ),
+		&cbData );
+	while( rc == ERROR_MORE_DATA )
+	{
+		// Get a buffer that is big enough.
+		cbData /= sizeof( wchar_t );
+		if( cbData > static_cast<DWORD>( bufferSize ) )
+		{
+			bufferSize = static_cast<size_t>( cbData );
+		}
+		else
+		{
+			bufferSize *= 2;
+			cbData = static_cast<DWORD>( bufferSize * sizeof( wchar_t ) );
+		}
+		valueBuf.resize( bufferSize );
+		rc = RegGetValueW(
+			HKEY_LOCAL_MACHINE,
+			regSubKey.c_str(),
+			regValue.c_str(),
+			RRF_RT_REG_SZ,
+			nullptr,
+			static_cast<void*>( valueBuf.data() ),
+			&cbData );
+	}
+	if( rc == ERROR_SUCCESS )
+	{
+		cbData /= sizeof( wchar_t );
+		valueBuf.resize( static_cast<size_t>( cbData - 1 ) ); // remove end null character
+		return valueBuf;
+	}
+	else
+	{
+		return std::wstring( L"" );
+	}
+}
+}
 
 // ---------------------------------------------------------------------------
 // Construction / Destruction
@@ -119,13 +173,14 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 	if( isConnected && !wasConnected )
 	{
 		device->AddRef();
+		auto identifier = self->GetIdentifier( device );
 		DeviceSlot slot = {
 			device,
+			device->GetDeviceInfo(),
 			false,
-			{}
+			identifier
 		};
 
-		slot.identifier = GetIdentifier( device );
 		self->m_deviceSlots.push_back( slot );
 		CCP_LOGNOTICE( "InputHandlerWin: Device '%s' connected", device->GetDeviceInfo()->displayName );
 	}
@@ -139,17 +194,19 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' disconnected", device->GetDeviceInfo()->displayName );
 		}
 	}
+	if( self->m_deviceChangedCallback )
+	{
+		self->m_deviceChangedCallback( self->GetAllDeviceIdentifiers() );
+	}
 }
 
-// ---------------------------------------------------------------------------
-// Update  –  per-frame tick: clean up disconnected devices, read fresh state
-// ---------------------------------------------------------------------------
 Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 {
 	if( !m_initialized )
 	{
 		return {};
 	}
+	m_gameInput->SetFocusPolicy( GameInputDefaultFocusPolicy );
 
 	std::lock_guard<std::mutex> lock( m_deviceMutex );
 
@@ -177,7 +234,6 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 	return{};
 }
 
-
 DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* device )
 {
 	DeviceEnums::DeviceIdentifier identifier;
@@ -199,7 +255,51 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 
 	if( info->displayName )
 	{
-		identifier.name = BlueSharedString(info->displayName->data);
+		identifier.name = BlueSharedStringW( static_cast<const wchar_t*>(CA2W( info->displayName->data ) ) );
+	}
+	else if( info->deviceStringCount > 0 && info->deviceStrings )
+	{
+		// Use the first available device string as a fallback
+		identifier.name = BlueSharedStringW( static_cast<const wchar_t*>(CA2W( info->deviceStrings[0].data ) ) );
+	}
+	else if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyXboxOne || info->deviceFamily == GameInputDeviceFamily::GameInputFamilyXbox360 )
+	{
+		// For Xbox controllers, we can use a friendly name based on the device family
+		if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyXboxOne )
+		{
+			identifier.name = BlueSharedStringW( L"Xbox One Controller" );
+		}
+		else 
+		{
+			identifier.name = BlueSharedStringW( L"Xbox 360 Controller" );
+		}
+	}
+	else
+	{
+		char vid[16];
+		snprintf( vid, sizeof( vid ), "%04X", info->vendorId );
+
+		char pid[16];
+		snprintf( pid, sizeof( pid ), "%04X", info->productId );
+
+		std::wstring vid_w( static_cast<const wchar_t*>(CA2W( vid ) ) );
+		std::wstring pid_w( static_cast<const wchar_t*>(CA2W( pid ) ) );
+
+		// check the registry for the device name, using the vendor/product ID as a key
+		auto registryName = RegistryValues::GetStringValueFromHKLM(
+			L"SYSTEM\\CurrentControlSet\\Control\\MediaProperties\\PrivateProperties\\Joystick\\OEM\\VID_" + vid_w + L"&PID_" + pid_w,
+			L"OEMName" );
+		if( !registryName.empty() )
+		{
+			identifier.name = BlueSharedStringW( registryName.c_str() );
+		}
+		else
+		{
+			// Last resort: identify by vendor/product ID
+			char fallback[64];
+			snprintf( fallback, sizeof( fallback ), "HID Device [VID: %04X - PID: %04X]", info->vendorId, info->productId );
+			identifier.name = BlueSharedStringW( static_cast<const wchar_t*>(CA2W( fallback ) ) );
+		}
 	}
 
 	if( info->supportedInput & GameInputKindGamepad )
@@ -210,6 +310,20 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	{
 		identifier.deviceType = DeviceEnums::DeviceType_FlightStick;
 	}
+	else if( ( info->supportedInput & GameInputKindController ) || ( info->supportedInput & GameInputKindControllerAxis ) || ( info->supportedInput & GameInputKindControllerButton ) || ( info->supportedInput & GameInputKindControllerSwitch ) )
+	{
+		identifier.deviceType = DeviceEnums::DeviceType_Controller;
+	}
+
+	identifier.axisCount = info->controllerAxisCount;
+	identifier.buttonCount = info->controllerButtonCount;
+	identifier.switchCount = info->controllerSwitchCount;
+
+	GameInputBatteryState batteryState;
+	device->GetBatteryState( &batteryState );
+
+	identifier.batteryPowered = batteryState.status != GameInputBatteryStatus::GameInputBatteryNotPresent;
+	identifier.rumbleSupported = info->hapticFeedbackMotorInfo != nullptr && info->hapticFeedbackMotorInfo->mappedRumbleMotors != GameInputRumbleNone;
 
 	return identifier;
 }
@@ -220,9 +334,17 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerWin::GetAllDeviceIdentifi
 	devices.reserve( m_deviceSlots.size() );
 	for( const auto& slot : m_deviceSlots )
 	{
-		devices.push_back( slot.identifier );
+		if( slot.device && !slot.needDelete )
+		{
+			devices.push_back( slot.identifier );
+		}
 	}
 	return devices;
+}
+
+void InputHandlerWin::RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback )
+{
+	m_deviceChangedCallback = callback;
 }
 
 // ---------------------------------------------------------------------------
@@ -232,19 +354,37 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 {
 	IGameInputReading* reading = nullptr;
 
-	HRESULT hr = m_gameInput->GetCurrentReading( SUPPORTED_INPUTS, device, &reading );
-	if( FAILED( hr ) || !reading )
+	Events::State state = {};
+
+	const GameInputDeviceInfo* info = device->GetDeviceInfo();
+	if( !info )
 	{
-		return {};
+		return state;
+	}
+	m_gameInput->SetFocusPolicy( GameInputDefaultFocusPolicy );
+
+	// Only request input kinds that this specific device supports
+	GameInputKind readingFilter = static_cast<GameInputKind>( SUPPORTED_INPUTS );
+	if( readingFilter == GameInputKindUnknown )
+	{
+		return state;
 	}
 
-	Events::State state = {};
+	HRESULT hr = m_gameInput->GetCurrentReading( readingFilter, device, &reading );
+	if( FAILED( hr ) )
+	{
+		CCP_LOGERR( "InputHandlerWin: GetCurrentReading failed for device '%s' (0x%08X)", info->displayName, hr );
+		return state;
+	}
+	if( !reading )
+	{
+		return state;
+	}
 
 	// convert the GameInputReading into our internal State representation
 	GetBatteryState( reading, device, state.batteryState );
 	GetGamePadState( reading, device, state.gamePadState );
-	GetFlightStickState( reading, device, state.flightStickState );
-
+	GetControllerState( reading, device, state.controllerState );
 	reading->Release();
 
 	return state;
@@ -252,6 +392,7 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 
 void InputHandlerWin::GetBatteryState( IGameInputReading* reading, IGameInputDevice* device, Events::BatteryState& batteryState )
 {
+	batteryState = {}; // default to 0 capacity and not charging
 	if( !device )
 	{
 		return;
@@ -267,8 +408,75 @@ void InputHandlerWin::GetBatteryState( IGameInputReading* reading, IGameInputDev
 	batteryState.charging = deviceBatteryState.status == GameInputBatteryStatus::GameInputBatteryCharging;
 }
 
+void InputHandlerWin::GetControllerState( IGameInputReading* reading, IGameInputDevice* device, Events::ControllerState& controllerState )
+{
+	controllerState = {}; 
+	if( !device )
+	{
+		return;
+	}
+	auto buttonCount = reading->GetControllerButtonCount();
+	auto axisCount = reading->GetControllerAxisCount();
+	auto switchCount = reading->GetControllerSwitchCount();
+
+	if( buttonCount > 0 )
+	{
+		// Use a raw byte buffer — bool[] can cause ABI issues with COM interfaces
+		std::vector<uint8_t> buttonState( buttonCount );
+		uint32_t tmp = reading->GetControllerButtonState( buttonCount, reinterpret_cast<bool*>( buttonState.data() ) );
+
+		controllerState.buttons.resize( buttonCount );
+		for( uint32_t index = 0; index < buttonCount; ++index )
+		{
+			controllerState.buttons[index]._pressed = buttonState[index] != 0;
+		}
+	}
+
+	if( axisCount > 0 )
+	{
+		controllerState.axis.resize( axisCount );
+		uint32_t tmp = reading->GetControllerAxisState( axisCount, controllerState.axis.data() );
+		CCP_LOGERR( "InputHandlerWin: %d", tmp );
+
+	}
+
+	if( switchCount > 0 )
+	{
+		auto switchReading = std::make_unique<GameInputSwitchPosition[]>( switchCount );
+		controllerState.switches.resize( switchCount );
+		uint32_t tmp = reading->GetControllerSwitchState( static_cast<uint32_t>( controllerState.switches.size() ), switchReading.get() );
+		for( uint32_t index = 0; index < controllerState.switches.size(); ++index )
+		{
+			controllerState.switches[index] = static_cast<Events::SwitchPosition>( switchReading[index] );
+		}
+	}
+
+	for( auto& button : controllerState.buttons )
+	{
+		if( button._pressed )
+		{
+			CCP_LOG( "InputHandlerWin: Button pressed" );
+		}
+	}
+	for( auto& axis : controllerState.axis )
+	{
+		if( axis != 0 )
+		{
+			CCP_LOG( "InputHandlerWin: axis moved" );
+		}
+	}
+	for( auto& sw : controllerState.switches )
+	{
+		if( sw != Events::SwitchPosition::Center )
+		{
+			CCP_LOG( "InputHandlerWin: switch moved" );
+		}
+	}
+}
+
 void InputHandlerWin::GetGamePadState( IGameInputReading* reading, IGameInputDevice* device, Events::GamePadState& gamePadState )
 {
+	gamePadState = {}; // default to all buttons released and triggers/thumbsticks centered
 	if( !device )
 	{
 		return;
@@ -286,7 +494,7 @@ void InputHandlerWin::GetGamePadState( IGameInputReading* reading, IGameInputDev
 
 	GameInputGamepadState deviceGamePadState;
 	reading->GetGamepadState( &deviceGamePadState );
-
+	
 	gamePadState.a._pressed = (deviceGamePadState.buttons & GameInputGamepadButtons::GameInputGamepadA) == GameInputGamepadButtons::GameInputGamepadA;
 	gamePadState.b._pressed = (deviceGamePadState.buttons & GameInputGamepadButtons::GameInputGamepadB) == GameInputGamepadButtons::GameInputGamepadB;
 	gamePadState.x._pressed = (deviceGamePadState.buttons & GameInputGamepadButtons::GameInputGamepadX) == GameInputGamepadButtons::GameInputGamepadX;
@@ -315,6 +523,7 @@ void InputHandlerWin::GetGamePadState( IGameInputReading* reading, IGameInputDev
 
 void InputHandlerWin::GetFlightStickState( IGameInputReading* reading, IGameInputDevice* device, Events::FlightStickState& flightStickState )
 {
+	flightStickState = {}; // default to all buttons released and sticks centered
 	if( !device )
 	{
 		return;

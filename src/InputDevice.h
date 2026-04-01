@@ -30,6 +30,8 @@ public:
 	void ProcessTriggers( Events::State state );
 	BlueSharedString GetStateAsJson( ) const;
 
+	static float g_holdTimeInMs; // The time in milliseconds after which a button state changes from Pressed to Held
+
 private:
 	InputDeviceIdentifierPtr m_deviceIdentifier;
 	PInputEventTriggerVector m_triggers;

@@ -7,9 +7,11 @@ BLUE_DEFINE_INTERFACE( IInputEvent );
 namespace Events
 {
 const Be::VarChooser ButtonStateChooser[] = {
-	{ "Pressed", BeCast( ButtonState::Pressed ), "Indicates that a button was pressed" },
-	{ "Released", BeCast( ButtonState::Released ), "Indicates that a button was released" },
-	{ "Held", BeCast( ButtonState::Held ), "Indicates that a button is being held down" },
+	{ "Up", BeCast( ButtonState::Up ), "Indicates that a button is not pressed" },
+	{ "Down", BeCast( ButtonState::Down ), "Indicates that a button is down (but no time checks are performed)" },
+	{ "Pressed", BeCast( ButtonState::Pressed ), "Indicates that a button is pressed" },
+	{ "Released", BeCast( ButtonState::Released ), "Indicates that a button was held and then released within the held time delta" },
+	{ "Held", BeCast( ButtonState::Held ), "Indicates that a button is being held down for longer than the held time delta" },
 	{ 0 }
 };
 BLUE_REGISTER_ENUM_EX( "ButtonState", ButtonState, ButtonStateChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
