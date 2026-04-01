@@ -1,10 +1,12 @@
-import _carbon_controls
 import blue
 import time
 import logging
 
+carbon_controls = blue.LoadExtension("_carbon_controls")
+
+
 input("Press enter to start polling for input devices")
-controller = _carbon_controls.GetControlManager()
+controller = carbon_controls.GetControlManager()
 print( dir(controller) )
 
 while not controller.devices:
@@ -12,20 +14,11 @@ while not controller.devices:
     time.sleep( 1 )
 
 print( f"Found {len(controller.devices)} input device(s)." )
-for device in controller.devices:
-    print(f"name: {device.name}")
-    print(f"deviceid: {device.deviceID}")
-    print(f"deviceType: {device.deviceType}")
-    print(f"manufacturer: {device.manufacturer}")
-    print(f"product: {device.product}")
-    print(f"buttonCount: {device.buttonCount}")
-    print(f"axisCount: {device.axisCount}")
-    print(f"switchCount: {device.switchCount}")
 
 if len(controller.devices) > 1:
     print( "Multiple devices found. Please select a device by index:" )
     for i, device in enumerate(controller.devices):
-        print( f"{i}: {device.name} ({device.manufacturer} {device.product})" )
+        print( f"{i}: {device.name}" )
     while True:
         selection = input( "Enter device index: " )
         if selection.isdigit() and 0 <= int(selection) < len(controller.devices):
@@ -39,17 +32,13 @@ else:
 
 print(f"Connecting to:")
 print(f"name: {selected_device.name}")
-print(f"deviceid: {selected_device.deviceID}")
-print(f"deviceType: {selected_device.deviceType}")
-print(f"manufacturer: {selected_device.manufacturer}")
-print(f"product: {selected_device.product}")
 controller.Connect( selected_device.deviceID )
 
 # ─── Helper ───────────────────────────────────────────────────────────
 
 def register_trigger( event, callback ):
     """Create an InputEventTrigger, attach the event and callback, and register it."""
-    trigger = _carbon_controls.InputEventTrigger()
+    trigger = carbon_controls.InputEventTrigger()
     trigger.events.append( event )
     trigger.callback = callback
     controller.activeDevice.triggers.append( trigger )
@@ -63,21 +52,21 @@ def on_battery_charging_started( event ):
 def on_battery_charging_stopped( event ):
     print( "Battery stopped charging" )
 
-battery_low_evt = _carbon_controls.BatteryLowEvent()
+battery_low_evt = carbon_controls.BatteryLowEvent()
 battery_low_evt.threshold = 0.2
 register_trigger( battery_low_evt, on_battery_low )
 
-charging_started_evt = _carbon_controls.BatteryChargingEvent()
-charging_started_evt.event = _carbon_controls.ChargingState.StartedCharging
+charging_started_evt = carbon_controls.BatteryChargingEvent()
+charging_started_evt.event = carbon_controls.ChargingState.StartedCharging
 register_trigger( charging_started_evt, on_battery_charging_started )
 
-charging_stopped_evt = _carbon_controls.BatteryChargingEvent()
-charging_stopped_evt.event = _carbon_controls.ChargingState.StoppedCharging
+charging_stopped_evt = carbon_controls.BatteryChargingEvent()
+charging_stopped_evt.event = carbon_controls.ChargingState.StoppedCharging
 register_trigger( charging_stopped_evt, on_battery_charging_stopped )
 
 # ─── Device-specific triggers ─────────────────────────────────────────
 
-if selected_device.deviceType == _carbon_controls.DeviceType.Controller:
+if selected_device.deviceType == carbon_controls.DeviceType.Controller:
     # ── Flight stick callbacks ────────────────────────────────────────
     def button_callback( event ):
         print( f"Button event: {event[0].buttonIndex}" )
@@ -88,20 +77,20 @@ if selected_device.deviceType == _carbon_controls.DeviceType.Controller:
 
     print( f"Registering {selected_device.buttonCount} button triggers, ")
     for button_index in range( selected_device.buttonCount ):
-        evt = _carbon_controls.ControllerButtonInputEvent()
+        evt = carbon_controls.ControllerButtonInputEvent()
         evt.buttonIndex = button_index
-        evt.event = _carbon_controls.ButtonState.Pressed
+        evt.event = carbon_controls.ButtonState.Pressed
         register_trigger( evt, button_callback )
     print( f"{selected_device.axisCount} axis triggers, ")
     for axis_index in range( selected_device.axisCount ):
-        evt = _carbon_controls.ControllerAxisInputEvent()
+        evt = carbon_controls.ControllerAxisInputEvent()
         evt.axisIndex = axis_index
         register_trigger( evt, axis_callback )
     print( f"and {selected_device.switchCount} switch triggers." )
     for switch_index in range( selected_device.switchCount ):
-        evt = _carbon_controls.ControllerSwitchInputEvent()
+        evt = carbon_controls.ControllerSwitchInputEvent()
         evt.switchIndex = switch_index
-        evt.position = _carbon_controls.SwitchPosition.Up
+        evt.position = carbon_controls.SwitchPosition.Up
         register_trigger( evt, switch_callback )
 
 else:
@@ -190,96 +179,96 @@ else:
         special_trigger
 
     # ── Gamepad button registration helper ────────────────────────────
-    trigger = _carbon_controls.InputEventTrigger()
-    evt = _carbon_controls.GamePadButtonInputEvent()
-    evt.button = _carbon_controls.GamePadButtonType.A
-    evt.event = _carbon_controls.ButtonState.Held
+    trigger = carbon_controls.InputEventTrigger()
+    evt = carbon_controls.GamePadButtonInputEvent()
+    evt.button = carbon_controls.GamePadButtonType.A
+    evt.event = carbon_controls.ButtonState.Held
     trigger.events.append( evt )
-    evt2= _carbon_controls.GamePadButtonInputEvent()
-    evt2.button = _carbon_controls.GamePadButtonType.B
-    evt2.event = _carbon_controls.ButtonState.Pressed
+    evt2= carbon_controls.GamePadButtonInputEvent()
+    evt2.button = carbon_controls.GamePadButtonType.B
+    evt2.event = carbon_controls.ButtonState.Pressed
     trigger.events.append( evt2 )
     trigger.callback = special_trigger
     controller.activeDevice.triggers.append( trigger )
 
     def register_button( button_type, pressed_cb, released_cb=None, held_cb=None ):
         for state, cb in [
-            (_carbon_controls.ButtonState.Pressed, pressed_cb),
-            (_carbon_controls.ButtonState.Released, released_cb),
-            (_carbon_controls.ButtonState.Held, held_cb),
+            (carbon_controls.ButtonState.Pressed, pressed_cb),
+            (carbon_controls.ButtonState.Released, released_cb),
+            (carbon_controls.ButtonState.Held, held_cb),
         ]:
             if cb is not None:
-                evt = _carbon_controls.GamePadButtonInputEvent()
+                evt = carbon_controls.GamePadButtonInputEvent()
                 evt.button = button_type
                 evt.event = state
                 register_trigger( evt, cb )
 
-    # register_button( _carbon_controls.GamePadButtonType.A,
+    # register_button( carbon_controls.GamePadButtonType.A,
     #     on_button_a_pressed, on_button_a_released, on_button_a_held )
-    register_button( _carbon_controls.GamePadButtonType.B,
+    register_button( carbon_controls.GamePadButtonType.B,
         on_button_b_pressed, on_button_b_released, on_button_b_held )
-    register_button( _carbon_controls.GamePadButtonType.X,
+    register_button( carbon_controls.GamePadButtonType.X,
         on_button_x_pressed, on_button_x_released, on_button_x_held )
-    register_button( _carbon_controls.GamePadButtonType.Y,
+    register_button( carbon_controls.GamePadButtonType.Y,
         on_button_y_pressed, on_button_y_released, on_button_y_held )
-    register_button( _carbon_controls.GamePadButtonType.LeftShoulder,
+    register_button( carbon_controls.GamePadButtonType.LeftShoulder,
         on_left_shoulder_pressed, on_left_shoulder_released, on_left_shoulder_held )
-    register_button( _carbon_controls.GamePadButtonType.RightShoulder,
+    register_button( carbon_controls.GamePadButtonType.RightShoulder,
         on_right_shoulder_pressed, on_right_shoulder_released, on_right_shoulder_held )
-    register_button( _carbon_controls.GamePadButtonType.Menu, on_menu_pressed )
-    register_button( _carbon_controls.GamePadButtonType.View, on_view_pressed )
+    register_button( carbon_controls.GamePadButtonType.Menu, on_menu_pressed )
+    register_button( carbon_controls.GamePadButtonType.View, on_view_pressed )
 
     # ── DPad triggers ─────────────────────────────────────────────────
 
     def register_dpad( direction, callback ):
-        evt = _carbon_controls.GamePadDirectionPadInputEvent()
+        evt = carbon_controls.GamePadDirectionPadInputEvent()
         evt.button = direction
-        evt.event = _carbon_controls.ButtonState.Pressed
+        evt.event = carbon_controls.ButtonState.Pressed
         register_trigger( evt, callback )
 
-    register_dpad( _carbon_controls.DirectionPadButtonType.Up, on_dpad_up_pressed )
-    register_dpad( _carbon_controls.DirectionPadButtonType.Down, on_dpad_down_pressed )
-    register_dpad( _carbon_controls.DirectionPadButtonType.Left, on_dpad_left_pressed )
-    register_dpad( _carbon_controls.DirectionPadButtonType.Right, on_dpad_right_pressed )
+    register_dpad( carbon_controls.DirectionPadButtonType.Up, on_dpad_up_pressed )
+    register_dpad( carbon_controls.DirectionPadButtonType.Down, on_dpad_down_pressed )
+    register_dpad( carbon_controls.DirectionPadButtonType.Left, on_dpad_left_pressed )
+    register_dpad( carbon_controls.DirectionPadButtonType.Right, on_dpad_right_pressed )
 
     # ── Thumbstick moved triggers ─────────────────────────────────────
 
     def register_thumbstick_moved( side, callback ):
-        evt = _carbon_controls.GamePadThumbStickMovedInputEvent()
+        evt = carbon_controls.GamePadThumbStickMovedInputEvent()
         evt.side = side
         register_trigger( evt, callback )
 
-    # register_thumbstick_moved( _carbon_controls.Side.Left, on_left_thumbstick_moved )
-    # register_thumbstick_moved( _carbon_controls.Side.Right, on_right_thumbstick_moved )
+    register_thumbstick_moved( carbon_controls.Side.Left, on_left_thumbstick_moved )
+    register_thumbstick_moved( carbon_controls.Side.Right, on_right_thumbstick_moved )
 
     # ── Thumbstick pressed triggers ───────────────────────────────────
 
     def register_thumbstick_pressed( side, pressed_cb, released_cb=None ):
         for state, cb in [
-            (_carbon_controls.ButtonState.Pressed, pressed_cb),
-            (_carbon_controls.ButtonState.Released, released_cb),
+            (carbon_controls.ButtonState.Pressed, pressed_cb),
+            (carbon_controls.ButtonState.Released, released_cb),
         ]:
             if cb is not None:
-                evt = _carbon_controls.GamePadThumbStickPressedInputEvent()
+                evt = carbon_controls.GamePadThumbStickPressedInputEvent()
                 evt.side = side
                 evt.event = state
                 register_trigger( evt, cb )
 
-    register_thumbstick_pressed( _carbon_controls.Side.Left,
+    register_thumbstick_pressed( carbon_controls.Side.Left,
         on_left_thumbstick_pressed, on_left_thumbstick_released )
-    register_thumbstick_pressed( _carbon_controls.Side.Right,
+    register_thumbstick_pressed( carbon_controls.Side.Right,
         on_right_thumbstick_pressed, on_right_thumbstick_released )
 
     # ── Analog trigger (LT / RT) triggers ─────────────────────────────
 
     def register_analog_trigger( side, callback, min_threshold=0.5 ):
-        evt = _carbon_controls.GamePadTriggerInputEvent()
+        evt = carbon_controls.GamePadTriggerInputEvent()
         evt.side = side
         evt.minThreshold = min_threshold
         register_trigger( evt, callback )
 
-    register_analog_trigger( _carbon_controls.Side.Left, on_left_trigger )
-    register_analog_trigger( _carbon_controls.Side.Right, on_right_trigger )
+    register_analog_trigger( carbon_controls.Side.Left, on_left_trigger )
+    register_analog_trigger( carbon_controls.Side.Right, on_right_trigger )
 
 print(f"Registered {len(controller.activeDevice.triggers)} triggers. Polling...")
 

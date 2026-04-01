@@ -44,7 +44,7 @@ private:
 	void GetGamePadState( IGameInputReading* reading, IGameInputDevice* device, Events::GamePadState& state );
 	void GetFlightStickState( IGameInputReading* reading, IGameInputDevice* device, Events::FlightStickState& state );
 	void GetControllerState( IGameInputReading* reading, IGameInputDevice* device, Events::ControllerState& state );
-
+	void DebugAllReadings( IGameInputReading* reading );
 	// Reads the current hardware state for a single device into its slot
 	Events::State ReadDeviceState( IGameInputDevice* device );
 

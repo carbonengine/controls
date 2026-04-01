@@ -6,7 +6,7 @@ GamePadThumbStickMovedInputEvent::GamePadThumbStickMovedInputEvent( IRoot* locko
 
 bool GamePadThumbStickMovedInputEvent::Match( Events::State state )
 {
-	Events::ThumbStick thumbStickState;
+	Events::ThumbStick thumbStickState{};
 	switch( m_side )
 	{
 	case Events::Side::Left: 
@@ -18,5 +18,5 @@ bool GamePadThumbStickMovedInputEvent::Match( Events::State state )
 	default:
 		return false;
 	}
-	return thumbStickState.x != 0.0f || thumbStickState.y != 0.0f;
+	return thumbStickState.x != 0.5f || thumbStickState.y != 0.5f;
 }

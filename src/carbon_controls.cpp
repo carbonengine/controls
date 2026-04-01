@@ -5,14 +5,14 @@ const char* g_moduleName = "_carbon_controls";
 
 static void StartDLL()
 {
-	CCP_LOG( "_carbon_controls starting" );
+	CCP_LOG( "%s starting", CCP_STRINGIZE( CCP_CONCATENATE( _carbon_controls, CCP_BUILD_FLAVOR ) ) );
 	BeClasses->RegisterClasses( BlueRegistration::GetClassRegs() );
 }
 
 #if BLUE_WITH_PYTHON
 
 PyMODINIT_FUNC
-	PyInit__carbon_controls()
+	CCP_CONCATENATE( CCP_CONCATENATE( PyInit_, _carbon_controls ), CCP_BUILD_FLAVOR )()
 {
 	StartDLL();
 	static PyMethodDef dummyMethods[] = { 0 };
@@ -20,7 +20,7 @@ PyMODINIT_FUNC
 	// put myself into python as a module
 	static struct PyModuleDef carbonControlsDef = {
 		PyModuleDef_HEAD_INIT,
-		"_carbon_controls",
+		CCP_STRINGIZE( CCP_CONCATENATE( _carbon_controls, CCP_BUILD_FLAVOR ) ),
 		"",
 		-1,
 		dummyMethods

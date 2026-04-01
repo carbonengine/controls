@@ -6,7 +6,7 @@ GamePadThumbStickPressedInputEvent::GamePadThumbStickPressedInputEvent( IRoot* l
 
 bool GamePadThumbStickPressedInputEvent::Match( Events::State state )
 {
-	Events::ThumbStick thumbStickState;
+	Events::ThumbStick thumbStickState{};
 	switch( m_side )
 	{
 	case Events::Side::Left:

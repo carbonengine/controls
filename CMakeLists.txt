@@ -28,6 +28,15 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/events/battery/BatteryLowEvent_Blue.cpp
     src/events/battery/BatteryLowEvent.cpp
     src/events/battery/BatteryLowEvent.h
+    src/events/controller/ControllerAxisInputEvent_Blue.cpp
+    src/events/controller/ControllerAxisInputEvent.cpp
+    src/events/controller/ControllerAxisInputEvent.h
+    src/events/controller/ControllerButtonInputEvent_Blue.cpp
+    src/events/controller/ControllerButtonInputEvent.cpp
+    src/events/controller/ControllerButtonInputEvent.h
+    src/events/controller/ControllerSwitchInputEvent_Blue.cpp
+    src/events/controller/ControllerSwitchInputEvent.cpp
+    src/events/controller/ControllerSwitchInputEvent.h
     src/events/flightstick/FlightStickButtonInputEvent_Blue.cpp
     src/events/flightstick/FlightStickButtonInputEvent.cpp
     src/events/flightstick/FlightStickButtonInputEvent.h
@@ -86,6 +95,8 @@ if( WIN32 )
 else()
     target_link_libraries(_carbon_controls PRIVATE BlueExposure Python3::Python)
 endif()
+
+add_trinity_dev_debug_flags(_carbon_controls)
 
 # Provide an install target if this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
