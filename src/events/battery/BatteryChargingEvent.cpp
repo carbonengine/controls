@@ -10,7 +10,7 @@ bool BatteryChargingEvent::Match( Events::State state )
 	{
 		m_charging = state.batteryState.charging;
 
-		return (m_charging && m_event == ChargingState::StartedCharging) || (!m_charging && m_event == ChargingState::StoppedCharging);
+		return (m_charging && m_position == ChargingState::StartedCharging) || (!m_charging && m_position == ChargingState::StoppedCharging);
 	}
 	return false; // No change in charging state, so no match
 }

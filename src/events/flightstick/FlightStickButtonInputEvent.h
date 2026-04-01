@@ -18,7 +18,7 @@ public:
 
 private:
 	FlightStickButtonEventType m_button { FlightStickButtonEventType::PrimaryFire };
-	Events::ButtonState m_event{ Events::ButtonState::Pressed };
+	Events::ButtonState m_position{ Events::ButtonState::Pressed };
 };
 
 TYPEDEF_BLUECLASS( FlightStickButtonInputEvent );

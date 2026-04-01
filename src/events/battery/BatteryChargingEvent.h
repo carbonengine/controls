@@ -19,7 +19,7 @@ public:
 
 private:
 
-	BatteryChargingEvent::ChargingState m_event{ BatteryChargingEvent::ChargingState::StoppedCharging };
+	BatteryChargingEvent::ChargingState m_position{ BatteryChargingEvent::ChargingState::StoppedCharging };
 	bool m_charging{ false };
 };
 

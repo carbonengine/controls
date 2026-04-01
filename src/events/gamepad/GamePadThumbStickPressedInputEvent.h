@@ -11,7 +11,7 @@ public:
 	bool Match( Events::State state ) override;
 private:
 	Events::Side m_side{ Events::Side::Left };
-	Events::ButtonState m_event{ Events::ButtonState::Pressed };
+	Events::ButtonState m_position{ Events::ButtonState::Pressed };
 };
 
 TYPEDEF_BLUECLASS( GamePadThumbStickPressedInputEvent );

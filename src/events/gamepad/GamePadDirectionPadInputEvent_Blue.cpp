@@ -17,6 +17,8 @@ namespace
 	{ "Any", BeCast( GamePadDirectionPadInputEvent::DirectionPadButtonType::Any ), "Any button or combination of buttons on the dpad" },
 	{ 0 }
 };
+BLUE_REGISTER_ENUM_EX( "DirectionPadButtonType", GamePadDirectionPadInputEvent::DirectionPadButtonType, DirectionPadButtonTypeChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
+
 }
 
 const Be::ClassInfo* GamePadDirectionPadInputEvent::ExposeToBlue()
@@ -25,6 +27,6 @@ const Be::ClassInfo* GamePadDirectionPadInputEvent::ExposeToBlue()
 		MAP_INTERFACE( GamePadDirectionPadInputEvent )
 		MAP_INTERFACE( IInputEvent )
 		MAP_ATTRIBUTE_WITH_CHOOSER( "button", m_button, "The type of dpad event, if multiple then it is enough to press one of them (f.ex if all are registered then it is enough to press up)", Be::READWRITE | Be::ENUM, DirectionPadButtonTypeChooser )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The type of button event", Be::READWRITE | Be::ENUM, Events::ButtonStateChooser )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_position, "The type of button event", Be::READWRITE | Be::ENUM, Events::ButtonStateChooser )
 	EXPOSURE_END()
 }

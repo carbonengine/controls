@@ -25,6 +25,6 @@ const Be::ClassInfo* GamePadButtonInputEvent::ExposeToBlue()
 		MAP_INTERFACE( IInputEvent )
 
 		MAP_ATTRIBUTE_WITH_CHOOSER( "button", m_button, "The button to listen to", Be::READWRITE | Be::ENUM, GamePadButtonTypeChooser )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The event to listen to", Be::READWRITE |  Be::ENUM, Events::ButtonStateChooser )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_position, "The event to listen to", Be::READWRITE |  Be::ENUM, Events::ButtonStateChooser )
 	EXPOSURE_END()
 }

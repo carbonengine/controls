@@ -22,5 +22,5 @@ bool GamePadTriggerInputEvent::Match( Events::State state )
 		return false; // Invalid side, so no match
 	}
 
-	return trigger.amountPressed >= m_minThreshold && trigger.amountPressed <= m_maxThreshold;
+	return trigger.amountPressed > m_minThreshold && trigger.amountPressed <= m_maxThreshold;
 }

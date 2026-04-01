@@ -18,5 +18,5 @@ bool GamePadThumbStickPressedInputEvent::Match( Events::State state )
 	default:
 		return false;
 	}
-	return thumbStickState.button.state == m_event;
+	return thumbStickState.button.state == m_position;
 }

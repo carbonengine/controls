@@ -19,7 +19,7 @@ public:
 	bool Match( Events::State state ) override;
 
 private:
-	FlightStickEventType m_event{ FlightStickEventType::Any };
+	FlightStickEventType m_position{ FlightStickEventType::Any };
 };
 
 TYPEDEF_BLUECLASS( FlightStickMovementInputEvent );

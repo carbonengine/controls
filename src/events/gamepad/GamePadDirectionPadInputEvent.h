@@ -26,7 +26,7 @@ public:
 
 private:
 	DirectionPadButtonType m_button{ DirectionPadButtonType::Any };
-	Events::ButtonState m_event{ Events::ButtonState::Pressed };
+	Events::ButtonState m_position{ Events::ButtonState::Pressed };
 };
 
 TYPEDEF_BLUECLASS( GamePadDirectionPadInputEvent );

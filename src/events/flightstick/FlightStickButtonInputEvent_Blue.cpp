@@ -19,6 +19,6 @@ const Be::ClassInfo* FlightStickButtonInputEvent::ExposeToBlue()
 		MAP_INTERFACE( IInputEvent )
 
 		MAP_ATTRIBUTE_WITH_CHOOSER( "button", m_button, "The button pressed", Be::READWRITE | Be::ENUM, FlightStickButtonInputEventChooser )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The event", Be::READWRITE | Be::ENUM, Events::ButtonStateChooser )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_position, "The event", Be::READWRITE | Be::ENUM, Events::ButtonStateChooser )
 	EXPOSURE_END()
 }

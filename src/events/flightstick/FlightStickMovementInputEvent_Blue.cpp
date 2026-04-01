@@ -20,6 +20,6 @@ const Be::ClassInfo* FlightStickMovementInputEvent::ExposeToBlue()
 	EXPOSURE_BEGIN( FlightStickMovementInputEvent, "Flight stick movement input event" )
 		MAP_INTERFACE( FlightStickMovementInputEvent )
 		MAP_INTERFACE( IInputEvent )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "eventType", m_event, "The event type", Be::READWRITE | Be::ENUM, FlightStickEventTypeChooser )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "eventType", m_position, "The event type", Be::READWRITE | Be::ENUM, FlightStickEventTypeChooser )
 	EXPOSURE_END()
 }
