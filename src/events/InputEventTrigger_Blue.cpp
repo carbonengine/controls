@@ -16,12 +16,6 @@ const Be::VarChooser ButtonStateChooser[] = {
 };
 BLUE_REGISTER_ENUM_EX( "ButtonState", ButtonState, ButtonStateChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
 
-const Be::VarChooser SideChooser[] = {
-	{ "Left", BeCast( Side::Left ), "Indicates the left side of the controller" },
-	{ "Right", BeCast( Side::Right ), "Indicates the right side of the controller" },
-	{ 0 }
-};
-BLUE_REGISTER_ENUM_EX( "Side", Side, SideChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE);
 };
 
 const Be::ClassInfo* InputEventTrigger::ExposeToBlue()
