@@ -22,12 +22,6 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/events/InputEventTrigger_Blue.cpp
     src/events/InputEventTrigger.cpp
     src/events/InputEventTrigger.h
-    src/events/battery/BatteryChargingEvent_Blue.cpp
-    src/events/battery/BatteryChargingEvent.cpp
-    src/events/battery/BatteryChargingEvent.h
-    src/events/battery/BatteryLowEvent_Blue.cpp
-    src/events/battery/BatteryLowEvent.cpp
-    src/events/battery/BatteryLowEvent.h
     src/events/controller/ControllerAxisInputEvent_Blue.cpp
     src/events/controller/ControllerAxisInputEvent.cpp
     src/events/controller/ControllerAxisInputEvent.h
@@ -37,27 +31,6 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/events/controller/ControllerSwitchInputEvent_Blue.cpp
     src/events/controller/ControllerSwitchInputEvent.cpp
     src/events/controller/ControllerSwitchInputEvent.h
-    src/events/flightstick/FlightStickButtonInputEvent_Blue.cpp
-    src/events/flightstick/FlightStickButtonInputEvent.cpp
-    src/events/flightstick/FlightStickButtonInputEvent.h
-    src/events/flightstick/FlightStickMovementInputEvent_Blue.cpp
-    src/events/flightstick/FlightStickMovementInputEvent.cpp
-    src/events/flightstick/FlightStickMovementInputEvent.h
-    src/events/gamepad/GamePadButtonInputEvent_Blue.cpp
-    src/events/gamepad/GamePadButtonInputEvent.cpp
-    src/events/gamepad/GamePadButtonInputEvent.h
-    src/events/gamepad/GamePadDirectionPadInputEvent_Blue.cpp
-    src/events/gamepad/GamePadDirectionPadInputEvent.cpp
-    src/events/gamepad/GamePadDirectionPadInputEvent.h
-    src/events/gamepad/GamePadThumbStickMovedInputEvent_Blue.cpp
-    src/events/gamepad/GamePadThumbStickMovedInputEvent.cpp
-    src/events/gamepad/GamePadThumbStickMovedInputEvent.h
-    src/events/gamepad/GamePadThumbStickPressedInputEvent_Blue.cpp
-    src/events/gamepad/GamePadThumbStickPressedInputEvent.cpp
-    src/events/gamepad/GamePadThumbStickPressedInputEvent.h
-    src/events/gamepad/GamePadTriggerInputEvent_Blue.cpp
-    src/events/gamepad/GamePadTriggerInputEvent.cpp
-    src/events/gamepad/GamePadTriggerInputEvent.h
     src/handlers/IInputHandler.h
     src/handlers/InputHandlerWin.cpp
     src/handlers/InputHandlerWin.h
