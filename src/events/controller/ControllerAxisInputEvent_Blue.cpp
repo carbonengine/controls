@@ -9,5 +9,7 @@ const Be::ClassInfo* ControllerAxisInputEvent::ExposeToBlue()
 		MAP_INTERFACE( IInputEvent )
 
 		MAP_ATTRIBUTE( "axisIndex", m_axisIndex, "The axis to listen to", Be::READWRITE )
+		MAP_ATTRIBUTE( "value", m_value, "The value of the axis", Be::READ )
+		MAP_ATTRIBUTE( "delta", m_delta, "The change in value since the last update", Be::READ )
 	EXPOSURE_END()
 }

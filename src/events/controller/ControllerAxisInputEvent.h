@@ -13,6 +13,8 @@ public:
 
 private:
 	uint32_t m_axisIndex = 0;
+	float m_value = 0.0f;
+	float m_delta = 0.0f;
 };
 
 TYPEDEF_BLUECLASS( ControllerAxisInputEvent );
