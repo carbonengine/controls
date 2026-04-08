@@ -88,28 +88,24 @@ Events::State Merge( const Events::State& current, const Events::State& update )
 
 float InputDevice::g_holdTimeInMs = 300.0f; // The time in milliseconds after which a button state changes from Pressed to Held
 
-InputDeviceIdentifier::InputDeviceIdentifier( IRoot* lockobj )
-{
-}
-
-void InputDeviceIdentifier::SetData( const DeviceEnums::DeviceIdentifier& identifier )
-{
-	this->identifier = identifier;
-}
-
-uint32_t InputDeviceIdentifier::GetDeviceID() const
-{
-	return identifier.deviceID;
-}
-
 InputDevice::InputDevice( IRoot* lockobj ) :
 	PARENTLOCK( m_triggers )
 {
 }
 
-void InputDevice::SetIdentifier( InputDeviceIdentifierPtr identifier )
+void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
 	m_deviceIdentifier = identifier;
+}
+
+uint32_t InputDevice::GetDeviceID() const
+{
+	return m_deviceIdentifier.deviceID;
+}
+
+BlueSharedStringW InputDevice::GetName() const
+{
+	return m_deviceIdentifier.name;
 }
 
 void InputDevice::ProcessTriggers( Events::State state )

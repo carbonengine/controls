@@ -17,12 +17,11 @@ public:
 	ControlManager( IRoot* lockobj = nullptr );
 	~ControlManager( );
 
-	// connects to an input device
-	// returns true if the connection was successful, false if it failed (e.g. invalid device ID)
-	void Connect( DeviceEnums::DeviceId deviceID );
+	// activates an input device
+	void Activate( DeviceEnums::DeviceId deviceID );
 
-	// disconnects the active device, if any
-	void Disconnect();
+	// deactivates an input device
+	void Deactivate( DeviceEnums::DeviceId deviceID );
 
 	// Updates the state of the active device. Should be called once per frame.
 	void Update();
@@ -30,11 +29,10 @@ public:
 private:
 	void SetHoldTimeInMs( float holdTime );
 	float GetHoldTimeInMs();
-	void UpdateDeviceList( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers );
 
-	PInputDeviceIdentifierVector m_deviceIdentifiers;
+	PInputDeviceVector m_devices;
 	IInputHandler* m_inputHandler;
-	InputDevicePtr m_activeDevice;
+	PInputDeviceVector m_activeDevices;
 	DeviceEnums::DeviceId m_activeDeviceID = 0;
 	BlueScriptCallback m_activeDeviceLostCallback;
 	BlueScriptCallback m_deviceConnectedCallback;

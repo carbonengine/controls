@@ -3,22 +3,9 @@
 #include "DeviceEnums.h"
 #include "events/InputEventTrigger.h"
 #include <string>
+#include "handlers/IInputHandler.h"
 
 BLUE_DECLARE_VECTOR( InputEventTrigger );
-
-BLUE_CLASS( InputDeviceIdentifier ) : public IRoot
-{
-public:
-	EXPOSE_TO_BLUE();
-	InputDeviceIdentifier( IRoot* lockobj = nullptr );
-	void SetData( const DeviceEnums::DeviceIdentifier& identifier );
-	uint32_t GetDeviceID() const;
-
-private:
-	DeviceEnums::DeviceIdentifier identifier;
-};
-
-TYPEDEF_BLUECLASS( InputDeviceIdentifier );
 
 BLUE_CLASS( InputDevice ) : public IRoot
 {
@@ -26,14 +13,16 @@ public:
 	EXPOSE_TO_BLUE();
 	InputDevice( IRoot* lockobj = nullptr );
 
-	void SetIdentifier( InputDeviceIdentifierPtr identifier );
-	void ProcessTriggers( Events::State state );
+	void SetIdentifier( DeviceEnums::DeviceIdentifier identifier );
+	void Update( IInputHandler* inputHandler );
 	BlueSharedString GetStateAsJson( ) const;
+	uint32_t GetDeviceID() const;
+	BlueSharedStringW GetName() const;
 
 	static float g_holdTimeInMs; // The time in milliseconds after which a button state changes from Pressed to Held
 
 private:
-	InputDeviceIdentifierPtr m_deviceIdentifier;
+	DeviceEnums::DeviceIdentifier m_deviceIdentifier {};
 	PInputEventTriggerVector m_triggers;
 	Events::State m_currentState;
 };
