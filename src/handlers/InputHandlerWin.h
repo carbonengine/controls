@@ -1,21 +1,13 @@
 #pragma once
 
 #include "IInputHandler.h"
-#include <GameInput.h>
-#ifndef GAMEINPUT_API_VERSION
-#define GAMEINPUT_API_VERSION 0
-#endif
+#include <gameinput.h>
 
-#if GAMEINPUT_API_VERSION == 1
-using namespace GameInput::v1;
-#elif GAMEINPUT_API_VERSION == 2
-using namespace GameInput::v2;
-#elif GAMEINPUT_API_VERSION == 3
-using namespace GameInput::v3;
-#endif
 #include <array>
 #include <mutex>
 #include "../events/IInputEvent.h"
+
+using namespace GameInput::v3;
 
 class InputHandlerWin : public IInputHandler
 {

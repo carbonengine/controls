@@ -3,7 +3,10 @@
 
 #include <algorithm>
 #include <Windows.h>
+#include <gameinput.h>
 #include "../ControlManager.h"
+
+using namespace GameInput::v3;
 
 namespace RegistryValues
 {
@@ -121,7 +124,7 @@ void InputHandlerWin::ShutdownGameInput()
 	// Unregister the device callback before releasing devices
 	if( m_gameInput && m_deviceCallbackToken != 0 )
 	{
-		m_gameInput->UnregisterCallback( m_deviceCallbackToken, 500 );
+		m_gameInput->UnregisterCallback( m_deviceCallbackToken );
 		m_deviceCallbackToken = 0;
 	}
 
@@ -151,10 +154,10 @@ void InputHandlerWin::ShutdownGameInput()
 // Device callback  (may be called from any thread)
 // ---------------------------------------------------------------------------
 void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
-	_In_ GameInputCallbackToken /*callbackToken*/,
+	_In_ GameInputCallbackToken,
 	_In_ void* context,
 	_In_ IGameInputDevice* device,
-	_In_ uint64_t /*timestamp*/,
+	_In_ uint64_t,
 	_In_ GameInputDeviceStatus currentStatus,
 	_In_ GameInputDeviceStatus previousStatus ) noexcept
 {
@@ -206,7 +209,6 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 	{
 		return {};
 	}
-
 	std::lock_guard<std::mutex> lock( m_deviceMutex );
 
 	for( auto& slot : m_deviceSlots )
@@ -241,7 +243,9 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	{
 		return identifier;
 	}
-	auto info = device->GetDeviceInfo( );
+
+	const GameInputDeviceInfo* info = nullptr;
+	device->GetDeviceInfo( &info );
 
 	// Build a stable device ID by hashing the APP_LOCAL_DEVICE_ID bytes
 	uint32_t hash = 2166136261u; // FNV-1a offset basis
@@ -252,23 +256,7 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	}
 	identifier.deviceID = hash;
 
-	if( info->displayName )
-	{
-		identifier.name = BlueSharedStringW( static_cast<const wchar_t*>(CA2W( info->displayName->data ) ) );
-	}
-	else if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyXboxOne || info->deviceFamily == GameInputDeviceFamily::GameInputFamilyXbox360 )
-	{
-		// For Xbox controllers, we can use a friendly name based on the device family
-		if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyXboxOne )
-		{
-			identifier.name = BlueSharedStringW( L"Xbox One Controller" );
-		}
-		else 
-		{
-			identifier.name = BlueSharedStringW( L"Xbox 360 Controller" );
-		}
-	}
-	else
+	if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyHid )
 	{
 		char vid[16];
 		snprintf( vid, sizeof( vid ), "%04X", info->vendorId );
@@ -287,13 +275,11 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 		{
 			identifier.name = BlueSharedStringW( registryName.c_str() );
 		}
-		else
-		{
-			// Last resort: identify by vendor/product ID
-			char fallback[64];
-			snprintf( fallback, sizeof( fallback ), "HID Device [VID: %04X - PID: %04X]", info->vendorId, info->productId );
-			identifier.name = BlueSharedStringW( static_cast<const wchar_t*>(CA2W( fallback ) ) );
-		}
+	}
+
+	if( identifier.name.empty() && info->displayName )
+	{
+		identifier.name = BlueSharedStringW( static_cast<const wchar_t*>( CA2W( info->displayName ) ) );
 	}
 
 	if( info->supportedInput & GameInputKindGamepad )
@@ -305,12 +291,10 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 		identifier.deviceType = DeviceEnums::DeviceType_Controller;
 	}
 
-	identifier.axisCount = info->controllerAxisCount;
-	identifier.buttonCount = info->controllerButtonCount;
-	identifier.switchCount = info->controllerSwitchCount;
-
-	identifier.rumbleSupported = info->hapticFeedbackMotorInfo != nullptr && info->hapticFeedbackMotorInfo->mappedRumbleMotors != GameInputRumbleNone;
-
+	identifier.rumbleSupported = info->forceFeedbackMotorCount != 0;
+	identifier.axisCount = info->controllerInfo->controllerAxisCount;
+	identifier.buttonCount = info->controllerInfo->controllerButtonCount;
+	identifier.switchCount = info->controllerInfo->controllerSwitchCount;
 	return identifier;
 }
 
@@ -342,7 +326,10 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 
 	Events::State state = {};
 
-	auto info = device->GetDeviceInfo();
+	const GameInputDeviceInfo* info = nullptr;
+	device->GetDeviceInfo( &info );
+	m_gameInput->SetFocusPolicy( GameInputFocusPolicy::GameInputEnableBackgroundInput );
+
 	// Only request input kinds that this specific device supports
 	GameInputKind readingFilter = static_cast<GameInputKind>( info->supportedInput );
 	if( readingFilter == GameInputKindUnknown )
