@@ -108,8 +108,9 @@ BlueSharedStringW InputDevice::GetName() const
 	return m_deviceIdentifier.name;
 }
 
-void InputDevice::ProcessTriggers( Events::State state )
+void InputDevice::Update( IInputHandler* inputHandler )
 {
+	auto state = inputHandler->Update( m_deviceIdentifier.deviceID );
 	// merge the state with the current state
 	m_currentState = Merge( m_currentState, state );
 

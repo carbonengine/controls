@@ -18,17 +18,16 @@ public:
 	~ControlManager( );
 
 	// activates an input device
-	void Activate( DeviceEnums::DeviceId deviceID );
+	InputDevicePtr Activate( DeviceEnums::DeviceId deviceID );
+	void Update();
 
 	// deactivates an input device
 	void Deactivate( DeviceEnums::DeviceId deviceID );
 
-	// Updates the state of the active device. Should be called once per frame.
-	void Update();
-
 private:
 	void SetHoldTimeInMs( float holdTime );
 	float GetHoldTimeInMs();
+	void OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers );
 
 	PInputDeviceVector m_devices;
 	IInputHandler* m_inputHandler;

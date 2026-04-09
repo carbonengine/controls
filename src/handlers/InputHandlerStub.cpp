@@ -5,11 +5,11 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerStub::GetAllDeviceIdentif
 	return {};
 }
 
-Events::State InputHandlerStub::Update( DeviceEnums::DeviceId deviceID )
-{
-	return {};
-}
-
 void InputHandlerStub::RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback )
 {
+}
+
+Events::State InputHandlerStub::Update( DeviceEnums::DeviceId deviceId )
+{
+	return {};
 }

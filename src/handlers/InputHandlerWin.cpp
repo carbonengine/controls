@@ -60,6 +60,21 @@ std::wstring GetStringValueFromHKLM( const std::wstring& regSubKey, const std::w
 }
 }
 
+namespace
+{
+DeviceEnums::DeviceId GetDeviceID( const BYTE* bytes, uint32_t size )
+{
+	// Build a stable device ID by hashing the APP_LOCAL_DEVICE_ID bytes
+	uint32_t hash = 2166136261u; // FNV-1a offset basis
+	for( size_t i = 0; i < size; ++i )
+	{
+		hash ^= static_cast<uint32_t>( bytes[i] );
+		hash *= 16777619u; // FNV-1a prime
+	}
+	return hash;
+}
+}
+
 // ---------------------------------------------------------------------------
 // Construction / Destruction
 // ---------------------------------------------------------------------------
@@ -110,7 +125,7 @@ bool InputHandlerWin::InitializeGameInput()
 	}
 
 	m_initialized = true;
-	CCP_LOG( "InputHandlerWin: Initialized successfully" );
+	CCP_LOGNOTICE( "InputHandlerWin: Initialized successfully" );
 	return true;
 }
 
@@ -147,7 +162,7 @@ void InputHandlerWin::ShutdownGameInput()
 	}
 
 	m_initialized = false;
-	CCP_LOG( "InputHandlerWin: Shut down" );
+	CCP_LOGNOTICE( "InputHandlerWin: Shut down" );
 }
 
 // ---------------------------------------------------------------------------
@@ -177,15 +192,23 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 	{
 		device->AddRef();
 		auto identifier = self->GetIdentifier( device );
-		DeviceSlot slot = {
-			device,
-			nullptr,
-			false,
-			identifier
-		};
+		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [identifier]( const DeviceSlot& slot ) { return slot.identifier.deviceID == identifier.deviceID; } );
+		if( it != self->m_deviceSlots.end() )
+		{
+			// This can happen if a device disconnects and reconnects quickly, before the disconnect has been processed. Reuse the existing slot in this case.
+			it->device = device;
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' reconnected", identifier.name.c_str() );
+		}
+		else
+		{
+			DeviceSlot slot = {
+				device,
+				identifier
+			};
 
-		self->m_deviceSlots.push_back( slot );
-		CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' connected", identifier.name.c_str() );
+			self->m_deviceSlots.push_back( slot );
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' connected", identifier.name.c_str() );
+		}
 	}
 	else if( !isConnected && wasConnected )
 	{
@@ -193,7 +216,8 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [device]( const DeviceSlot& slot ) { return slot.device == device; } );
 		if( it != self->m_deviceSlots.end() )
 		{
-			it->needDelete = true;
+			it->device->Release();
+			it->device = nullptr;
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' disconnected", it->identifier.name.c_str() );
 		}
 	}
@@ -213,22 +237,9 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 
 	for( auto& slot : m_deviceSlots )
 	{
-		// Remove devices flagged for deletion by the callback
-		if( slot.needDelete )
+		if( slot.device && slot.identifier.deviceID == deviceID )
 		{
-			if( slot.device )
-			{
-				slot.device->Release();
-				slot.device = nullptr;
-			}
-			slot.needDelete = false;
-		}
-		else
-		{
-			if( slot.identifier.deviceID == deviceID )
-			{
-				return ReadDeviceState( slot.device );
-			}
+			return ReadDeviceState( slot.device );
 		}
 	}
 
@@ -247,14 +258,7 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	const GameInputDeviceInfo* info = nullptr;
 	device->GetDeviceInfo( &info );
 
-	// Build a stable device ID by hashing the APP_LOCAL_DEVICE_ID bytes
-	uint32_t hash = 2166136261u; // FNV-1a offset basis
-	for( size_t i = 0; i < sizeof( info->deviceId.value ); ++i )
-	{
-		hash ^= static_cast<uint32_t>( info->deviceId.value[i] );
-		hash *= 16777619u; // FNV-1a prime
-	}
-	identifier.deviceID = hash;
+	identifier.deviceID = GetDeviceID( info->deviceId.value, sizeof( info->deviceId.value ) );
 
 	if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyHid )
 	{
@@ -304,7 +308,7 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerWin::GetAllDeviceIdentifi
 	devices.reserve( m_deviceSlots.size() );
 	for( const auto& slot : m_deviceSlots )
 	{
-		if( slot.device && !slot.needDelete )
+		if( slot.device )
 		{
 			devices.push_back( slot.identifier );
 		}
@@ -325,6 +329,11 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 	IGameInputReading* reading = nullptr;
 
 	Events::State state = {};
+
+	if( !device )
+	{
+		return state;
+	}
 
 	const GameInputDeviceInfo* info = nullptr;
 	device->GetDeviceInfo( &info );

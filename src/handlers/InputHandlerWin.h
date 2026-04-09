@@ -14,17 +14,15 @@ class InputHandlerWin : public IInputHandler
 public:
 	InputHandlerWin();
 	~InputHandlerWin();
-	Events::State Update( DeviceEnums::DeviceId deviceID ) override;
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
 	void RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback ) override;
+	Events::State Update( DeviceEnums::DeviceId deviceId ) override;
 
 private:
 	// Per-device bookkeeping
 	struct DeviceSlot
 	{
 		IGameInputDevice* device = nullptr;
-		GameInputDeviceInfo const* info = nullptr;
-		bool needDelete = false;
 		DeviceEnums::DeviceIdentifier identifier{};
 	};
 

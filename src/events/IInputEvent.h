@@ -3,7 +3,8 @@
 
 namespace Events
 {
-  
+const float AXIS_THRESHOLD = 0.005f;
+
 enum class ButtonState
 {
 	Up, 

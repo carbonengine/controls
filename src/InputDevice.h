@@ -15,10 +15,10 @@ public:
 
 	void SetIdentifier( DeviceEnums::DeviceIdentifier identifier );
 	void Update( IInputHandler* inputHandler );
-	BlueSharedString GetStateAsJson( ) const;
+	BlueSharedString GetStateAsJson() const;
 	uint32_t GetDeviceID() const;
 	BlueSharedStringW GetName() const;
-
+	
 	static float g_holdTimeInMs; // The time in milliseconds after which a button state changes from Pressed to Held
 
 private:
