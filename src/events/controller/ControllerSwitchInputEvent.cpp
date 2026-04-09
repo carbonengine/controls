@@ -8,7 +8,8 @@ bool ControllerSwitchInputEvent::Match( Events::State state )
 {
 	if( m_switchIndex < state.switches.size() )
 	{
-		return state.switches[m_switchIndex] == m_position;
+		m_state = state.switches[m_switchIndex];
+		return m_state == m_event || m_event == Events::SwitchPosition::Any;
 	}
 
 	return false;

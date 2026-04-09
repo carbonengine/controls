@@ -31,7 +31,8 @@ enum class SwitchPosition :uint32_t
 	Down,
 	DownLeft,
 	Left,
-	UpLeft
+	UpLeft,
+	Any
 };
 
 struct State

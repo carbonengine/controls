@@ -14,7 +14,8 @@ public:
 
 private:
 	uint32_t m_switchIndex{ 0 };
-	Events::SwitchPosition m_position{ Events::SwitchPosition::Center };
+	Events::SwitchPosition m_event{ Events::SwitchPosition::Any };
+	Events::SwitchPosition m_state{ Events::SwitchPosition::Center };
 };
 
 TYPEDEF_BLUECLASS( ControllerSwitchInputEvent );
