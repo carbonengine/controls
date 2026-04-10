@@ -69,8 +69,6 @@ else()
     target_link_libraries(_carbon_controls PRIVATE BlueExposure Python3::Python)
 endif()
 
-add_trinity_dev_debug_flags(_carbon_controls)
-
 # Provide an install target if this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Determine if/when to generate/build documentation. The rules are as follows:
