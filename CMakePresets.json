@@ -43,8 +43,7 @@
       "name": "x64-windows",
       "inherits": "windows",
       "cacheVariables": {
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/x64-windows-carbon.cmake",
-        "CMAKE_GENERATOR_TOOLSET": "v143"
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/x64-windows-carbon.cmake"
       },
       "hidden": true
     },
