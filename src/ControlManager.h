@@ -28,13 +28,15 @@ private:
 	void SetHoldTimeInMs( float holdTime );
 	float GetHoldTimeInMs();
 	void OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers );
+	void ProcessChangedDevices();
 
 	PInputDeviceVector m_devices;
 	IInputHandler* m_inputHandler;
 	PInputDeviceVector m_activeDevices;
 	DeviceEnums::DeviceId m_activeDeviceID = 0;
 	BlueScriptCallback m_activeDeviceLostCallback;
-	BlueScriptCallback m_deviceConnectedCallback;
+	BlueScriptCallback m_devicesChangedCallback;
+	std::vector<DeviceEnums::DeviceIdentifier> m_changedDevices;
 };
 
 TYPEDEF_BLUECLASS( ControlManager );

@@ -14,6 +14,6 @@ const Be::ClassInfo* ControlManager::ExposeToBlue()
 		MAP_ATTRIBUTE( "activeDevices", m_activeDevices, "The active devices", Be::READ )
 		MAP_ATTRIBUTE( "devices", m_devices, "The device identifiers", Be::READ )
 		MAP_ATTRIBUTE( "activeDeviceLostCallback", m_activeDeviceLostCallback, "The callback that will be executed when the active device is lost. The callback needs to accept a deviceid as a parameter", Be::READWRITE )
-		MAP_ATTRIBUTE( "deviceConnectedCallback", m_deviceConnectedCallback, "The callback that will be executed when a device is connected", Be::READWRITE )
+		MAP_ATTRIBUTE( "deviceChangedCallback", m_devicesChangedCallback, "The callback that will be executed when a device list changes", Be::READWRITE )
 	EXPOSURE_END()
 }

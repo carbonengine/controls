@@ -38,8 +38,7 @@ float ControlManager::GetHoldTimeInMs()
 
 void ControlManager::OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers )
 {
-	// remove all the active devices that are no longer connected
-	std::vector<InputDevicePtr> removedDevices;
+	// Check if an active device was removed
 	for( auto& activeDevice : m_activeDevices )
 	{
 		auto foundDevice = std::find_if( deviceIdentifiers.begin(), deviceIdentifiers.end(), [activeDevice]( const DeviceEnums::DeviceIdentifier& identifier ) {
@@ -47,7 +46,6 @@ void ControlManager::OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier>
 		} );
 		if( foundDevice == deviceIdentifiers.end() )
 		{
-			removedDevices.push_back( activeDevice );
 			CCP_LOGNOTICE( "Active device %ls (ID: %u) was disconnected", activeDevice->GetName().c_str(), activeDevice->GetDeviceID() );
 			if( m_activeDeviceLostCallback )
 			{
@@ -56,49 +54,7 @@ void ControlManager::OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier>
 		}
 	}
 
-	for( auto& removedDevice : removedDevices )
-	{
-		m_activeDevices.Remove( m_activeDevices.FindKey( removedDevice ) );
-	}
-
-	// update the list of all devices
-	// removed devices
-	removedDevices.clear();
-
-	for( auto& device : m_devices )
-	{
-		auto foundDevice = std::find_if( deviceIdentifiers.begin(), deviceIdentifiers.end(), [device]( const DeviceEnums::DeviceIdentifier& identifier ) {
-			return identifier.deviceID == device->GetDeviceID();
-		} );
-		if( foundDevice == deviceIdentifiers.end() )
-		{
-			removedDevices.push_back( device );
-		}
-	}
-
-	for( auto& removedDevice : removedDevices )
-	{
-		m_devices.Remove( m_devices.FindKey( removedDevice ) );
-	}
-
-	// new devices
-	for( auto& deviceIdentifier : deviceIdentifiers )
-	{
-		auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceIdentifier]( InputDevicePtr identifier ) {
-			return identifier->GetDeviceID() == deviceIdentifier.deviceID;
-		} );
-		if( foundDevice == m_devices.end() )
-		{
-			InputDevicePtr newDevice;
-			newDevice.CreateInstance();
-			newDevice->SetIdentifier( deviceIdentifier );
-			m_devices.Append( newDevice );
-			if( m_deviceConnectedCallback )
-			{
-				m_deviceConnectedCallback.CallVoid();
-			}
-		}
-	}
+	m_changedDevices = deviceIdentifiers;
 }
 
 InputDevicePtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
@@ -147,8 +103,64 @@ void ControlManager::Deactivate( DeviceEnums::DeviceId deviceID )
 
 void ControlManager::Update()
 {
+	if( !m_changedDevices.empty() )
+	{
+		ProcessChangedDevices();
+	}
+
 	for( auto& activeDevice : m_activeDevices )
 	{
 		activeDevice->Update( m_inputHandler );
 	}
+}
+
+void ControlManager::ProcessChangedDevices()
+{
+	std::vector<InputDevicePtr> removedDevices;
+	for( auto& device : m_devices )
+	{
+		auto foundDevice = std::find_if( m_changedDevices.begin(), m_changedDevices.end(), [device]( const DeviceEnums::DeviceIdentifier& identifier ) {
+			return identifier.deviceID == device->GetDeviceID();
+		} );
+		if( foundDevice == m_changedDevices.end() )
+		{
+			removedDevices.push_back( device );
+		}
+	}
+
+	for( auto& removedDevice : removedDevices )
+	{
+		auto indexInDevices = m_devices.FindKey( removedDevice );
+		if( indexInDevices != -1 )
+		{
+			m_devices.Remove( m_devices.FindKey( removedDevice ) );
+		}
+		auto indexInActiveDevices = m_activeDevices.FindKey( removedDevice );
+		if( indexInActiveDevices != -1 )
+		{
+			m_activeDevices.Remove( m_devices.FindKey( removedDevice ) );
+		}
+	}
+
+	// new devices
+	for( auto& deviceIdentifier : m_changedDevices )
+	{
+		auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceIdentifier]( InputDevicePtr identifier ) {
+			return identifier->GetDeviceID() == deviceIdentifier.deviceID;
+		} );
+		if( foundDevice == m_devices.end() )
+		{
+			InputDevicePtr newDevice;
+			newDevice.CreateInstance();
+			newDevice->SetIdentifier( deviceIdentifier );
+			m_devices.Append( newDevice );
+		}
+	}
+
+	if( m_devicesChangedCallback )
+	{
+		m_devicesChangedCallback.CallVoid();
+	}
+	
+	m_changedDevices.clear();
 }
