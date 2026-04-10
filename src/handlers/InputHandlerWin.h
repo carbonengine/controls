@@ -1,5 +1,5 @@
 #pragma once
-
+#ifdef WIN32
 #include "IInputHandler.h"
 #include <gameinput.h>
 
@@ -57,3 +57,4 @@ private:
 	GameInputKindGamepad |
 	GameInputKindController );
 };
+#endif

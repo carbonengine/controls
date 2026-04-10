@@ -1,4 +1,5 @@
 #include "../StdAfx.h"
+#ifdef WIN32
 #include "InputHandlerWin.h"
 
 #include <algorithm>
@@ -394,3 +395,4 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 
 	return state;
 }
+#endif // WIN32
