@@ -1,7 +1,7 @@
 project_name Documentation
 ==========================
 
-*project_name* is generated from `carbon-template`.
+*project_name* is generated from `carbon-controls`.
 
 ..
     Top-level table of contents

@@ -10,7 +10,7 @@ To apply the patch, change the root project
 accordingly, and delete the patch script.
 */
 changeProject(DslContext.projectId) {
-    check(description == "Build / Publish pipeline for https://github.com/ccpgames/carbon-template") {
+    check(description == "Build / Publish pipeline for https://github.com/ccpgames/carbon-controls") {
         "Unexpected description: '$description'"
     }
     description = "Carbon_CarbonControls"
