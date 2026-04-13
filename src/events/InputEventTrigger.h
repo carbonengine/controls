@@ -10,6 +10,7 @@ public:
 	EXPOSE_TO_BLUE();
 	InputEventTrigger( IRoot* lockobj = nullptr );
 	void Process( Events::State state );
+	size_t GetEventCount() const;
 
 private:
 	BlueScriptCallback m_callback;

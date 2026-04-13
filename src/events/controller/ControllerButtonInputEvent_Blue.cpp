@@ -9,6 +9,6 @@ const Be::ClassInfo* ControllerButtonInputEvent::ExposeToBlue()
 		MAP_INTERFACE( IInputEvent )
 
 		MAP_ATTRIBUTE( "buttonIndex", m_buttonIndex, "The button to listen to", Be::READWRITE )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_position, "The event to listen to", Be::READWRITE |  Be::ENUM, Events::ButtonStateChooser )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The event to listen to", Be::READWRITE |  Be::ENUM, Events::ButtonStateChooser )
 	EXPOSURE_END()
 }

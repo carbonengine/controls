@@ -10,11 +10,12 @@ public:
 
 	EXPOSE_TO_BLUE();
 	ControllerButtonInputEvent( IRoot* lockobj = nullptr );
-	bool Match( Events::State state ) override;
+	bool Match( const Events::State& state ) override;
+	void Own( Events::State& state ) override;
 
 private:
 	uint32_t m_buttonIndex = 0;
-	Events::ButtonState m_position{ Events::ButtonState::Pressed };
+	Events::ButtonState m_event{ Events::ButtonState::Pressed };
 };
 
 TYPEDEF_BLUECLASS( ControllerButtonInputEvent );

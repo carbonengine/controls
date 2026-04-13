@@ -9,7 +9,8 @@ BLUE_CLASS( ControllerAxisInputEvent ) :
 public:
 	EXPOSE_TO_BLUE();
 	ControllerAxisInputEvent( IRoot* lockobj = nullptr );
-	bool Match( Events::State state ) override;
+	bool Match( const Events::State& state ) override;
+	void Own( Events::State& state ) override;
 
 private:
 	bool m_initialized = false;

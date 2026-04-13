@@ -14,15 +14,7 @@ enum class ButtonState
 	Pressed
 };
 
-struct Button
-{
-	uint32_t buttonId; 
-	bool _pressed; // device internal button state
-	ButtonState state; // the interpreted button state
-	std::chrono::steady_clock::time_point m_stateChangeTime; // The time at which the button state last changed
-};
-
-enum class SwitchPosition :uint32_t
+enum class SwitchPosition : uint32_t
 {
 	Center,
 	Up,
@@ -36,11 +28,31 @@ enum class SwitchPosition :uint32_t
 	Any
 };
 
+struct Button
+{
+	bool matched = false;
+	bool _pressed = false; // device internal button state
+	ButtonState state = ButtonState::Up; // the interpreted button state
+	std::chrono::steady_clock::time_point m_stateChangeTime; // The time at which the button state last changed
+};
+
+struct Axis
+{
+	bool matched = false;
+	float value = 0.0f;
+};
+
+struct Switch
+{
+	bool matched = false;
+	SwitchPosition position = SwitchPosition::Center;
+};
+
 struct State
 {
 	std::vector<Button> buttons;
-	std::vector<float> axis;
-	std::vector<SwitchPosition> switches;
+	std::vector<Axis> axis;
+	std::vector<Switch> switches;
 };
 
 extern const Be::VarChooser ButtonStateChooser[];
@@ -51,7 +63,9 @@ BLUE_INTERFACE( IInputEvent ) :
 	public IRoot
 {
 public:
-	virtual bool Match( Events::State state ) = 0;
+	virtual bool Match( const Events::State& state ) = 0;
+	// Marks the parts of the state that matched this event as "owned" by this trigger, so that they won't be considered for identical events 
+	virtual void Own( Events::State & state ) = 0; 
 };
 BLUE_DECLARE_INTERFACE( IInputEvent );
 BLUE_DECLARE_IVECTOR( IInputEvent );

@@ -21,6 +21,16 @@ void InputEventTrigger::Process( Events::State state )
 
 	if( m_callback && matches )
 	{
+		// tag the state with the events that matched so that they won't be considered for identical events
+		for( auto& event : m_events )
+		{
+			event->Own( state );
+		}
 		m_callback.CallVoid( m_events.GetRawRoot() );
 	}
+}
+
+size_t InputEventTrigger::GetEventCount() const
+{
+	return m_events.size();
 }

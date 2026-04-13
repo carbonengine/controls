@@ -18,6 +18,7 @@ const Be::ClassInfo* InputDevice::ExposeToBlue()
 {
 	EXPOSURE_BEGIN( InputDevice, "Input Device" )
 		MAP_INTERFACE( InputDevice )
+		MAP_INTERFACE( IListNotify )
 		MAP_ATTRIBUTE( "name", m_deviceIdentifier.name, "The name of the device", Be::READ )
 		MAP_ATTRIBUTE( "deviceID", m_deviceIdentifier.deviceID, "The ID of the device", Be::READ )
 		MAP_ATTRIBUTE_WITH_CHOOSER( "deviceType", m_deviceIdentifier.deviceType, "The type of the device", Be::READ | Be::ENUM, DeviceTypeChooser )
@@ -26,8 +27,7 @@ const Be::ClassInfo* InputDevice::ExposeToBlue()
 		MAP_ATTRIBUTE( "buttonCount", m_deviceIdentifier.buttonCount, "The number of buttons on the device", Be::READ )
 		MAP_ATTRIBUTE( "axisCount", m_deviceIdentifier.axisCount, "The number of axes on the device", Be::READ )
 		MAP_ATTRIBUTE( "switchCount", m_deviceIdentifier.switchCount, "The number of switches on the device", Be::READ )
-		MAP_METHOD_AND_WRAP( "GetStateAsJson", GetStateAsJson, "Gets the current state of the device as a JSON string" )
 		MAP_ATTRIBUTE( "triggers", m_triggers, "The triggers associated with this device", Be::READ )
-		
+		MAP_ATTRIBUTE( "rawDeviceID", m_rawDeviceId, "The raw device id as it comes from the os", Be::READ )
 	EXPOSURE_END()
 }

@@ -10,7 +10,8 @@ public:
 
 	EXPOSE_TO_BLUE();
 	ControllerSwitchInputEvent( IRoot* lockobj = nullptr );
-	bool Match( Events::State state ) override;
+	bool Match( const Events::State& state ) override;
+	void Own( Events::State& state ) override;
 
 private:
 	uint32_t m_switchIndex{ 0 };

@@ -13,10 +13,33 @@ enum DeviceType
 	DeviceType_Controller,
 };
 
+// If we support another os, then we may need to ifdef this struct out to something else
+struct RawDeviceId
+{
+	std::vector<uint32_t> value;
+#ifdef WIN32
+	RawDeviceId() :
+		value( APP_LOCAL_DEVICE_ID_SIZE, 0 ) {};
+
+	auto operator=( const APP_LOCAL_DEVICE_ID deviceID )
+	{
+		std::copy( deviceID.value, deviceID.value + APP_LOCAL_DEVICE_ID_SIZE, value.begin() );
+		return *this;
+	}
+
+	auto operator=( const RawDeviceId& other )
+	{
+		std::copy( other.value.begin(), other.value.end(), value.begin() );
+		return *this;
+	}
+#endif
+};
+
 struct DeviceIdentifier
 {
 	BlueSharedStringW name;
-	DeviceId deviceID = static_cast<DeviceId>(-1);
+	DeviceId deviceID = static_cast<DeviceId>( -1 );
+	RawDeviceId rawDeviceId;
 	DeviceType deviceType = DeviceType_Unknown;
 	BlueSharedString manufacturer;
 	BlueSharedString product;
@@ -30,7 +53,8 @@ struct DeviceIdentifier
 	DeviceIdentifier() = default;
 	DeviceIdentifier( const DeviceIdentifier& other ):
 		name(other.name),
-		deviceID(other.deviceID),
+		deviceID( other.deviceID ),
+		rawDeviceId( other.rawDeviceId ),
 		deviceType(other.deviceType),
 		manufacturer(other.manufacturer),
 		product(other.product),

@@ -244,7 +244,7 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 		}
 	}
 
-	return{};
+	return {};
 }
 
 DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* device )
@@ -260,17 +260,21 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	device->GetDeviceInfo( &info );
 
 	identifier.deviceID = GetDeviceID( info->deviceId.value, sizeof( info->deviceId.value ) );
+	identifier.rawDeviceId = info->deviceId;
+
+	char vid[16];
+	snprintf( vid, sizeof( vid ), "%04X", info->vendorId );
+
+	char pid[16];
+	snprintf( pid, sizeof( pid ), "%04X", info->productId );
+
+	identifier.manufacturer = BlueSharedString( vid );
+	identifier.product = BlueSharedString( pid );
 
 	if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyHid )
 	{
-		char vid[16];
-		snprintf( vid, sizeof( vid ), "%04X", info->vendorId );
-
-		char pid[16];
-		snprintf( pid, sizeof( pid ), "%04X", info->productId );
-
-		std::wstring vid_w( static_cast<const wchar_t*>(CA2W( vid ) ) );
-		std::wstring pid_w( static_cast<const wchar_t*>(CA2W( pid ) ) );
+		std::wstring vid_w( static_cast<const wchar_t*>( CA2W( vid ) ) );
+		std::wstring pid_w( static_cast<const wchar_t*>( CA2W( pid ) ) );
 
 		// check the registry for the device name, using the vendor/product ID as a key
 		auto registryName = RegistryValues::GetStringValueFromHKLM(
@@ -295,7 +299,6 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	{
 		identifier.deviceType = DeviceEnums::DeviceType_Controller;
 	}
-
 	identifier.rumbleSupported = info->forceFeedbackMotorCount != 0;
 	identifier.axisCount = info->controllerInfo->controllerAxisCount;
 	identifier.buttonCount = info->controllerInfo->controllerButtonCount;
@@ -377,8 +380,13 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 
 	if( axisCount > 0 )
 	{
+		auto axisReading = std::make_unique<float[]>( axisCount );
+		reading->GetControllerAxisState( axisCount, axisReading.get() );
 		state.axis.resize( axisCount );
-		reading->GetControllerAxisState( axisCount, state.axis.data() );
+		for( uint32_t index = 0; index < axisCount; ++index )
+		{
+			state.axis[index].value = axisReading[index];
+		}
 	}
 
 	if( switchCount > 0 )
@@ -388,11 +396,12 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 		reading->GetControllerSwitchState( switchCount, switchReading.get() );
 		for( uint32_t index = 0; index < state.switches.size(); ++index )
 		{
-			state.switches[index] = static_cast<Events::SwitchPosition>( switchReading[index] );
+			state.switches[index].position = static_cast<Events::SwitchPosition>( switchReading[index] );
 		}
 	}
 	reading->Release();
 
 	return state;
 }
+
 #endif // WIN32
