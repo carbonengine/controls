@@ -6,13 +6,6 @@ namespace DeviceEnums
 {
 typedef uint32_t DeviceId;
 
-enum DeviceType
-{
-	DeviceType_Unknown = 0,
-	DeviceType_Gamepad,
-	DeviceType_Controller,
-};
-
 // If we support another os, then we may need to ifdef this struct out to something else
 struct RawDeviceId
 {
@@ -35,34 +28,48 @@ struct RawDeviceId
 #endif
 };
 
+struct RumbleCapacity
+{
+	bool hasLowFrequencyRumble = false;
+	bool hasHighFrequencyRumble = false;
+	bool hasLeftTriggerRumble = false;
+	bool hasRightTriggerRumble = false;
+	uint32_t rumbleMotorCount = 0;
+
+	RumbleCapacity() = default;
+	RumbleCapacity( const RumbleCapacity& other ) :
+		hasLowFrequencyRumble( other.hasLowFrequencyRumble ),
+		hasHighFrequencyRumble( other.hasHighFrequencyRumble ),
+		hasLeftTriggerRumble( other.hasLeftTriggerRumble ),
+		hasRightTriggerRumble( other.hasRightTriggerRumble ),
+		rumbleMotorCount( other.rumbleMotorCount ) {};
+};
+
 struct DeviceIdentifier
 {
 	BlueSharedStringW name;
 	DeviceId deviceID = static_cast<DeviceId>( -1 );
 	RawDeviceId rawDeviceId;
-	DeviceType deviceType = DeviceType_Unknown;
-	BlueSharedString manufacturer;
-	BlueSharedString product;
+	BlueSharedString vendorID;
+	BlueSharedString productID;
 
 	uint32_t buttonCount;
 	uint32_t axisCount;
 	uint32_t switchCount;
 
-	bool rumbleSupported;
+	RumbleCapacity rumbleCapacity;
 
 	DeviceIdentifier() = default;
-	DeviceIdentifier( const DeviceIdentifier& other ):
-		name(other.name),
+	DeviceIdentifier( const DeviceIdentifier& other ) :
+		name( other.name ),
 		deviceID( other.deviceID ),
 		rawDeviceId( other.rawDeviceId ),
-		deviceType(other.deviceType),
-		manufacturer(other.manufacturer),
-		product(other.product),
-		buttonCount(other.buttonCount),
-		axisCount(other.axisCount),
-		switchCount(other.switchCount),
-		rumbleSupported(other.rumbleSupported) {};
-
+		vendorID( other.vendorID ),
+		productID( other.productID ),
+		buttonCount( other.buttonCount ),
+		axisCount( other.axisCount ),
+		switchCount( other.switchCount ),
+		rumbleCapacity( other.rumbleCapacity ) {};
 };
 
 }

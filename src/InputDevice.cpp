@@ -117,6 +117,15 @@ void InputDevice::OnListModified(
 	}
 }
 
+bool InputDevice::OnModified( Be::Var* value )
+{
+	if( IsMatch( value, m_rumble.highFrequency ) || IsMatch( value, m_rumble.lowFrequency ) || IsMatch( value, m_rumble.leftTrigger ) || IsMatch( value, m_rumble.rightTrigger ) )
+	{
+		m_updateRumble = true;
+	}
+	return true;
+}
+
 void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
 	m_deviceIdentifier = identifier;
@@ -160,5 +169,11 @@ void InputDevice::Update( IInputHandler* inputHandler )
 	for( const auto& trigger : m_sortedTriggers )
 	{
 		trigger->Process( m_currentState );
+	}
+
+	if( m_updateRumble )
+	{
+		inputHandler->Rumble( m_deviceIdentifier.deviceID, m_rumble );
+		m_updateRumble = false;
 	}
 }

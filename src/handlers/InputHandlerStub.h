@@ -9,5 +9,7 @@ public:
 	Events::State Update( DeviceEnums::DeviceId deviceId ) override;
 
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
-	void RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback ) override;
+	void RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback ) override;
+
+	void Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble ) override;
 };

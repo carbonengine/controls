@@ -18,7 +18,7 @@ public:
 	~ControlManager( );
 
 	// activates an input device
-	InputDevicePtr Activate( DeviceEnums::DeviceId deviceID );
+	IRootPtr Activate( DeviceEnums::DeviceId deviceID );
 	void Update();
 
 	// deactivates an input device
@@ -33,7 +33,6 @@ private:
 	PInputDeviceVector m_devices;
 	IInputHandler* m_inputHandler;
 	PInputDeviceVector m_activeDevices;
-	DeviceEnums::DeviceId m_activeDeviceID = 0;
 	BlueScriptCallback m_activeDeviceLostCallback;
 	BlueScriptCallback m_devicesChangedCallback;
 	std::vector<DeviceEnums::DeviceIdentifier> m_changedDevices;

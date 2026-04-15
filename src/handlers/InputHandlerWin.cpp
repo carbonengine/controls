@@ -204,6 +204,7 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		{
 			DeviceSlot slot = {
 				device,
+				false,
 				identifier
 			};
 
@@ -217,10 +218,9 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [device]( const DeviceSlot& slot ) { return slot.device == device; } );
 		if( it != self->m_deviceSlots.end() )
 		{
-			it->device->Release();
-			it->device = nullptr;
-			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' disconnected", it->identifier.name.c_str() );
+			it->pendingRemoval = true;
 		}
+		self->m_devicesRemoved = true;
 	}
 	if( self->m_deviceChangedCallback )
 	{
@@ -235,6 +235,25 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 		return {};
 	}
 	std::lock_guard<std::mutex> lock( m_deviceMutex );
+
+	// need to remove devices here, but not in the 
+	if( m_devicesRemoved )
+	{
+		for( auto& slot : m_deviceSlots )
+		{
+			if( slot.pendingRemoval )
+			{
+				if( slot.device )
+				{
+					slot.device->Release();
+					slot.device = nullptr;
+					slot.pendingRemoval = false;
+					CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' disconnected", slot.identifier.name.c_str() );
+				}
+			}
+		}
+		m_devicesRemoved = false;
+	}
 
 	for( auto& slot : m_deviceSlots )
 	{
@@ -268,8 +287,8 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	char pid[16];
 	snprintf( pid, sizeof( pid ), "%04X", info->productId );
 
-	identifier.manufacturer = BlueSharedString( vid );
-	identifier.product = BlueSharedString( pid );
+	identifier.vendorID = BlueSharedString( vid );
+	identifier.productID = BlueSharedString( pid );
 
 	if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyHid )
 	{
@@ -291,15 +310,17 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 		identifier.name = BlueSharedStringW( static_cast<const wchar_t*>( CA2W( info->displayName ) ) );
 	}
 
-	if( info->supportedInput & GameInputKindGamepad )
-	{
-		identifier.deviceType = DeviceEnums::DeviceType_Gamepad;
-	}
-	else if( ( info->supportedInput & GameInputKindController ) || ( info->supportedInput & GameInputKindControllerAxis ) || ( info->supportedInput & GameInputKindControllerButton ) || ( info->supportedInput & GameInputKindControllerSwitch ) )
-	{
-		identifier.deviceType = DeviceEnums::DeviceType_Controller;
-	}
-	identifier.rumbleSupported = info->forceFeedbackMotorCount != 0;
+	bool hasLowFreq = ( info->supportedRumbleMotors & GameInputRumbleMotors::GameInputRumbleLowFrequency ) != 0;
+	bool hasHighFreq = ( info->supportedRumbleMotors & GameInputRumbleMotors::GameInputRumbleHighFrequency ) != 0;
+	bool hasLeftTrigger = ( info->supportedRumbleMotors & GameInputRumbleMotors::GameInputRumbleLeftTrigger ) != 0;
+	bool hasRightTrigger = ( info->supportedRumbleMotors & GameInputRumbleMotors::GameInputRumbleRightTrigger ) != 0;
+
+	identifier.rumbleCapacity.hasLowFrequencyRumble = hasLowFreq;
+	identifier.rumbleCapacity.hasHighFrequencyRumble = hasHighFreq;
+	identifier.rumbleCapacity.hasLeftTriggerRumble = hasLeftTrigger;
+	identifier.rumbleCapacity.hasRightTriggerRumble = hasRightTrigger;
+
+	identifier.rumbleCapacity.rumbleMotorCount = hasLowFreq + hasHighFreq + hasLeftTrigger + hasRightTrigger;
 	identifier.axisCount = info->controllerInfo->controllerAxisCount;
 	identifier.buttonCount = info->controllerInfo->controllerButtonCount;
 	identifier.switchCount = info->controllerInfo->controllerSwitchCount;
@@ -320,7 +341,7 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerWin::GetAllDeviceIdentifi
 	return devices;
 }
 
-void InputHandlerWin::RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback )
+void InputHandlerWin::RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback )
 {
 	m_deviceChangedCallback = callback;
 }
@@ -341,7 +362,6 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 
 	const GameInputDeviceInfo* info = nullptr;
 	device->GetDeviceInfo( &info );
-	m_gameInput->SetFocusPolicy( GameInputFocusPolicy::GameInputEnableBackgroundInput );
 
 	// Only request input kinds that this specific device supports
 	GameInputKind readingFilter = static_cast<GameInputKind>( info->supportedInput );
@@ -402,6 +422,25 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 	reading->Release();
 
 	return state;
+}
+
+void InputHandlerWin::Rumble( DeviceEnums::DeviceId deviceID, Events::Rumble rumble )
+{
+	std::lock_guard<std::mutex> lock( m_deviceMutex );
+	for( auto& slot : m_deviceSlots )
+	{
+		if( slot.device && slot.identifier.deviceID == deviceID )
+		{
+			GameInputRumbleParams rumbleParams = {};
+			rumbleParams.highFrequency = rumble.highFrequency;
+			rumbleParams.lowFrequency = rumble.lowFrequency;
+			rumbleParams.leftTrigger = rumble.leftTrigger;
+			rumbleParams.rightTrigger = rumble.rightTrigger;
+
+			slot.device->SetRumbleState(&rumbleParams);
+			break;
+		}
+	}
 }
 
 #endif // WIN32

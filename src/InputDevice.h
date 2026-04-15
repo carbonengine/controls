@@ -11,7 +11,9 @@ typedef uint32_t RawDeviceIdPart;
 
 BLUE_DECLARE_STRUCTURE_LIST( RawDeviceIdPart );
 
-BLUE_CLASS( InputDevice ) : public IListNotify
+BLUE_CLASS( InputDevice ) :
+	public INotify,
+	public IListNotify
 {
 public:
 	EXPOSE_TO_BLUE();
@@ -22,7 +24,10 @@ public:
 		ssize_t key,
 		ssize_t key2,
 		IRoot* value,
-		const struct IList* theList );
+		const struct IList* theList ) override;
+
+	bool OnModified( Be::Var * value ) override;
+
 	void SetIdentifier( DeviceEnums::DeviceIdentifier identifier );
 	void Update( IInputHandler* inputHandler );
 	uint32_t GetDeviceID() const;
@@ -31,7 +36,6 @@ public:
 	static float g_holdTimeInMs; // The time in milliseconds after which a button state changes from Pressed to Held
 
 private:
-
 	DeviceEnums::DeviceIdentifier m_deviceIdentifier {};
 	PRawDeviceIdPartStructureList m_rawDeviceId;
 
@@ -39,6 +43,9 @@ private:
 	std::vector<InputEventTrigger*> m_sortedTriggers;
 	Events::State m_currentState;
 	bool m_triggersDirty = false;
+
+	Events::Rumble m_rumble{};
+	bool m_updateRumble = false;
 };
 
 TYPEDEF_BLUECLASS( InputDevice );

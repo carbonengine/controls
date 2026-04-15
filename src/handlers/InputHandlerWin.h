@@ -15,14 +15,16 @@ public:
 	InputHandlerWin();
 	~InputHandlerWin();
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
-	void RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback ) override;
+	void RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback ) override;
 	Events::State Update( DeviceEnums::DeviceId deviceId ) override;
+	void Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble ) override;
 
 private:
 	// Per-device bookkeeping
 	struct DeviceSlot
 	{
 		IGameInputDevice* device = nullptr;
+		bool pendingRemoval = false; // set to true when we receive a disconnect event, until the slot is cleaned up on the next Update()
 		DeviceEnums::DeviceIdentifier identifier{};
 	};
 
@@ -49,9 +51,10 @@ private:
 	std::vector<DeviceSlot> m_deviceSlots = {};
 	std::mutex m_deviceMutex;
 	bool m_initialized = false;
+	bool m_devicesRemoved = false;
 	GameInputCallbackToken m_deviceCallbackToken = 0;
 
-	std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> m_deviceChangedCallback = nullptr;
+	DEVICE_CHANGED_CALLBACK m_deviceChangedCallback = nullptr;
 
 	static const GameInputKind SUPPORTED_INPUTS = static_cast<GameInputKind>(
 	GameInputKindGamepad |

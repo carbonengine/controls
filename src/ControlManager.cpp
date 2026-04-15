@@ -44,7 +44,7 @@ void ControlManager::OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier>
 		auto foundDevice = std::find_if( deviceIdentifiers.begin(), deviceIdentifiers.end(), [activeDevice]( const DeviceEnums::DeviceIdentifier& identifier ) {
 			return identifier.deviceID == activeDevice->GetDeviceID();
 		} );
-		if( foundDevice == deviceIdentifiers.end() )
+		if( foundDevice != deviceIdentifiers.end() )
 		{
 			CCP_LOGNOTICE( "Active device %ls (ID: %u) was disconnected", activeDevice->GetName().c_str(), activeDevice->GetDeviceID() );
 			if( m_activeDeviceLostCallback )
@@ -57,7 +57,7 @@ void ControlManager::OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier>
 	m_changedDevices = deviceIdentifiers;
 }
 
-InputDevicePtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
+IRootPtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
 {
 	auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceID]( InputDevicePtr identifier ) {
 		return identifier->GetDeviceID() == deviceID;
@@ -71,12 +71,12 @@ InputDevicePtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
 		if( foundActiveDevice != m_activeDevices.end() )
 		{
 			CCP_LOGERR( "Device %ls (ID: %u) is already active returning the existing instance", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
-			return *foundActiveDevice;
+			return (*foundActiveDevice)->GetRawRoot();
 		}
 
-		m_activeDevices.Append( *foundDevice );
+		m_activeDevices.Append( (*foundDevice)->GetRawRoot() );
 		CCP_LOGNOTICE( "Device %ls (ID: %u) is active", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
-		return *foundDevice;
+		return (*foundDevice)->GetRawRoot();
 	}
 	else
 	{
@@ -92,7 +92,7 @@ void ControlManager::Deactivate( DeviceEnums::DeviceId deviceID )
 	} );
 	if( foundDevice != m_activeDevices.end() )
 	{
-		m_activeDevices.Remove( m_activeDevices.FindKey( *foundDevice ) );
+		m_activeDevices.Remove( m_activeDevices.FindKey( (*foundDevice)->GetRawRoot() ) );
 		CCP_LOGNOTICE( "Device %ls (ID: %u) is no longer active", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
 	}
 	else
@@ -130,15 +130,15 @@ void ControlManager::ProcessChangedDevices()
 
 	for( auto& removedDevice : removedDevices )
 	{
-		auto indexInDevices = m_devices.FindKey( removedDevice );
+		auto indexInDevices = m_devices.FindKey( removedDevice->GetRawRoot() );
 		if( indexInDevices != -1 )
 		{
-			m_devices.Remove( m_devices.FindKey( removedDevice ) );
+			m_devices.Remove( indexInDevices );
 		}
-		auto indexInActiveDevices = m_activeDevices.FindKey( removedDevice );
+		auto indexInActiveDevices = m_activeDevices.FindKey( removedDevice->GetRawRoot() );
 		if( indexInActiveDevices != -1 )
 		{
-			m_activeDevices.Remove( m_devices.FindKey( removedDevice ) );
+			m_activeDevices.Remove( indexInActiveDevices );
 		}
 	}
 
@@ -153,7 +153,7 @@ void ControlManager::ProcessChangedDevices()
 			InputDevicePtr newDevice;
 			newDevice.CreateInstance();
 			newDevice->SetIdentifier( deviceIdentifier );
-			m_devices.Append( newDevice );
+			m_devices.Append( newDevice->GetRawRoot() );
 		}
 	}
 

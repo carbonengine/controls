@@ -55,6 +55,17 @@ struct State
 	std::vector<Switch> switches;
 };
 
+struct Rumble{
+	float lowFrequency = 0.0f;
+	float highFrequency = 0.0f;
+	float leftTrigger = 0.0f;
+	float rightTrigger = 0.0f;
+
+	bool empty() const
+	{
+		return lowFrequency == 0.0f && highFrequency == 0.0f && leftTrigger == 0.0f && rightTrigger == 0.0f;
+	}
+};
 extern const Be::VarChooser ButtonStateChooser[];
 }
 

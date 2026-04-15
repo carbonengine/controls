@@ -5,11 +5,15 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerStub::GetAllDeviceIdentif
 	return {};
 }
 
-void InputHandlerStub::RegisterForDeviceChange( std::function<void( std::vector<DeviceEnums::DeviceIdentifier> )> callback )
+void InputHandlerStub::RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback )
 {
 }
 
 Events::State InputHandlerStub::Update( DeviceEnums::DeviceId deviceId )
 {
 	return {};
+}
+
+void InputHandlerStub::Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble )
+{
 }
