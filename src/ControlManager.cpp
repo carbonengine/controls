@@ -16,14 +16,12 @@ ControlManager::ControlManager( IRoot* lockobj ) :
 	m_inputHandler( new InputHandlerStub() )
 #endif
 {
-	m_inputHandler->RegisterForDeviceChange( [this]( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers ) {
-		OnDeviceChanged( std::move( deviceIdentifiers ) );
+	m_inputHandler->RegisterForDeviceAdded( [this]( DeviceEnums::DeviceIdentifier& deviceIdentifiers ) {
+		OnDeviceAdded( deviceIdentifiers );
 	} );
-}
-
-ControlManager::~ControlManager()
-{
-	m_inputHandler = nullptr;
+	m_inputHandler->RegisterForDeviceRemoved( [this]( DeviceEnums::DeviceIdentifier& deviceIdentifiers ) {
+		OnDeviceRemoved( deviceIdentifiers );
+	} );
 }
 
 void ControlManager::SetHoldTimeInMs( float holdTime )
@@ -36,25 +34,16 @@ float ControlManager::GetHoldTimeInMs()
 	return InputDevice::g_holdTimeInMs;
 }
 
-void ControlManager::OnDeviceChanged( std::vector<DeviceEnums::DeviceIdentifier> deviceIdentifiers )
+void ControlManager::OnDeviceAdded( DeviceEnums::DeviceIdentifier& deviceIdentifier )
 {
-	// Check if an active device was removed
-	for( auto& activeDevice : m_activeDevices )
-	{
-		auto foundDevice = std::find_if( deviceIdentifiers.begin(), deviceIdentifiers.end(), [activeDevice]( const DeviceEnums::DeviceIdentifier& identifier ) {
-			return identifier.deviceID == activeDevice->GetDeviceID();
-		} );
-		if( foundDevice != deviceIdentifiers.end() )
-		{
-			CCP_LOGNOTICE( "Active device %ls (ID: %u) was disconnected", activeDevice->GetName().c_str(), activeDevice->GetDeviceID() );
-			if( m_activeDeviceLostCallback )
-			{
-				m_activeDeviceLostCallback.CallVoid( activeDevice->GetDeviceID() );
-			}
-		}
-	}
+	std::lock_guard<std::mutex> lock( m_deviceChangedMutex );
+	m_addedDevices.push_back( deviceIdentifier );
+}
 
-	m_changedDevices = deviceIdentifiers;
+void ControlManager::OnDeviceRemoved( DeviceEnums::DeviceIdentifier & deviceIdentifier )
+{
+	std::lock_guard<std::mutex> lock( m_deviceChangedMutex );
+	m_removedDevices.push_back( deviceIdentifier );
 }
 
 IRootPtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
@@ -103,65 +92,80 @@ void ControlManager::Deactivate( DeviceEnums::DeviceId deviceID )
 
 void ControlManager::Update()
 {
-	if( !m_changedDevices.empty() )
+	if( !m_addedDevices.empty() || !m_removedDevices.empty() )
 	{
 		ProcessChangedDevices();
 	}
 
 	for( auto& activeDevice : m_activeDevices )
 	{
-		activeDevice->Update( m_inputHandler );
+		activeDevice->Update( m_inputHandler.get() );
 	}
 }
 
 void ControlManager::ProcessChangedDevices()
 {
-	std::vector<InputDevicePtr> removedDevices;
-	for( auto& device : m_devices )
+	std::vector<DeviceEnums::DeviceIdentifier> added;
+	std::vector<DeviceEnums::DeviceIdentifier> removed;
 	{
-		auto foundDevice = std::find_if( m_changedDevices.begin(), m_changedDevices.end(), [device]( const DeviceEnums::DeviceIdentifier& identifier ) {
-			return identifier.deviceID == device->GetDeviceID();
-		} );
-		if( foundDevice == m_changedDevices.end() )
-		{
-			removedDevices.push_back( device );
-		}
+		std::lock_guard<std::mutex> lock( m_deviceChangedMutex );
+		added.swap( m_addedDevices );
+		removed.swap( m_removedDevices );
 	}
 
-	for( auto& removedDevice : removedDevices )
+	for( auto& removedDeviceIdentifier : removed )
 	{
-		auto indexInDevices = m_devices.FindKey( removedDevice->GetRawRoot() );
-		if( indexInDevices != -1 )
+		auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [removedDeviceIdentifier]( InputDevicePtr identifier ) {
+			return identifier->GetDeviceID() == removedDeviceIdentifier.deviceID;
+		} );
+		auto root = foundDevice != m_devices.end() ? ( *foundDevice )->GetRawRoot() : nullptr;
+
+		if( root )
 		{
-			m_devices.Remove( indexInDevices );
-		}
-		auto indexInActiveDevices = m_activeDevices.FindKey( removedDevice->GetRawRoot() );
-		if( indexInActiveDevices != -1 )
-		{
-			m_activeDevices.Remove( indexInActiveDevices );
+			auto deviceID = ( *foundDevice )->GetDeviceID();
+			auto indexInActiveDevices = m_activeDevices.FindKey( root );
+			auto indexInDevices = m_devices.FindKey( root );
+			// call callbacks first so they still have access to the whole device list (so we can see the name of devices)
+			if( m_deviceAddedCallback && indexInActiveDevices == -1 )
+			{
+				m_deviceAddedCallback.CallVoid( deviceID );
+			}
+			else if( m_activeDeviceLostCallback && indexInActiveDevices != -1 )
+			{
+				m_activeDeviceLostCallback.CallVoid( deviceID );
+			}
+
+			// and now remove the devices
+			if( indexInDevices != -1 )
+			{
+				// need to remove from ALL devices first, so the callbacks when active device lost has a correct devices list
+				m_devices.Remove( indexInDevices );
+			}
+			if( indexInActiveDevices != -1 )
+			{
+				m_activeDevices.Remove( indexInActiveDevices );
+			}
 		}
 	}
 
 	// new devices
-	for( auto& deviceIdentifier : m_changedDevices )
+	for( auto& deviceIdentifier : added )
 	{
 		auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceIdentifier]( InputDevicePtr identifier ) {
 			return identifier->GetDeviceID() == deviceIdentifier.deviceID;
 		} );
 		if( foundDevice == m_devices.end() )
 		{
+			// add the device first before we call the callback so we have access to the device in the callback
 			InputDevicePtr newDevice;
 			newDevice.CreateInstance();
 			newDevice->SetIdentifier( deviceIdentifier );
 			m_devices.Append( newDevice->GetRawRoot() );
+
+			if( m_deviceAddedCallback )
+			{
+				m_deviceAddedCallback.CallVoid( newDevice->GetDeviceID() );
+			}
 		}
 	}
-
-	if( m_devicesChangedCallback && m_initialDeviceListReceived )
-	{
-		m_devicesChangedCallback.CallVoid();
-	}
-	
-	m_changedDevices.clear();
-	m_initialDeviceListReceived = true;
 }

@@ -15,7 +15,8 @@ public:
 	InputHandlerWin();
 	~InputHandlerWin();
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
-	void RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback ) override;
+	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;
+	void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) override;
 	Events::State Update( DeviceEnums::DeviceId deviceId ) override;
 	void Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble ) override;
 
@@ -54,7 +55,8 @@ private:
 	bool m_devicesRemoved = false;
 	GameInputCallbackToken m_deviceCallbackToken = 0;
 
-	DEVICE_CHANGED_CALLBACK m_deviceChangedCallback = nullptr;
+	DEVICE_CHANGED_CALLBACK m_deviceAddedCallback = nullptr;
+	DEVICE_CHANGED_CALLBACK m_deviceRemovedCallback = nullptr;
 
 	static const GameInputKind SUPPORTED_INPUTS = static_cast<GameInputKind>(
 	GameInputKindGamepad |

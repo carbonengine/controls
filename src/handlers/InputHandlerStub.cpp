@@ -5,7 +5,11 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerStub::GetAllDeviceIdentif
 	return {};
 }
 
-void InputHandlerStub::RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback )
+void InputHandlerStub::RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback )
+{
+}
+
+void InputHandlerStub::RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback )
 {
 }
 

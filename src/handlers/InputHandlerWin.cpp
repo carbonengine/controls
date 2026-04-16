@@ -196,8 +196,12 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [identifier]( const DeviceSlot& slot ) { return slot.identifier.deviceID == identifier.deviceID; } );
 		if( it != self->m_deviceSlots.end() )
 		{
-			// This can happen if a device disconnects and reconnects quickly, before the disconnect has been processed. Reuse the existing slot in this case.
-			it->device = device;
+			// This can happen if a device disconnects and reconnects again, no need to create a new slot for it, just update the existing one
+			if( !it->device )
+			{
+				it->device = device;
+			}
+			it->pendingRemoval = false;
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' reconnected", identifier.name.c_str() );
 		}
 		else
@@ -211,6 +215,10 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 			self->m_deviceSlots.push_back( slot );
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' connected", identifier.name.c_str() );
 		}
+		if( self->m_deviceAddedCallback )
+		{
+			self->m_deviceAddedCallback( identifier );
+		}
 	}
 	else if( !isConnected && wasConnected )
 	{
@@ -218,13 +226,15 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [device]( const DeviceSlot& slot ) { return slot.device == device; } );
 		if( it != self->m_deviceSlots.end() )
 		{
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final disconnected", it->identifier.name.c_str() );
+
 			it->pendingRemoval = true;
+			self->m_devicesRemoved = true;
+			if( self->m_deviceRemovedCallback )
+			{
+				self->m_deviceRemovedCallback( it->identifier );
+			}
 		}
-		self->m_devicesRemoved = true;
-	}
-	if( self->m_deviceChangedCallback )
-	{
-		self->m_deviceChangedCallback( self->GetAllDeviceIdentifiers() );
 	}
 }
 
@@ -236,7 +246,7 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 	}
 	std::lock_guard<std::mutex> lock( m_deviceMutex );
 
-	// need to remove devices here, but not in the 
+	// need to remove devices here, but not in the callback 
 	if( m_devicesRemoved )
 	{
 		for( auto& slot : m_deviceSlots )
@@ -248,7 +258,7 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 					slot.device->Release();
 					slot.device = nullptr;
 					slot.pendingRemoval = false;
-					CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' disconnected", slot.identifier.name.c_str() );
+					CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final removal", slot.identifier.name.c_str() );
 				}
 			}
 		}
@@ -277,6 +287,11 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 
 	const GameInputDeviceInfo* info = nullptr;
 	device->GetDeviceInfo( &info );
+
+	if( info == nullptr )
+	{
+		return identifier;
+	}
 
 	identifier.deviceID = GetDeviceID( info->deviceId.value, sizeof( info->deviceId.value ) );
 	identifier.rawDeviceId = info->deviceId;
@@ -321,9 +336,12 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	identifier.rumbleCapacity.hasRightTriggerRumble = hasRightTrigger;
 
 	identifier.rumbleCapacity.rumbleMotorCount = hasLowFreq + hasHighFreq + hasLeftTrigger + hasRightTrigger;
-	identifier.axisCount = info->controllerInfo->controllerAxisCount;
-	identifier.buttonCount = info->controllerInfo->controllerButtonCount;
-	identifier.switchCount = info->controllerInfo->controllerSwitchCount;
+	if( info->controllerInfo != nullptr )
+	{
+		identifier.axisCount = info->controllerInfo->controllerAxisCount;
+		identifier.buttonCount = info->controllerInfo->controllerButtonCount;
+		identifier.switchCount = info->controllerInfo->controllerSwitchCount;
+	}
 	return identifier;
 }
 
@@ -341,9 +359,14 @@ std::vector<DeviceEnums::DeviceIdentifier> InputHandlerWin::GetAllDeviceIdentifi
 	return devices;
 }
 
-void InputHandlerWin::RegisterForDeviceChange( DEVICE_CHANGED_CALLBACK callback )
+void InputHandlerWin::RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback )
 {
-	m_deviceChangedCallback = callback;
+	m_deviceAddedCallback = callback;
+}
+
+void InputHandlerWin::RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback )
+{
+	m_deviceRemovedCallback = callback;
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +385,11 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 
 	const GameInputDeviceInfo* info = nullptr;
 	device->GetDeviceInfo( &info );
+
+	if( !info )
+	{
+		return state;
+	}
 
 	// Only request input kinds that this specific device supports
 	GameInputKind readingFilter = static_cast<GameInputKind>( info->supportedInput );
