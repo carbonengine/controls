@@ -157,10 +157,11 @@ void ControlManager::ProcessChangedDevices()
 		}
 	}
 
-	if( m_devicesChangedCallback )
+	if( m_devicesChangedCallback && m_initialDeviceListReceived )
 	{
 		m_devicesChangedCallback.CallVoid();
 	}
 	
 	m_changedDevices.clear();
+	m_initialDeviceListReceived = true;
 }

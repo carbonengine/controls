@@ -36,6 +36,8 @@ private:
 	BlueScriptCallback m_activeDeviceLostCallback;
 	BlueScriptCallback m_devicesChangedCallback;
 	std::vector<DeviceEnums::DeviceIdentifier> m_changedDevices;
+	// We use this flag to ignore the initial device list callback from the input handler, since we will be populating the device list ourselves on initialization
+	bool m_initialDeviceListReceived = false;
 };
 
 TYPEDEF_BLUECLASS( ControlManager );
