@@ -18,6 +18,8 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/InputDevice.cpp
     src/InputDevice_Blue.cpp
     src/StdAfx.h
+    src/events/Events.h
+    src/events/Events.cpp
     src/events/IInputEvent.h
     src/events/InputEventTrigger_Blue.cpp
     src/events/InputEventTrigger.cpp
@@ -39,6 +41,8 @@ set(CARBON_CONTROLS_SOURCE_FILES
 )
 
 ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
+set_build_flavor(_carbon_controls)
+add_trinity_dev_debug_flags(_carbon_controls)
 
 target_precompile_headers(_carbon_controls PRIVATE src/StdAfx.h)
 

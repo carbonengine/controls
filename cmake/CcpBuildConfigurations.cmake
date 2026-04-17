@@ -82,6 +82,7 @@ function(add_trinity_dev_debug_flags target)
     if (MSVC)
         # Set debug options
         get_target_property(options ${target} COMPILE_OPTIONS)
+        string(REGEX REPLACE "<CONFIG:TrinityDev>,/Zi,>" "<CONFIG:TrinityDev>,/ZI,>" options "${options}")
         string(REGEX REPLACE "<CONFIG:TrinityDev>,/O2,>" "<CONFIG:TrinityDev>,/Od,>" options "${options}")
         set_target_properties(${target} PROPERTIES COMPILE_OPTIONS "${options}")
         # Disable /GL and /LTCG for /ZI support
