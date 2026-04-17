@@ -24,8 +24,8 @@ public:
 	void Deactivate( DeviceEnums::DeviceId deviceID );
 
 private:
-	void SetHoldTimeInMs( float holdTime );
-	float GetHoldTimeInMs();
+	void SetHoldTimeInMs( uint64_t holdTime );
+	uint64_t GetHoldTimeInMs();
 	void OnDeviceAdded( DeviceEnums::DeviceIdentifier& deviceIdentifier );
 	void OnDeviceRemoved( DeviceEnums::DeviceIdentifier& deviceIdentifier );
 	void ProcessChangedDevices();

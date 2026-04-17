@@ -9,8 +9,40 @@ bool ControllerButtonInputEvent::Match( const Events::State& state )
 	if( m_buttonIndex < state.buttons.size() )
 	{
 		auto button = state.buttons[m_buttonIndex];
+		if( button.matched )
+		{
+			return false;
+		}
 
-		return !button.matched && button.state == m_event;
+		bool matched = false;
+		switch( m_event )
+		{
+		case Events::ButtonState::Up:
+			matched = !button.pressed && !m_previouslyPressed;
+			break;
+		case Events::ButtonState::Down:
+			matched = button.pressed && m_previouslyPressed;
+			break;
+		case Events::ButtonState::Released:
+			matched = !button.pressed && m_previouslyPressed && ( state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds );
+			break;
+		case Events::ButtonState::Held:
+			matched = button.pressed && m_previouslyPressed && ( state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds );
+			break;
+		case Events::ButtonState::Pressed:
+			matched = !button.pressed && m_previouslyPressed && ( state.timestamp - m_previousStateChangeTimestamp < Events::g_holdTimeInMicroSeconds );
+			break;
+		default:
+			break;
+		}
+
+		if( m_previouslyPressed != button.pressed )
+		{
+			m_previousStateChangeTimestamp = state.timestamp;
+			m_previouslyPressed = button.pressed;
+		}
+
+		return matched;
 	}
 	return false;
 }

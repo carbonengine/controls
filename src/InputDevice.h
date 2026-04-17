@@ -1,6 +1,7 @@
 #pragma once
 #include "StdAfx.h"
 #include "DeviceEnums.h"
+#include "events/Events.h"
 #include "events/InputEventTrigger.h"
 #include <string>
 #include "handlers/IInputHandler.h"
@@ -32,10 +33,9 @@ public:
 	void Update( IInputHandler* inputHandler );
 	uint32_t GetDeviceID() const;
 	BlueSharedStringW GetName() const;
-	
-	static float g_holdTimeInMs; // The time in milliseconds after which a button state changes from Pressed to Held
 
 private:
+	void UpdateState( const Events::State& state );
 	DeviceEnums::DeviceIdentifier m_deviceIdentifier {};
 	PRawDeviceIdPartStructureList m_rawDeviceId;
 

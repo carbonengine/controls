@@ -17,7 +17,8 @@ public:
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
 	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;
 	void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) override;
-	Events::State Update( DeviceEnums::DeviceId deviceId ) override;
+	std::vector<Events::State> Update( DeviceEnums::DeviceId deviceId ) override;
+	void SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate ) override;
 	void Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble ) override;
 
 private:
@@ -34,7 +35,7 @@ private:
 	void ShutdownGameInput();
 
 	// Reads the current hardware state for a single device into its slot
-	Events::State ReadDeviceState( IGameInputDevice* device );
+	Events::State ReadDeviceState( IGameInputReading* reading );
 
 	// The static callback forwarded from GameInput when devices connect / disconnect
 	static void CALLBACK OnDeviceStatusChanged(
@@ -45,18 +46,36 @@ private:
 		_In_ GameInputDeviceStatus currentStatus,
 		_In_ GameInputDeviceStatus previousStatus ) noexcept;
 
+	static void CALLBACK OnDeviceRead(
+		_In_ GameInputCallbackToken callbackToken,
+		_In_ void* context,
+		_In_ IGameInputReading* reading ) noexcept;
+
 	// Builds a DeviceIdentifier from a GameInput device
 	static DeviceEnums::DeviceIdentifier GetIdentifier( IGameInputDevice* device );
 
-	IGameInput* m_gameInput = nullptr;
-	std::vector<DeviceSlot> m_deviceSlots = {};
+	// mutex to protect m_deviceSlots
 	std::mutex m_deviceMutex;
-	bool m_initialized = false;
-	bool m_devicesRemoved = false;
+	// mutext to protect readings of devices
+	std::mutex m_readingMutex;
+
+	// tokens for registered GameInput callbacks, so we can unregister them on teardown
+	std::vector<std::pair<DeviceEnums::DeviceId, GameInputCallbackToken>> m_deviceReadCallbackTokens = {};
 	GameInputCallbackToken m_deviceCallbackToken = 0;
+
+	// the GameInput interface
+	IGameInput* m_gameInput = nullptr;
+	// all recognized devices will be stored in this vector.
+	std::vector<DeviceSlot> m_deviceSlots = {};
+
+	// states that have been accumulated for each device, indexed by deviceID. Updated on each reading callback, and read by Update() to return the latest state for a device.
+	std::unordered_map<DeviceEnums::DeviceId, std::vector<Events::State>> m_accumulatedStates = {};
 
 	DEVICE_CHANGED_CALLBACK m_deviceAddedCallback = nullptr;
 	DEVICE_CHANGED_CALLBACK m_deviceRemovedCallback = nullptr;
+
+	bool m_initialized = false;
+	bool m_devicesRemoved = false;
 
 	static const GameInputKind SUPPORTED_INPUTS = static_cast<GameInputKind>(
 	GameInputKindGamepad |

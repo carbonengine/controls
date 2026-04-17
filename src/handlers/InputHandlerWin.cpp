@@ -1,4 +1,3 @@
-#include "../StdAfx.h"
 #ifdef WIN32
 #include "InputHandlerWin.h"
 
@@ -238,7 +237,73 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 	}
 }
 
-Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
+void CALLBACK InputHandlerWin::OnDeviceRead(
+	_In_ GameInputCallbackToken callbackToken,
+	_In_ void* context,
+	_In_ IGameInputReading* reading ) noexcept
+{
+	auto* self = reinterpret_cast<InputHandlerWin*>( context );
+	if( !self || !reading )
+	{
+		return;
+	}
+
+	// find the device id
+	IGameInputDevice* device;
+	reading->GetDevice( &device );
+
+	if( !device )
+	{
+		return;
+	}
+
+	auto foundSlot = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [device]( const DeviceSlot& slot ) { return slot.device == device; } );
+
+	if( foundSlot != self->m_deviceSlots.end() )
+	{
+		auto state = self->ReadDeviceState( reading );
+		{
+			std::lock_guard<std::mutex> lock( self->m_readingMutex );
+			self->m_accumulatedStates[foundSlot->identifier.deviceID].push_back( state );
+		}
+	}
+}
+
+void InputHandlerWin::SetDeviceActivation( DeviceEnums::DeviceId deviceID, bool activate )
+{
+	if( activate )
+	{
+		// find the device and register it for reading callbacks
+		auto foundDevice = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [deviceID]( const DeviceSlot& slot ) {
+			return slot.identifier.deviceID == deviceID;
+		} );
+		if( foundDevice != m_deviceSlots.end() )
+		{
+			GameInputCallbackToken token;
+			auto hr = m_gameInput->RegisterReadingCallback(
+				nullptr,
+				SUPPORTED_INPUTS,
+				this,
+				OnDeviceRead,
+				&token );
+			m_deviceReadCallbackTokens.emplace_back( deviceID, token );
+		}
+	}
+	else
+	{
+		// find the device and unregister it from reading callbacks
+		auto it = std::find_if( m_deviceReadCallbackTokens.begin(), m_deviceReadCallbackTokens.end(), [deviceID]( const std::pair<DeviceEnums::DeviceId, GameInputCallbackToken>& pair ) {
+			return pair.first == deviceID;
+		} );
+		if( it != m_deviceReadCallbackTokens.end() )
+		{
+			m_gameInput->UnregisterCallback( it->second );
+			m_deviceReadCallbackTokens.erase( it );
+		}
+	}
+}
+
+std::vector<Events::State> InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 {
 	if( !m_initialized )
 	{
@@ -265,15 +330,18 @@ Events::State InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
 		m_devicesRemoved = false;
 	}
 
-	for( auto& slot : m_deviceSlots )
+	std::vector<Events::State> statesForDevice = {};
 	{
-		if( slot.device && slot.identifier.deviceID == deviceID )
+		std::lock_guard<std::mutex> lock( m_readingMutex );
+		auto it = m_accumulatedStates.find( deviceID );
+		if( it != m_accumulatedStates.end() )
 		{
-			return ReadDeviceState( slot.device );
+			std::swap( statesForDevice, it->second );
+
 		}
 	}
 
-	return {};
+	return statesForDevice;
 }
 
 DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* device )
@@ -372,42 +440,16 @@ void InputHandlerWin::RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback
 // ---------------------------------------------------------------------------
 // ReadDeviceState  –  get the most recent reading for a device
 // ---------------------------------------------------------------------------
-Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
+Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading )
 {
-	IGameInputReading* reading = nullptr;
-
 	Events::State state = {};
 
-	if( !device )
-	{
-		return state;
-	}
-
-	const GameInputDeviceInfo* info = nullptr;
-	device->GetDeviceInfo( &info );
-
-	if( !info )
-	{
-		return state;
-	}
-
-	// Only request input kinds that this specific device supports
-	GameInputKind readingFilter = static_cast<GameInputKind>( info->supportedInput );
-	if( readingFilter == GameInputKindUnknown )
-	{
-		return state;
-	}
-
-	HRESULT hr = m_gameInput->GetCurrentReading( info->supportedInput, device, &reading );
-	if( FAILED( hr ) )
-	{
-		CCP_LOGERR( "InputHandlerWin: GetCurrentReading failed for device '%s' (0x%08X)", info->displayName, hr );
-		return state;
-	}
 	if( !reading )
 	{
 		return state;
 	}
+
+	state.timestamp = Events::GetTimestamp();
 
 	// convert the GameInputReading into our internal State representation
 	auto buttonCount = reading->GetControllerButtonCount();
@@ -422,7 +464,7 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputDevice* device )
 		state.buttons.resize( buttonCount );
 		for( uint32_t index = 0; index < buttonCount; ++index )
 		{
-			state.buttons[index]._pressed = buttonReading[index] != 0;
+			state.buttons[index].pressed = buttonReading[index] != 0;
 		}
 	}
 

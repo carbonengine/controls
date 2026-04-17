@@ -24,14 +24,14 @@ ControlManager::ControlManager( IRoot* lockobj ) :
 	} );
 }
 
-void ControlManager::SetHoldTimeInMs( float holdTime )
+void ControlManager::SetHoldTimeInMs( uint64_t holdTime )
 {
-	InputDevice::g_holdTimeInMs = holdTime;
+	Events::g_holdTimeInMicroSeconds = holdTime * 1000;
 }
 
-float ControlManager::GetHoldTimeInMs()
+uint64_t ControlManager::GetHoldTimeInMs()
 {
-	return InputDevice::g_holdTimeInMs;
+	return Events::g_holdTimeInMicroSeconds / 1000;
 }
 
 void ControlManager::OnDeviceAdded( DeviceEnums::DeviceIdentifier& deviceIdentifier )
@@ -65,6 +65,8 @@ IRootPtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
 
 		m_activeDevices.Append( (*foundDevice)->GetRawRoot() );
 		CCP_LOGNOTICE( "Device %ls (ID: %u) is active", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
+		m_inputHandler->SetDeviceActivation( deviceID, true );
+
 		return (*foundDevice)->GetRawRoot();
 	}
 	else
@@ -88,6 +90,7 @@ void ControlManager::Deactivate( DeviceEnums::DeviceId deviceID )
 	{
 		CCP_LOGNOTICE( "ControlManager::Deactivate called with a device id that is not connected, ignoring" );
 	}
+	m_inputHandler->SetDeviceActivation( deviceID, false );
 }
 
 void ControlManager::Update()

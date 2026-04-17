@@ -9,9 +9,9 @@ namespace Events
 const Be::VarChooser ButtonStateChooser[] = {
 	{ "Up", BeCast( ButtonState::Up ), "Indicates that a button is not pressed" },
 	{ "Down", BeCast( ButtonState::Down ), "Indicates that a button is down (but no time checks are performed)" },
-	{ "Pressed", BeCast( ButtonState::Pressed ), "Indicates that a button is pressed" },
-	{ "Released", BeCast( ButtonState::Released ), "Indicates that a button was held and then released within the held time delta" },
-	{ "Held", BeCast( ButtonState::Held ), "Indicates that a button is being held down for longer than the held time delta" },
+	{ "Pressed", BeCast( ButtonState::Pressed ), "Indicates that a button is pressed (i.e went down and up within the held time)" },
+	{ "Released", BeCast( ButtonState::Released ), "Indicates that a button was held and then released" },
+	{ "Held", BeCast( ButtonState::Held ), "Indicates that a button is being held down for longer than the held time" },
 	{ 0 }
 };
 BLUE_REGISTER_ENUM_EX( "ButtonState", ButtonState, ButtonStateChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );

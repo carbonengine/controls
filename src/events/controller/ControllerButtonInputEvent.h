@@ -16,6 +16,9 @@ public:
 private:
 	uint32_t m_buttonIndex = 0;
 	Events::ButtonState m_event{ Events::ButtonState::Pressed };
+
+	bool m_previouslyPressed = false;
+	uint64_t m_previousStateChangeTimestamp = 0;
 };
 
 TYPEDEF_BLUECLASS( ControllerButtonInputEvent );

@@ -6,7 +6,8 @@ class InputHandlerStub : public IInputHandler
 public:
 	InputHandlerStub() = default;
 
-	Events::State Update( DeviceEnums::DeviceId deviceId ) override;
+	void SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate ) override;
+	std::vector<Events::State> Update( DeviceEnums::DeviceId deviceId ) override;
 
 	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
 	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;

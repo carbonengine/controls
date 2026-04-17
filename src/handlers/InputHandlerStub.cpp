@@ -13,9 +13,13 @@ void InputHandlerStub::RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callbac
 {
 }
 
-Events::State InputHandlerStub::Update( DeviceEnums::DeviceId deviceId )
+std::vector<Events::State> InputHandlerStub::Update( DeviceEnums::DeviceId deviceId )
 {
 	return {};
+}
+
+void InputHandlerStub::SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate )
+{
 }
 
 void InputHandlerStub::Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble )
