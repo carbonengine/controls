@@ -42,7 +42,9 @@ set(CARBON_CONTROLS_SOURCE_FILES
 
 ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
 set_build_flavor(_carbon_controls)
-add_trinity_dev_debug_flags(_carbon_controls)
+
+# This will fail building on teamcity for now, until blue-exposure can support pdb v143 (or something, it fails on teamcity)
+#add_trinity_dev_debug_flags(_carbon_controls)
 
 target_precompile_headers(_carbon_controls PRIVATE src/StdAfx.h)
 
