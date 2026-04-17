@@ -40,6 +40,8 @@ private:
 
 	std::vector<DeviceEnums::DeviceIdentifier> m_addedDevices;
 	std::vector<DeviceEnums::DeviceIdentifier> m_removedDevices;
+
+	bool m_initialDevicesProcessed = false;
 };
 
 TYPEDEF_BLUECLASS( ControlManager );

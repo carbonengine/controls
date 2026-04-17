@@ -80,7 +80,6 @@ DeviceEnums::DeviceId GetDeviceID( const BYTE* bytes, uint32_t size )
 // ---------------------------------------------------------------------------
 InputHandlerWin::InputHandlerWin()
 {
-	InitializeGameInput();
 }
 
 InputHandlerWin::~InputHandlerWin()
@@ -88,10 +87,11 @@ InputHandlerWin::~InputHandlerWin()
 	ShutdownGameInput();
 }
 
+
 // ---------------------------------------------------------------------------
 // GameInput lifetime
 // ---------------------------------------------------------------------------
-bool InputHandlerWin::InitializeGameInput()
+bool InputHandlerWin::Initialize()
 {
 	if( m_initialized )
 	{
@@ -137,12 +137,20 @@ void InputHandlerWin::ShutdownGameInput()
 	}
 
 	// Unregister the device callback before releasing devices
-	if( m_gameInput && m_deviceCallbackToken != 0 )
+	if( m_gameInput )
 	{
-		m_gameInput->UnregisterCallback( m_deviceCallbackToken );
-		m_deviceCallbackToken = 0;
-	}
+		if(  m_deviceCallbackToken != 0 )
+		{
+			m_gameInput->UnregisterCallback( m_deviceCallbackToken );
+			m_deviceCallbackToken = 0;
+		}
 
+		for( auto& pair : m_deviceReadCallbackTokens )
+		{
+			m_gameInput->UnregisterCallback( pair.second );
+		}
+	}
+	
 	{
 		std::lock_guard<std::mutex> lock( m_deviceMutex );
 		for( auto& slot : m_deviceSlots )
@@ -323,7 +331,16 @@ std::vector<Events::State> InputHandlerWin::Update( DeviceEnums::DeviceId device
 					slot.device->Release();
 					slot.device = nullptr;
 					slot.pendingRemoval = false;
+
 					CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final removal", slot.identifier.name.c_str() );
+				}
+				auto foundCallback = std::remove_if( m_deviceReadCallbackTokens.begin(), m_deviceReadCallbackTokens.end(), [&slot]( const std::pair<DeviceEnums::DeviceId, GameInputCallbackToken>& pair ) {
+					return pair.first == slot.identifier.deviceID;
+				} );
+				if( foundCallback != m_deviceReadCallbackTokens.end() )
+				{
+					m_gameInput->UnregisterCallback( foundCallback->second );
+					m_deviceReadCallbackTokens.erase( foundCallback );
 				}
 			}
 		}
@@ -411,20 +428,6 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 		identifier.switchCount = info->controllerInfo->controllerSwitchCount;
 	}
 	return identifier;
-}
-
-std::vector<DeviceEnums::DeviceIdentifier> InputHandlerWin::GetAllDeviceIdentifiers()
-{
-	auto devices = std::vector<DeviceEnums::DeviceIdentifier>{};
-	devices.reserve( m_deviceSlots.size() );
-	for( const auto& slot : m_deviceSlots )
-	{
-		if( slot.device )
-		{
-			devices.push_back( slot.identifier );
-		}
-	}
-	return devices;
 }
 
 void InputHandlerWin::RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback )

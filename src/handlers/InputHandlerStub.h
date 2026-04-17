@@ -5,11 +5,11 @@ class InputHandlerStub : public IInputHandler
 {
 public:
 	InputHandlerStub() = default;
+	bool Initialize() override;
 
 	void SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate ) override;
 	std::vector<Events::State> Update( DeviceEnums::DeviceId deviceId ) override;
 
-	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
 	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;
 	void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) override;
 

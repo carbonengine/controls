@@ -14,7 +14,7 @@ class InputHandlerWin : public IInputHandler
 public:
 	InputHandlerWin();
 	~InputHandlerWin();
-	std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() override;
+	bool Initialize() override;
 	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;
 	void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) override;
 	std::vector<Events::State> Update( DeviceEnums::DeviceId deviceId ) override;
@@ -31,7 +31,6 @@ private:
 	};
 
 	// GameInput setup / teardown
-	bool InitializeGameInput();
 	void ShutdownGameInput();
 
 	// Reads the current hardware state for a single device into its slot

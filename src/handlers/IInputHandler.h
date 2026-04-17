@@ -9,7 +9,7 @@ typedef std::function<void( DeviceEnums::DeviceIdentifier& )> DEVICE_CHANGED_CAL
 class IInputHandler
 {
 public:
-	virtual std::vector<DeviceEnums::DeviceIdentifier> GetAllDeviceIdentifiers() = 0;
+	virtual bool Initialize() = 0;
 	virtual void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) = 0;
 	virtual void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) = 0;
 	virtual void SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate ) = 0;

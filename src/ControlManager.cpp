@@ -22,6 +22,8 @@ ControlManager::ControlManager( IRoot* lockobj ) :
 	m_inputHandler->RegisterForDeviceRemoved( [this]( DeviceEnums::DeviceIdentifier& deviceIdentifiers ) {
 		OnDeviceRemoved( deviceIdentifiers );
 	} );
+
+	m_inputHandler->Initialize();
 }
 
 void ControlManager::SetHoldTimeInMs( uint64_t holdTime )
@@ -100,6 +102,8 @@ void ControlManager::Update()
 		ProcessChangedDevices();
 	}
 
+	m_initialDevicesProcessed = true;
+
 	for( auto& activeDevice : m_activeDevices )
 	{
 		activeDevice->Update( m_inputHandler.get() );
@@ -128,10 +132,10 @@ void ControlManager::ProcessChangedDevices()
 			auto deviceID = ( *foundDevice )->GetDeviceID();
 			auto indexInActiveDevices = m_activeDevices.FindKey( root );
 			auto indexInDevices = m_devices.FindKey( root );
-			// call callbacks first so they still have access to the whole device list (so we can see the name of devices)
-			if( m_deviceAddedCallback && indexInActiveDevices == -1 )
+			// only call device removed if the device is not active
+			if( m_deviceRemovedCallback && indexInActiveDevices == -1 && indexInDevices != -1 )
 			{
-				m_deviceAddedCallback.CallVoid( deviceID );
+				m_deviceRemovedCallback.CallVoid( deviceID );
 			}
 			else if( m_activeDeviceLostCallback && indexInActiveDevices != -1 )
 			{
@@ -141,7 +145,6 @@ void ControlManager::ProcessChangedDevices()
 			// and now remove the devices
 			if( indexInDevices != -1 )
 			{
-				// need to remove from ALL devices first, so the callbacks when active device lost has a correct devices list
 				m_devices.Remove( indexInDevices );
 			}
 			if( indexInActiveDevices != -1 )
@@ -165,7 +168,7 @@ void ControlManager::ProcessChangedDevices()
 			newDevice->SetIdentifier( deviceIdentifier );
 			m_devices.Append( newDevice->GetRawRoot() );
 
-			if( m_deviceAddedCallback )
+			if( m_deviceAddedCallback && m_initialDevicesProcessed )
 			{
 				m_deviceAddedCallback.CallVoid( newDevice->GetDeviceID() );
 			}

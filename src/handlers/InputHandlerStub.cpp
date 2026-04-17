@@ -1,8 +1,8 @@
 #include "InputHandlerStub.h"
 
-std::vector<DeviceEnums::DeviceIdentifier> InputHandlerStub::GetAllDeviceIdentifiers()
+bool InputHandlerStub::Initialize()
 {
-	return {};
+	return true;
 }
 
 void InputHandlerStub::RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback )
