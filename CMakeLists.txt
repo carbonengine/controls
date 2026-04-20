@@ -67,7 +67,7 @@ target_include_directories(_carbon_controls
         $<INSTALL_INTERFACE:include>
 )
 
-target_compile_definitions(_carbon_controls PRIVATE BLUE_WITH_PYTHON=1 TRACY_ENABLE=1 BLUEBUILD)
+target_compile_definitions(_carbon_controls PRIVATE BLUE_WITH_PYTHON=1 BLUEBUILD)
 if( WIN32 )
     find_package(gameinput CONFIG REQUIRED)
     target_link_libraries(_carbon_controls PRIVATE Microsoft::GameInput BlueExposure Python3::Python)
