@@ -18,6 +18,7 @@ struct RumbleCapacity
 	bool hasHighFrequencyRumble = false; ///< Whether the device supports high-frequency rumble.
 	bool hasLeftTriggerRumble = false;   ///< Whether the left trigger supports rumble.
 	bool hasRightTriggerRumble = false;  ///< Whether the right trigger supports rumble.
+	uint32_t rumbleMotorCount = 0;       ///< Number of rumble motors available on the device.
 
 	RumbleCapacity() = default;
 
@@ -29,7 +30,8 @@ struct RumbleCapacity
 		hasLowFrequencyRumble( other.hasLowFrequencyRumble ),
 		hasHighFrequencyRumble( other.hasHighFrequencyRumble ),
 		hasLeftTriggerRumble( other.hasLeftTriggerRumble ),
-		hasRightTriggerRumble( other.hasRightTriggerRumble );
+		hasRightTriggerRumble( other.hasRightTriggerRumble ),
+		rumbleMotorCount( other.rumbleMotorCount ) {};
 };
 
 /**

@@ -100,6 +100,7 @@ Each device exposes:
 - `buttonCount`: The number of buttons on the device
 - `axisCount`: The number of axes on the device
 - `switchCount`: The number of switches on the device
+- `rumbleMotorCount`: Number of rumble motors (carbon_controls support up to 4)
 - `hasHighFrequencyRumble`: Indicated if it has high frequency rumble support
 - `hasLowFrequencyRumble`: Indicated if it has low frequency rumble support 
 - `hasLeftTriggerRumble`: Indicated if it has left trigger rumble support

@@ -41,9 +41,13 @@ public:
 	IRootPtr Activate( BlueSharedString deviceID );
 
 	/**
-	 * @brief Processes pending device changes and polls all active devices.
+	 * @brief Processes pending device changes and polls all active devices
 	 *
-	 * Should be called once per frame from the main loop.
+	 * This function does two things:
+	 * - It process any queued device connection or disconnection events, invoking the appropriate callbacks.
+	 * - It iterates through the list of active devices and calls their Update() method to read new input states and trigger appropriate events.
+	 *
+	 * Should be called from the main game loop.
 	 */
 	void Update();
 
@@ -67,13 +71,13 @@ private:
 	uint64_t GetHoldTimeInMs();
 
 	/**
-	 * @brief Called (potentially from another thread) when a new device is detected.
+	 * @brief Called from the device update thread when a new device is detected.
 	 * @param deviceIdentifier Identifier of the added device.
 	 */
 	void OnDeviceAdded( DeviceEnums::DeviceIdentifier& deviceIdentifier );
 
 	/**
-	 * @brief Called (potentially from another thread) when a device is disconnected.
+	 * @brief Called from the device update thread when a device is disconnected.
 	 * @param deviceIdentifier Identifier of the removed device.
 	 */
 	void OnDeviceRemoved( DeviceEnums::DeviceIdentifier& deviceIdentifier );
