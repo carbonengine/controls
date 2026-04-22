@@ -17,11 +17,11 @@ public:
 	ControlManager( IRoot* lockobj = nullptr );
 
 	// activates an input device
-	IRootPtr Activate( DeviceEnums::DeviceId deviceID );
+	IRootPtr Activate( BlueSharedString deviceID );
 	void Update();
 
 	// deactivates an input device
-	void Deactivate( DeviceEnums::DeviceId deviceID );
+	void Deactivate( BlueSharedString deviceID );
 
 private:
 	void SetHoldTimeInMs( uint64_t holdTime );
@@ -29,6 +29,8 @@ private:
 	void OnDeviceAdded( DeviceEnums::DeviceIdentifier& deviceIdentifier );
 	void OnDeviceRemoved( DeviceEnums::DeviceIdentifier& deviceIdentifier );
 	void ProcessChangedDevices();
+	InputDevicePtr FindDevice( BlueSharedString deviceID ) const;
+	InputDevicePtr FindActiveDevice( BlueSharedString deviceID ) const;
 
 	PInputDeviceVector m_devices;
 	std::unique_ptr<IInputHandler> m_inputHandler;

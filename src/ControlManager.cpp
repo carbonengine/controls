@@ -48,50 +48,40 @@ void ControlManager::OnDeviceRemoved( DeviceEnums::DeviceIdentifier & deviceIden
 	m_removedDevices.push_back( deviceIdentifier );
 }
 
-IRootPtr ControlManager::Activate( DeviceEnums::DeviceId deviceID )
+IRootPtr ControlManager::Activate( BlueSharedString deviceID )
 {
-	auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceID]( InputDevicePtr identifier ) {
-		return identifier->GetDeviceID() == deviceID;
-	} );
+	auto foundDevice = FindDevice( deviceID );
 
-	if( foundDevice != m_devices.end() )
+	if( foundDevice )
 	{
-		auto foundActiveDevice = std::find_if( m_activeDevices.begin(), m_activeDevices.end(), [deviceID]( InputDevicePtr identifier ) {
-			return identifier->GetDeviceID() == deviceID;
-		} );
-		if( foundActiveDevice != m_activeDevices.end() )
+		auto foundActiveDevice = FindActiveDevice( deviceID );
+		if( foundActiveDevice )
 		{
-			CCP_LOGERR( "Device %ls (ID: %u) is already active returning the existing instance", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
-			return (*foundActiveDevice)->GetRawRoot();
+			CCP_LOGWARN( "Device %ls (ID: %u) is already active returning the existing instance", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
+			return foundActiveDevice->GetRawRoot();
 		}
 
-		m_activeDevices.Append( (*foundDevice)->GetRawRoot() );
-		CCP_LOGNOTICE( "Device %ls (ID: %u) is active", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
+		m_activeDevices.Append( foundDevice->GetRawRoot() );
+		CCP_LOGNOTICE( "Device %ls (ID: %u) is active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
 		m_inputHandler->SetDeviceActivation( deviceID, true );
 
-		return (*foundDevice)->GetRawRoot();
+		return foundDevice->GetRawRoot();
 	}
-	else
-	{
-		CCP_LOGERR( "Device with ID: %u is not connected", deviceID );
-	}
+	
+	CCP_LOGERR( "Device with ID: %u is not connected", deviceID );
 	return nullptr;
 }
 
-void ControlManager::Deactivate( DeviceEnums::DeviceId deviceID )
+void ControlManager::Deactivate( BlueSharedString deviceID )
 {
-	auto foundDevice = std::find_if( m_activeDevices.begin(), m_activeDevices.end(), [deviceID]( InputDevicePtr identifier ) {
-		return identifier->GetDeviceID() == deviceID;
-	} );
-	if( foundDevice != m_activeDevices.end() )
+	auto foundDevice = FindActiveDevice( deviceID );
+	if( foundDevice )
 	{
-		m_activeDevices.Remove( m_activeDevices.FindKey( (*foundDevice)->GetRawRoot() ) );
-		CCP_LOGNOTICE( "Device %ls (ID: %u) is no longer active", ( *foundDevice )->GetName().c_str(), ( *foundDevice )->GetDeviceID() );
+		m_activeDevices.Remove( m_activeDevices.FindKey( foundDevice->GetRawRoot() ) );
+		CCP_LOGNOTICE( "Device %ls (ID: %u) is no longer active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
 	}
-	else
-	{
-		CCP_LOGNOTICE( "ControlManager::Deactivate called with a device id that is not connected, ignoring" );
-	}
+	
+	CCP_LOGNOTICE( "ControlManager::Deactivate called with a device id that is not connected, ignoring" );
 	m_inputHandler->SetDeviceActivation( deviceID, false );
 }
 
@@ -122,14 +112,12 @@ void ControlManager::ProcessChangedDevices()
 
 	for( auto& removedDeviceIdentifier : removed )
 	{
-		auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [removedDeviceIdentifier]( InputDevicePtr identifier ) {
-			return identifier->GetDeviceID() == removedDeviceIdentifier.deviceID;
-		} );
-		auto root = foundDevice != m_devices.end() ? ( *foundDevice )->GetRawRoot() : nullptr;
+		auto deviceID = removedDeviceIdentifier.deviceID;
+		auto foundDevice = FindDevice( deviceID );
+		auto root = foundDevice ? foundDevice->GetRawRoot() : nullptr;
 
 		if( root )
 		{
-			auto deviceID = ( *foundDevice )->GetDeviceID();
 			auto indexInActiveDevices = m_activeDevices.FindKey( root );
 			auto indexInDevices = m_devices.FindKey( root );
 			// only call device removed if the device is not active
@@ -157,10 +145,8 @@ void ControlManager::ProcessChangedDevices()
 	// new devices
 	for( auto& deviceIdentifier : added )
 	{
-		auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceIdentifier]( InputDevicePtr identifier ) {
-			return identifier->GetDeviceID() == deviceIdentifier.deviceID;
-		} );
-		if( foundDevice == m_devices.end() )
+		auto foundDevice = FindDevice( deviceIdentifier.deviceID );
+		if( !foundDevice )
 		{
 			// add the device first before we call the callback so we have access to the device in the callback
 			InputDevicePtr newDevice;
@@ -174,4 +160,20 @@ void ControlManager::ProcessChangedDevices()
 			}
 		}
 	}
+}
+
+InputDevicePtr ControlManager::FindDevice( BlueSharedString deviceID ) const
+{
+	auto foundDevice = std::find_if( m_devices.begin(), m_devices.end(), [deviceID]( InputDevicePtr identifier ) {
+		return identifier->GetDeviceID() == deviceID;
+	} );
+	return foundDevice != m_devices.end() ? *foundDevice : nullptr;
+}
+
+InputDevicePtr ControlManager::FindActiveDevice( BlueSharedString deviceID ) const
+{
+	auto foundDevice = std::find_if( m_activeDevices.begin(), m_activeDevices.end(), [deviceID]( InputDevicePtr identifier ) {
+		return identifier->GetDeviceID() == deviceID;
+	} );
+	return foundDevice != m_activeDevices.end() ? *foundDevice : nullptr;
 }

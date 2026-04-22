@@ -9,7 +9,7 @@ BLUE_CLASS( InputEventTrigger ) : public IRoot
 public:
 	EXPOSE_TO_BLUE();
 	InputEventTrigger( IRoot* lockobj = nullptr );
-	void Process( Events::State state );
+	void Process( Events::State& state );
 	size_t GetEventCount() const;
 
 private:

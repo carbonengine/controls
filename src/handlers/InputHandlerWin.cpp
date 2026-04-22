@@ -2,21 +2,24 @@
 #include "InputHandlerWin.h"
 
 #include <algorithm>
-#include <Windows.h>
 #include <gameinput.h>
+#include <sstream>
+#include <Windows.h>
+#include <iomanip>
+
 #include "../ControlManager.h"
 
 using namespace GameInput::v3;
 
 namespace RegistryValues
 {
-std::wstring GetStringValueFromHKLM( const std::wstring& regSubKey, const std::wstring& regValue )
+std::string GetStringValueFromHKLM( const std::string& regSubKey, const std::string& regValue )
 {
 	size_t bufferSize = 0xFFF; // If too small, will be resized down below.
-	std::wstring valueBuf; // Contiguous buffer since C++11.
+	std::string valueBuf; // Contiguous buffer since C++11.
 	valueBuf.resize( bufferSize );
-	auto cbData = static_cast<DWORD>( bufferSize * sizeof( wchar_t ) );
-	auto rc = RegGetValueW(
+	auto cbData = static_cast<DWORD>( bufferSize * sizeof( char ) );
+	auto rc = RegGetValueA(
 		HKEY_LOCAL_MACHINE,
 		regSubKey.c_str(),
 		regValue.c_str(),
@@ -38,7 +41,7 @@ std::wstring GetStringValueFromHKLM( const std::wstring& regSubKey, const std::w
 			cbData = static_cast<DWORD>( bufferSize * sizeof( wchar_t ) );
 		}
 		valueBuf.resize( bufferSize );
-		rc = RegGetValueW(
+		rc = RegGetValueA(
 			HKEY_LOCAL_MACHINE,
 			regSubKey.c_str(),
 			regValue.c_str(),
@@ -55,36 +58,67 @@ std::wstring GetStringValueFromHKLM( const std::wstring& regSubKey, const std::w
 	}
 	else
 	{
-		return std::wstring( L"" );
+		return std::string( "" );
 	}
 }
 }
 
 namespace
 {
-DeviceEnums::DeviceId GetDeviceID( const BYTE* bytes, uint32_t size )
+// Converts the 32 byte device ID from GameInput into a string to be used as a unique identifier for devices.
+BlueSharedString GetDeviceIDAsString( APP_LOCAL_DEVICE_ID deviceId )
 {
-	// Build a stable device ID by hashing the APP_LOCAL_DEVICE_ID bytes
-	uint32_t hash = 2166136261u; // FNV-1a offset basis
-	for( size_t i = 0; i < size; ++i )
+	std::stringstream ss = {};
+	ss << std::hex << std::nouppercase << std::setfill( '0' ) << std::setw( 2 );
+	for( size_t i = 0; i < sizeof(deviceId.value) / sizeof(BYTE); ++i )
 	{
-		hash ^= static_cast<uint32_t>( bytes[i] );
-		hash *= 16777619u; // FNV-1a prime
+		ss << static_cast<int>( deviceId.value[i] );
 	}
-	return hash;
+	const auto result = ss.str();
+	if( result.empty() )
+	{
+		CCP_LOGERR( "Could not generate device ID for device" );
+	}
+	return BlueSharedString( result );
 }
 }
 
-// ---------------------------------------------------------------------------
-// Construction / Destruction
-// ---------------------------------------------------------------------------
 InputHandlerWin::InputHandlerWin()
 {
 }
 
 InputHandlerWin::~InputHandlerWin()
 {
-	ShutdownGameInput();
+	if( !m_initialized )
+	{
+		return;
+	}
+
+	// Unregister the device callback before releasing devices
+	if( m_gameInput )
+	{
+		if( m_deviceCallbackToken != 0 )
+		{
+			m_gameInput->UnregisterCallback( m_deviceCallbackToken );
+			m_deviceCallbackToken = 0;
+		}
+	}
+
+	{
+		std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
+		for( auto& slot : m_deviceSlots )
+		{
+			m_gameInput->UnregisterCallback( slot.readCallbackToken );
+			slot.device = nullptr;
+		}
+	}
+
+	if( m_gameInput )
+	{
+		m_gameInput = nullptr;
+	}
+	
+	CCP_LOGNOTICE( "InputHandlerWin: Shut down" );
 }
 
 
@@ -119,7 +153,6 @@ bool InputHandlerWin::Initialize()
 	if( FAILED( hr ) )
 	{
 		CCP_LOGERR( "InputHandlerWin: RegisterDeviceCallback failed (0x%08X)", hr );
-		m_gameInput->Release();
 		m_gameInput = nullptr;
 		return false;
 	}
@@ -127,50 +160,6 @@ bool InputHandlerWin::Initialize()
 	m_initialized = true;
 	CCP_LOGNOTICE( "InputHandlerWin: Initialized successfully" );
 	return true;
-}
-
-void InputHandlerWin::ShutdownGameInput()
-{
-	if( !m_initialized )
-	{
-		return;
-	}
-
-	// Unregister the device callback before releasing devices
-	if( m_gameInput )
-	{
-		if(  m_deviceCallbackToken != 0 )
-		{
-			m_gameInput->UnregisterCallback( m_deviceCallbackToken );
-			m_deviceCallbackToken = 0;
-		}
-
-		for( auto& pair : m_deviceReadCallbackTokens )
-		{
-			m_gameInput->UnregisterCallback( pair.second );
-		}
-	}
-	
-	{
-		std::lock_guard<std::mutex> lock( m_deviceMutex );
-		for( auto& slot : m_deviceSlots )
-		{
-			if( slot.device )
-			{
-				slot.device->Release();
-				slot.device = nullptr;
-			}
-		}
-	}
-
-	if( m_gameInput )
-	{
-		m_gameInput->Release();
-		m_gameInput = nullptr;
-	}
-
-	m_initialized = false;
-	CCP_LOGNOTICE( "InputHandlerWin: Shut down" );
 }
 
 // ---------------------------------------------------------------------------
@@ -193,22 +182,19 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 	const bool wasConnected = ( previousStatus & GameInputDeviceConnected ) != 0;
 	const bool isConnected = ( currentStatus & GameInputDeviceConnected ) != 0;
 
-	// we have no control over when this happens, so lock the device
-	std::lock_guard<std::mutex> lock( self->m_deviceMutex );
-
+	auto identifier = self->GetIdentifier( device );
 	if( isConnected && !wasConnected )
 	{
 		device->AddRef();
-		auto identifier = self->GetIdentifier( device );
-		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [identifier]( const DeviceSlot& slot ) { return slot.identifier.deviceID == identifier.deviceID; } );
-		if( it != self->m_deviceSlots.end() )
+		auto slot = self->GetDeviceSlot( identifier.deviceID );
+		if( slot )
 		{
 			// This can happen if a device disconnects and reconnects again, no need to create a new slot for it, just update the existing one
-			if( !it->device )
+			if( !slot->device )
 			{
-				it->device = device;
+				slot->device = device;
 			}
-			it->pendingRemoval = false;
+			slot->pendingRemoval = false;
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' reconnected", identifier.name.c_str() );
 		}
 		else
@@ -219,7 +205,8 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 				identifier
 			};
 
-			self->m_deviceSlots.push_back( slot );
+			std::unique_lock<std::shared_mutex> lock( self->m_deviceMutex );
+			self->m_deviceSlots.push_back( std::move( slot ) );
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' connected", identifier.name.c_str() );
 		}
 		if( self->m_deviceAddedCallback )
@@ -230,16 +217,16 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 	else if( !isConnected && wasConnected )
 	{
 		// Mark the matching slot for removal on next Update()
-		auto it = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [device]( const DeviceSlot& slot ) { return slot.device == device; } );
-		if( it != self->m_deviceSlots.end() )
+		auto slot = self->GetDeviceSlot( identifier.deviceID );
+		if( slot )
 		{
-			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final disconnected", it->identifier.name.c_str() );
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final disconnected", slot->identifier.name.c_str() );
 
-			it->pendingRemoval = true;
+			slot->pendingRemoval = true;
 			self->m_devicesRemoved = true;
 			if( self->m_deviceRemovedCallback )
 			{
-				self->m_deviceRemovedCallback( it->identifier );
+				self->m_deviceRemovedCallback( slot->identifier );
 			}
 		}
 	}
@@ -264,83 +251,75 @@ void CALLBACK InputHandlerWin::OnDeviceRead(
 	{
 		return;
 	}
-
-	auto foundSlot = std::find_if( self->m_deviceSlots.begin(), self->m_deviceSlots.end(), [device]( const DeviceSlot& slot ) { return slot.device == device; } );
-
-	if( foundSlot != self->m_deviceSlots.end() )
+	auto state = self->ReadDeviceState( reading );
 	{
-		auto state = self->ReadDeviceState( reading );
+		auto foundSlot = self->GetDeviceSlot( device );
+		if( foundSlot )
 		{
-			std::lock_guard<std::mutex> lock( self->m_readingMutex );
-			self->m_accumulatedStates[foundSlot->identifier.deviceID].push_back( state );
+			std::unique_lock<std::shared_mutex> lock( self->m_readingMutex );
+			foundSlot->accumulatedStates.push_back( std::move(state) );
 		}
 	}
 }
 
-void InputHandlerWin::SetDeviceActivation( DeviceEnums::DeviceId deviceID, bool activate )
+void InputHandlerWin::SetDeviceActivation( BlueSharedString deviceID, bool activate )
 {
+	auto foundDevice = GetDeviceSlot( deviceID );
+	if( !foundDevice )
+	{
+		CCP_LOGERR( "InputHandlerWin: Could not find device with ID '%s' to set activation to %d", deviceID.c_str(), activate );
+		return;
+	}
+
 	if( activate )
 	{
-		// find the device and register it for reading callbacks
-		auto foundDevice = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [deviceID]( const DeviceSlot& slot ) {
-			return slot.identifier.deviceID == deviceID;
-		} );
-		if( foundDevice != m_deviceSlots.end() )
+		auto hr = m_gameInput->RegisterReadingCallback(
+			nullptr,
+			SUPPORTED_INPUTS,
+			this,
+			OnDeviceRead,
+			&foundDevice->readCallbackToken );
+		if( !SUCCEEDED( hr ) )
 		{
-			GameInputCallbackToken token;
-			auto hr = m_gameInput->RegisterReadingCallback(
-				nullptr,
-				SUPPORTED_INPUTS,
-				this,
-				OnDeviceRead,
-				&token );
-			m_deviceReadCallbackTokens.emplace_back( deviceID, token );
+			CCP_LOGERR( "InputHandlerWin: Failed to register reading callback for device '%s' (0x%08X)", foundDevice->identifier.name.c_str(), hr );
+			foundDevice->readCallbackToken = 0;
 		}
 	}
 	else
 	{
-		// find the device and unregister it from reading callbacks
-		auto it = std::find_if( m_deviceReadCallbackTokens.begin(), m_deviceReadCallbackTokens.end(), [deviceID]( const std::pair<DeviceEnums::DeviceId, GameInputCallbackToken>& pair ) {
-			return pair.first == deviceID;
-		} );
-		if( it != m_deviceReadCallbackTokens.end() )
+		if( foundDevice->readCallbackToken != 0 )
 		{
-			m_gameInput->UnregisterCallback( it->second );
-			m_deviceReadCallbackTokens.erase( it );
+			m_gameInput->UnregisterCallback( foundDevice->readCallbackToken );
+			foundDevice->readCallbackToken = 0;
 		}
 	}
 }
 
-std::vector<Events::State> InputHandlerWin::Update( DeviceEnums::DeviceId deviceID )
+std::vector<Events::State> InputHandlerWin::Update( BlueSharedString deviceID )
 {
 	if( !m_initialized )
 	{
 		return {};
 	}
-	std::lock_guard<std::mutex> lock( m_deviceMutex );
 
 	// need to remove devices here, but not in the callback 
 	if( m_devicesRemoved )
 	{
+		std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
 		for( auto& slot : m_deviceSlots )
 		{
 			if( slot.pendingRemoval )
 			{
 				if( slot.device )
 				{
-					slot.device->Release();
 					slot.device = nullptr;
 					slot.pendingRemoval = false;
-
+					if( slot.readCallbackToken != 0 )
+					{
+						m_gameInput->UnregisterCallback( slot.readCallbackToken );
+						slot.readCallbackToken = 0;
+					}
 					CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final removal", slot.identifier.name.c_str() );
-				}
-				auto foundCallback = std::remove_if( m_deviceReadCallbackTokens.begin(), m_deviceReadCallbackTokens.end(), [&slot]( const std::pair<DeviceEnums::DeviceId, GameInputCallbackToken>& pair ) {
-					return pair.first == slot.identifier.deviceID;
-				} );
-				if( foundCallback != m_deviceReadCallbackTokens.end() )
-				{
-					m_gameInput->UnregisterCallback( foundCallback->second );
-					m_deviceReadCallbackTokens.erase( foundCallback );
 				}
 			}
 		}
@@ -349,13 +328,14 @@ std::vector<Events::State> InputHandlerWin::Update( DeviceEnums::DeviceId device
 
 	std::vector<Events::State> statesForDevice = {};
 	{
-		std::lock_guard<std::mutex> lock( m_readingMutex );
-		auto it = m_accumulatedStates.find( deviceID );
-		if( it != m_accumulatedStates.end() )
+		auto deviceSlot = GetDeviceSlot( deviceID );
+		if( !deviceSlot )
 		{
-			std::swap( statesForDevice, it->second );
-
+			CCP_LOGERR( "InputHandlerWin: Could not find device with ID '%s' to update", deviceID.c_str() );
+			return statesForDevice;
 		}
+		std::unique_lock<std::shared_mutex> lock( m_readingMutex );
+		std::swap( statesForDevice, deviceSlot->accumulatedStates );
 	}
 
 	return statesForDevice;
@@ -378,8 +358,7 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 		return identifier;
 	}
 
-	identifier.deviceID = GetDeviceID( info->deviceId.value, sizeof( info->deviceId.value ) );
-	identifier.rawDeviceId = info->deviceId;
+	identifier.deviceID = GetDeviceIDAsString( info->deviceId );
 
 	char vid[16];
 	snprintf( vid, sizeof( vid ), "%04X", info->vendorId );
@@ -392,22 +371,19 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 
 	if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyHid )
 	{
-		std::wstring vid_w( static_cast<const wchar_t*>( CA2W( vid ) ) );
-		std::wstring pid_w( static_cast<const wchar_t*>( CA2W( pid ) ) );
-
 		// check the registry for the device name, using the vendor/product ID as a key
 		auto registryName = RegistryValues::GetStringValueFromHKLM(
-			L"SYSTEM\\CurrentControlSet\\Control\\MediaProperties\\PrivateProperties\\Joystick\\OEM\\VID_" + vid_w + L"&PID_" + pid_w,
-			L"OEMName" );
+			"SYSTEM\\CurrentControlSet\\Control\\MediaProperties\\PrivateProperties\\Joystick\\OEM\\VID_" + std::string(vid) + "&PID_" + std::string(pid),
+			"OEMName" );
 		if( !registryName.empty() )
 		{
-			identifier.name = BlueSharedStringW( registryName.c_str() );
+			identifier.name = BlueSharedString( registryName.c_str() );
 		}
 	}
 
 	if( identifier.name.empty() && info->displayName )
 	{
-		identifier.name = BlueSharedStringW( static_cast<const wchar_t*>( CA2W( info->displayName ) ) );
+		identifier.name = BlueSharedString( static_cast<const char*>( info->displayName) );
 	}
 
 	bool hasLowFreq = ( info->supportedRumbleMotors & GameInputRumbleMotors::GameInputRumbleLowFrequency ) != 0;
@@ -430,12 +406,12 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	return identifier;
 }
 
-void InputHandlerWin::RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback )
+void InputHandlerWin::RegisterForDeviceAdded( DeviceChangedCallback callback )
 {
 	m_deviceAddedCallback = callback;
 }
 
-void InputHandlerWin::RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback )
+void InputHandlerWin::RegisterForDeviceRemoved( DeviceChangedCallback callback )
 {
 	m_deviceRemovedCallback = callback;
 }
@@ -462,7 +438,7 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading )
 	if( buttonCount > 0 )
 	{
 		auto buttonReading = std::make_unique<bool[]>( buttonCount );
-		reading->GetControllerButtonState( buttonCount, reinterpret_cast<bool*>( buttonReading.get() ) );
+		reading->GetControllerButtonState( buttonCount, buttonReading.get() );
 
 		state.buttons.resize( buttonCount );
 		for( uint32_t index = 0; index < buttonCount; ++index )
@@ -497,23 +473,52 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading )
 	return state;
 }
 
-void InputHandlerWin::Rumble( DeviceEnums::DeviceId deviceID, Events::Rumble rumble )
+void InputHandlerWin::Rumble( BlueSharedString deviceID, Events::Rumble rumble )
 {
-	std::lock_guard<std::mutex> lock( m_deviceMutex );
-	for( auto& slot : m_deviceSlots )
-	{
-		if( slot.device && slot.identifier.deviceID == deviceID )
-		{
-			GameInputRumbleParams rumbleParams = {};
-			rumbleParams.highFrequency = rumble.highFrequency;
-			rumbleParams.lowFrequency = rumble.lowFrequency;
-			rumbleParams.leftTrigger = rumble.leftTrigger;
-			rumbleParams.rightTrigger = rumble.rightTrigger;
 
-			slot.device->SetRumbleState(&rumbleParams);
-			break;
-		}
+	auto deviceSlot = GetDeviceSlot( deviceID );
+	
+	if( deviceSlot )
+	{
+		GameInputRumbleParams rumbleParams = {};
+		rumbleParams.highFrequency = rumble.highFrequency;
+		rumbleParams.lowFrequency = rumble.lowFrequency;
+		rumbleParams.leftTrigger = rumble.leftTrigger;
+		rumbleParams.rightTrigger = rumble.rightTrigger;
+
+		std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
+		deviceSlot->device->SetRumbleState( &rumbleParams );
 	}
+}
+
+InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( BlueSharedString deviceID )
+{
+	std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
+
+	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [deviceID]( const DeviceSlot& slot ) {
+		return slot.device && slot.identifier.deviceID == deviceID;
+	} );
+	if( it != m_deviceSlots.end() )
+	{
+		return &( *it );
+	}
+
+	return nullptr;	
+}
+
+InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( CComPtr<IGameInputDevice> device )
+{
+	std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
+
+	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [device]( const DeviceSlot& slot ) {
+		return slot.device == device;
+	} );
+	if( it != m_deviceSlots.end() )
+	{
+		return &( *it );
+	}
+
+	return nullptr;
 }
 
 #endif // WIN32

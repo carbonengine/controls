@@ -5,23 +5,23 @@ bool InputHandlerStub::Initialize()
 	return true;
 }
 
-void InputHandlerStub::RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback )
+void InputHandlerStub::RegisterForDeviceAdded( DeviceChangedCallback callback )
 {
 }
 
-void InputHandlerStub::RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback )
+void InputHandlerStub::RegisterForDeviceRemoved( DeviceChangedCallback callback )
 {
 }
 
-std::vector<Events::State> InputHandlerStub::Update( DeviceEnums::DeviceId deviceId )
+std::vector<Events::State> InputHandlerStub::Update( BlueSharedString deviceId )
 {
 	return {};
 }
 
-void InputHandlerStub::SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate )
+void InputHandlerStub::SetDeviceActivation( BlueSharedString deviceId, bool activate )
 {
 }
 
-void InputHandlerStub::Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble )
+void InputHandlerStub::Rumble( BlueSharedString deviceId, Events::Rumble rumble )
 {
 }

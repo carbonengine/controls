@@ -7,11 +7,11 @@ public:
 	InputHandlerStub() = default;
 	bool Initialize() override;
 
-	void SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate ) override;
-	std::vector<Events::State> Update( DeviceEnums::DeviceId deviceId ) override;
+	void SetDeviceActivation( BlueSharedString deviceId, bool activate ) override;
+	std::vector<Events::State> Update( BlueSharedString deviceId ) override;
 
-	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;
-	void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) override;
+	void RegisterForDeviceAdded( DeviceChangedCallback callback ) override;
+	void RegisterForDeviceRemoved( DeviceChangedCallback callback ) override;
 
-	void Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble ) override;
+	void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) override;
 };

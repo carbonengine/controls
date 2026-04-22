@@ -1,38 +1,40 @@
-import blue
 import time
 import logging
 
+import blue
 carbon_controls = blue.LoadExtension("_carbon_controls")
 
-
 input("Press enter to start polling for input devices")
-controller = carbon_controls.GetControlManager()
-print( dir(controller) )
 
-while not controller.devices:
+controlManager = carbon_controls.GetControlManager()
+
+while True:
+    controlManager.Update()
+    if len(controlManager.devices) > 0:
+        break
     print( "No input devices found. Retrying in 1 second..." )
     time.sleep( 1 )
 
-print( f"Found {len(controller.devices)} input device(s)." )
+print( f"Found {len(controlManager.devices)} input device(s)." )
 
-if len(controller.devices) > 1:
+if len(controlManager.devices) > 1:
     print( "Multiple devices found. Please select a device by index:" )
-    for i, device in enumerate(controller.devices):
+    for i, device in enumerate(controlManager.devices):
         print( f"{i}: {device.name}" )
     while True:
         selection = input( "Enter device index: " )
-        if selection.isdigit() and 0 <= int(selection) < len(controller.devices):
-            selected_device = controller.devices[int(selection)]
+        if selection.isdigit() and 0 <= int(selection) < len(controlManager.devices):
+            deviceId = controlManager.devices[int(selection)].deviceID
             break
         else:
             print( "Invalid selection. Please enter a valid device index." )
 else:
-    # Pick the first device, preferring a gamepad
-    selected_device = controller.devices[0]
+    deviceId = controlManager.devices[0].deviceID
 
+selected_device = controlManager.Activate(deviceId)
 print(f"Connecting to:")
 print(f"name: {selected_device.name}")
-controller.Connect( selected_device.deviceID )
+print(f"deviceID: {selected_device.deviceID}")
 
 # ─── Helper ───────────────────────────────────────────────────────────
 
@@ -41,7 +43,7 @@ def register_trigger( event, callback ):
     trigger = carbon_controls.InputEventTrigger()
     trigger.events.append( event )
     trigger.callback = callback
-    controller.activeDevice.triggers.append( trigger )
+    selected_device.triggers.append( trigger )
 
 def button_callback( event ):
     print( f"Button event: {event[0].buttonIndex}" )
@@ -69,8 +71,8 @@ for switch_index in range( selected_device.switchCount ):
     register_trigger( evt, switch_callback )
 
 
-print(f"Registered {len(controller.activeDevice.triggers)} triggers. Polling...")
+print(f"uPolling...")
 
 while True:
-    controller.Update()
+    controlManager.Update()
     blue.os.Pump() 

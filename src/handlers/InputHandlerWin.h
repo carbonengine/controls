@@ -15,20 +15,25 @@ public:
 	InputHandlerWin();
 	~InputHandlerWin();
 	bool Initialize() override;
-	void RegisterForDeviceAdded( DEVICE_CHANGED_CALLBACK callback ) override;
-	void RegisterForDeviceRemoved( DEVICE_CHANGED_CALLBACK callback ) override;
-	std::vector<Events::State> Update( DeviceEnums::DeviceId deviceId ) override;
-	void SetDeviceActivation( DeviceEnums::DeviceId deviceId, bool activate ) override;
-	void Rumble( DeviceEnums::DeviceId deviceId, Events::Rumble rumble ) override;
+	void RegisterForDeviceAdded( DeviceChangedCallback callback ) override;
+	void RegisterForDeviceRemoved( DeviceChangedCallback callback ) override;
+	std::vector<Events::State> Update( BlueSharedString deviceId ) override;
+	void SetDeviceActivation( BlueSharedString deviceId, bool activate ) override;
+	void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) override;
 
 private:
 	// Per-device bookkeeping
 	struct DeviceSlot
 	{
-		IGameInputDevice* device = nullptr;
+		CComPtr<IGameInputDevice> device = nullptr;
 		bool pendingRemoval = false; // set to true when we receive a disconnect event, until the slot is cleaned up on the next Update()
 		DeviceEnums::DeviceIdentifier identifier{};
+		std::vector<Events::State> accumulatedStates{}; // states that have been accumulated for this device, updated on each reading callback, and read by Update() to return the latest state for the device
+		GameInputCallbackToken readCallbackToken = 0; // token for the registered reading callback for this device, so we can unregister it on teardown or when deactivating the device
 	};
+
+	DeviceSlot* GetDeviceSlot( BlueSharedString deviceID );
+	DeviceSlot* GetDeviceSlot( CComPtr<IGameInputDevice> device );
 
 	// GameInput setup / teardown
 	void ShutdownGameInput();
@@ -54,24 +59,20 @@ private:
 	static DeviceEnums::DeviceIdentifier GetIdentifier( IGameInputDevice* device );
 
 	// mutex to protect m_deviceSlots
-	std::mutex m_deviceMutex;
-	// mutext to protect readings of devices
-	std::mutex m_readingMutex;
+	mutable std::shared_mutex m_deviceMutex;
+	// mutex to protect readings of all devices
+	mutable std::shared_mutex m_readingMutex; 
 
 	// tokens for registered GameInput callbacks, so we can unregister them on teardown
-	std::vector<std::pair<DeviceEnums::DeviceId, GameInputCallbackToken>> m_deviceReadCallbackTokens = {};
 	GameInputCallbackToken m_deviceCallbackToken = 0;
 
 	// the GameInput interface
-	IGameInput* m_gameInput = nullptr;
+	CComPtr<IGameInput> m_gameInput = nullptr;
 	// all recognized devices will be stored in this vector.
 	std::vector<DeviceSlot> m_deviceSlots = {};
 
-	// states that have been accumulated for each device, indexed by deviceID. Updated on each reading callback, and read by Update() to return the latest state for a device.
-	std::unordered_map<DeviceEnums::DeviceId, std::vector<Events::State>> m_accumulatedStates = {};
-
-	DEVICE_CHANGED_CALLBACK m_deviceAddedCallback = nullptr;
-	DEVICE_CHANGED_CALLBACK m_deviceRemovedCallback = nullptr;
+	DeviceChangedCallback m_deviceAddedCallback = nullptr;
+	DeviceChangedCallback m_deviceRemovedCallback = nullptr;
 
 	bool m_initialized = false;
 	bool m_devicesRemoved = false;

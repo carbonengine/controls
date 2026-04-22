@@ -8,7 +8,7 @@ bool ControllerAxisInputEvent::Match( const Events::State& state )
 {
 	if( m_axisIndex < state.axis.size() )
 	{
-		auto axis = state.axis[m_axisIndex];
+		const auto& axis = state.axis[m_axisIndex];
 
 		if( axis.matched )
 		{
@@ -32,8 +32,9 @@ bool ControllerAxisInputEvent::Match( const Events::State& state )
 
 void ControllerAxisInputEvent::Own( Events::State& state )
 {
-	auto axis = state.axis[m_axisIndex];
+	auto& axis = state.axis[m_axisIndex];
 
 	m_delta = axis.value - m_value;
 	m_value = axis.value;
+	axis.matched = true;
 }

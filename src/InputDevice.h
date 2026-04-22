@@ -31,8 +31,8 @@ public:
 
 	void SetIdentifier( DeviceEnums::DeviceIdentifier identifier );
 	void Update( IInputHandler* inputHandler );
-	uint32_t GetDeviceID() const;
-	BlueSharedStringW GetName() const;
+	BlueSharedString GetDeviceID() const;
+	BlueSharedString GetName() const;
 
 private:
 	void UpdateState( const Events::State& state );

@@ -43,20 +43,14 @@ bool InputDevice::OnModified( Be::Var* value )
 void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
 	m_deviceIdentifier = identifier;
-	m_rawDeviceId.clear();
-
-	for( const auto& part : identifier.rawDeviceId.value )
-	{
-		m_rawDeviceId.Append( &part );
-	}
 }
 
-uint32_t InputDevice::GetDeviceID() const
+BlueSharedString InputDevice::GetDeviceID() const
 {
 	return m_deviceIdentifier.deviceID;
 }
 
-BlueSharedStringW InputDevice::GetName() const
+BlueSharedString InputDevice::GetName() const
 {
 	return m_deviceIdentifier.name;
 }

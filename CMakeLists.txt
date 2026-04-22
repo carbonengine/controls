@@ -44,7 +44,7 @@ ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
 set_build_flavor(_carbon_controls)
 
 # This will fail building on teamcity for now, until blue-exposure can support pdb v143 (or something, it fails on teamcity)
-#add_trinity_dev_debug_flags(_carbon_controls)
+add_trinity_dev_debug_flags(_carbon_controls)
 
 target_precompile_headers(_carbon_controls PRIVATE src/StdAfx.h)
 
@@ -61,12 +61,6 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
 
 set_target_properties(_carbon_controls PROPERTIES OUTPUT_NAME "_carbon_controls")
 
-target_include_directories(_carbon_controls
-        PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
-
 target_compile_definitions(_carbon_controls PRIVATE BLUE_WITH_PYTHON=1 BLUEBUILD)
 if( WIN32 )
     find_package(gameinput CONFIG REQUIRED)
@@ -76,7 +70,7 @@ else()
 endif()
 
 # Provide an install target if this is the top level project only
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+if(CMAKE_PROJECT_NAME STREQUAL _carbon_controls)
     # Determine if/when to generate/build documentation. The rules are as follows:
     # - If running locally - Build documentation is OFF by default
     # - If running on a build agent (TeamCity) - Build documentation is ON by default

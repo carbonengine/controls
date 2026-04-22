@@ -5,7 +5,7 @@ InputEventTrigger::InputEventTrigger( IRoot* lockobj ) :
 {
 }
 
-void InputEventTrigger::Process( Events::State state )
+void InputEventTrigger::Process( Events::State& state )
 {
 	if( !m_callback )
 	{
