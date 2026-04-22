@@ -1,0 +1,5 @@
+Events
+======
+
+.. doxygennamespace:: Events
+   :members:

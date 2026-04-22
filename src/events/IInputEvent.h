@@ -2,14 +2,28 @@
 #include "../StdAfx.h"
 #include "Events.h"
 
-// Interface to match the state from a device
+/**
+ * @brief Interface for matching a device state against an input event condition.
+ *
+ * Implementations check whether a particular part of the device state
+ * (e.g. a button press, an axis movement) matches a configured condition.
+ */
 BLUE_INTERFACE( IInputEvent ) :
 	public IRoot
 {
 public:
-	// Checks the state and returns true/false if it matches
+	/**
+	 * @brief Tests whether the given device state matches this event's condition.
+	 * @param state The current device state to evaluate.
+	 * @return true if the state satisfies the event condition, false otherwise.
+	 */
 	virtual bool Match( const Events::State& state ) = 0;
-	// Marks the parts of the state that matched this event as "owned" by this trigger, so that they won't be considered for identical events 
+
+	/**
+	 * @brief Marks the matched parts of the state as owned so they are not
+	 *        consumed by other event triggers with identical conditions.
+	 * @param state The device state to mark.
+	 */
 	virtual void Own( Events::State& state ) = 0; 
 };
 BLUE_DECLARE_INTERFACE( IInputEvent );

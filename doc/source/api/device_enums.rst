@@ -1,0 +1,5 @@
+DeviceEnums
+===========
+
+.. doxygennamespace:: DeviceEnums
+   :members:

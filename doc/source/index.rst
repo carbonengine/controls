@@ -8,5 +8,14 @@ carbon-controls Documentation
     List documentation sources below
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
     :caption: Contents
+
+    api/control_manager
+    api/input_device
+    api/device_enums
+    api/events
+    api/input_event
+    api/input_event_trigger
+    api/controller_events
+    api/input_handler

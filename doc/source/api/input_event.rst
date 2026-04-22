@@ -1,0 +1,5 @@
+IInputEvent
+===========
+
+.. doxygenclass:: IInputEvent
+   :members:

@@ -9,39 +9,79 @@
 
 using namespace GameInput::v3;
 
+/**
+ * @brief Windows implementation of IInputHandler using the GameInput API.
+ *
+ * Manages device discovery, input reading, and rumble output via the
+ * Microsoft GameInput SDK. Device state is accumulated asynchronously
+ * through registered reading callbacks and consumed on each Update() call.
+ */
 class InputHandlerWin : public IInputHandler
 {
 public:
 	InputHandlerWin();
 	~InputHandlerWin();
+
+	/** @copydoc IInputHandler::Initialize() */
 	bool Initialize() override;
+
+	/** @copydoc IInputHandler::RegisterForDeviceAdded() */
 	void RegisterForDeviceAdded( DeviceChangedCallback callback ) override;
+
+	/** @copydoc IInputHandler::RegisterForDeviceRemoved() */
 	void RegisterForDeviceRemoved( DeviceChangedCallback callback ) override;
+
+	/** @copydoc IInputHandler::Update() */
 	std::vector<Events::State> Update( BlueSharedString deviceId ) override;
+
+	/** @copydoc IInputHandler::SetDeviceActivation() */
 	void SetDeviceActivation( BlueSharedString deviceId, bool activate ) override;
+
+	/** @copydoc IInputHandler::Rumble() */
 	void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) override;
 
 private:
-	// Per-device bookkeeping
+	/**
+	 * @brief Per-device bookkeeping slot.
+	 */
 	struct DeviceSlot
 	{
-		CComPtr<IGameInputDevice> device = nullptr;
-		bool pendingRemoval = false; // set to true when we receive a disconnect event, until the slot is cleaned up on the next Update()
-		DeviceEnums::DeviceIdentifier identifier{};
-		std::vector<Events::State> accumulatedStates{}; // states that have been accumulated for this device, updated on each reading callback, and read by Update() to return the latest state for the device
-		GameInputCallbackToken readCallbackToken = 0; // token for the registered reading callback for this device, so we can unregister it on teardown or when deactivating the device
+		CComPtr<IGameInputDevice> device = nullptr;   ///< COM pointer to the GameInput device.
+		bool pendingRemoval = false;                   ///< True when a disconnect event has been received but not yet processed.
+		DeviceEnums::DeviceIdentifier identifier{};    ///< Device metadata.
+		std::vector<Events::State> accumulatedStates{}; ///< States accumulated from reading callbacks, consumed by Update().
+		GameInputCallbackToken readCallbackToken = 0;  ///< Token for the registered reading callback.
 	};
 
+	/**
+	 * @brief Finds a device slot by device ID string.
+	 * @param deviceID The unique device identifier.
+	 * @return Pointer to the matching DeviceSlot, or nullptr if not found.
+	 */
 	DeviceSlot* GetDeviceSlot( BlueSharedString deviceID );
+
+	/**
+	 * @brief Finds a device slot by GameInput device pointer.
+	 * @param device The GameInput device COM pointer.
+	 * @return Pointer to the matching DeviceSlot, or nullptr if not found.
+	 */
 	DeviceSlot* GetDeviceSlot( CComPtr<IGameInputDevice> device );
 
-	// GameInput setup / teardown
+	/**
+	 * @brief Shuts down GameInput and releases all resources.
+	 */
 	void ShutdownGameInput();
 
-	// Reads the current hardware state for a single device into its slot
+	/**
+	 * @brief Reads the current hardware state from a single GameInput reading.
+	 * @param reading The GameInput reading to process.
+	 * @return An Events::State snapshot populated from the reading.
+	 */
 	Events::State ReadDeviceState( IGameInputReading* reading );
 
-	// The static callback forwarded from GameInput when devices connect / disconnect
+	/**
+	 * @brief Static callback invoked by GameInput when a device connects or disconnects.
+	 */
 	static void CALLBACK OnDeviceStatusChanged(
 		_In_ GameInputCallbackToken callbackToken,
 		_In_ void* context,
@@ -50,33 +90,36 @@ private:
 		_In_ GameInputDeviceStatus currentStatus,
 		_In_ GameInputDeviceStatus previousStatus ) noexcept;
 
+	/**
+	 * @brief Static callback invoked by GameInput when a new reading is available.
+	 */
 	static void CALLBACK OnDeviceRead(
 		_In_ GameInputCallbackToken callbackToken,
 		_In_ void* context,
 		_In_ IGameInputReading* reading ) noexcept;
 
-	// Builds a DeviceIdentifier from a GameInput device
+	/**
+	 * @brief Builds a DeviceIdentifier from a GameInput device.
+	 * @param device The GameInput device to query.
+	 * @return A populated DeviceIdentifier.
+	 */
 	static DeviceEnums::DeviceIdentifier GetIdentifier( IGameInputDevice* device );
 
-	// mutex to protect m_deviceSlots
-	mutable std::shared_mutex m_deviceMutex;
-	// mutex to protect readings of all devices
-	mutable std::shared_mutex m_readingMutex; 
+	mutable std::shared_mutex m_deviceMutex;  ///< Protects m_deviceSlots.
+	mutable std::shared_mutex m_readingMutex; ///< Protects per-device accumulated readings.
 
-	// tokens for registered GameInput callbacks, so we can unregister them on teardown
-	GameInputCallbackToken m_deviceCallbackToken = 0;
+	GameInputCallbackToken m_deviceCallbackToken = 0; ///< Token for the device status callback.
 
-	// the GameInput interface
-	CComPtr<IGameInput> m_gameInput = nullptr;
-	// all recognized devices will be stored in this vector.
-	std::vector<DeviceSlot> m_deviceSlots = {};
+	CComPtr<IGameInput> m_gameInput = nullptr;     ///< The GameInput interface.
+	std::vector<DeviceSlot> m_deviceSlots = {};     ///< All recognized devices.
 
-	DeviceChangedCallback m_deviceAddedCallback = nullptr;
-	DeviceChangedCallback m_deviceRemovedCallback = nullptr;
+	DeviceChangedCallback m_deviceAddedCallback = nullptr;   ///< Callback for device connection events.
+	DeviceChangedCallback m_deviceRemovedCallback = nullptr; ///< Callback for device disconnection events.
 
-	bool m_initialized = false;
-	bool m_devicesRemoved = false;
+	bool m_initialized = false;   ///< Whether Initialize() has completed successfully.
+	bool m_devicesRemoved = false; ///< Flag indicating pending device removals.
 
+	/// @brief Supported GameInput device kinds.
 	static const GameInputKind SUPPORTED_INPUTS = static_cast<GameInputKind>(
 	GameInputKindGamepad |
 	GameInputKindController );
