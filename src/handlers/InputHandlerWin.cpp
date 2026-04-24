@@ -195,7 +195,7 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 				slot->device = device;
 			}
 			slot->pendingRemoval = false;
-			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' reconnected", identifier.name.c_str() );
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' reconnected", identifier.name.c_str() );
 		}
 		else
 		{
@@ -207,7 +207,7 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 
 			std::unique_lock<std::shared_mutex> lock( self->m_deviceMutex );
 			self->m_deviceSlots.push_back( std::move( slot ) );
-			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' connected", identifier.name.c_str() );
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' connected", identifier.name.c_str() );
 		}
 		if( self->m_deviceAddedCallback )
 		{
@@ -220,7 +220,7 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		auto slot = self->GetDeviceSlot( identifier.deviceID );
 		if( slot )
 		{
-			CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final disconnected", slot->identifier.name.c_str() );
+			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' final disconnected", slot->identifier.name.c_str() );
 
 			slot->pendingRemoval = true;
 			self->m_devicesRemoved = true;
@@ -319,7 +319,7 @@ std::vector<Events::State> InputHandlerWin::Update( BlueSharedString deviceID )
 						m_gameInput->UnregisterCallback( slot.readCallbackToken );
 						slot.readCallbackToken = 0;
 					}
-					CCP_LOGNOTICE( "InputHandlerWin: Device '%ls' final removal", slot.identifier.name.c_str() );
+					CCP_LOGNOTICE( "InputHandlerWin: Device '%s' final removal", slot.identifier.name.c_str() );
 				}
 			}
 		}

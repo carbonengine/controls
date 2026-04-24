@@ -57,18 +57,18 @@ IRootPtr ControlManager::Activate( BlueSharedString deviceID )
 		auto foundActiveDevice = FindActiveDevice( deviceID );
 		if( foundActiveDevice )
 		{
-			CCP_LOGWARN( "Device %ls (ID: %u) is already active returning the existing instance", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
+			CCP_LOGWARN( "Device %s (ID: %s) is already active returning the existing instance", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
 			return foundActiveDevice->GetRawRoot();
 		}
 
 		m_activeDevices.Append( foundDevice->GetRawRoot() );
-		CCP_LOGNOTICE( "Device %ls (ID: %u) is active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
+		CCP_LOGNOTICE( "Device %s (ID: %s) is active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
 		m_inputHandler->SetDeviceActivation( deviceID, true );
 
 		return foundDevice->GetRawRoot();
 	}
 	
-	CCP_LOGERR( "Device with ID: %u is not connected", deviceID );
+	CCP_LOGERR( "Device with ID: %s is not connected", deviceID );
 	return nullptr;
 }
 
@@ -78,7 +78,7 @@ void ControlManager::Deactivate( BlueSharedString deviceID )
 	if( foundDevice )
 	{
 		m_activeDevices.Remove( m_activeDevices.FindKey( foundDevice->GetRawRoot() ) );
-		CCP_LOGNOTICE( "Device %ls (ID: %u) is no longer active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
+		CCP_LOGNOTICE( "Device %s (ID: %s) is no longer active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID() );
 	}
 	
 	CCP_LOGNOTICE( "ControlManager::Deactivate called with a device id that is not connected, ignoring" );
