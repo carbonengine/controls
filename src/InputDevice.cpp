@@ -31,15 +31,6 @@ void InputDevice::OnListModified(
 	}
 }
 
-bool InputDevice::OnModified( Be::Var* value )
-{
-	if( IsMatch( value, m_rumble.highFrequency ) || IsMatch( value, m_rumble.lowFrequency ) || IsMatch( value, m_rumble.leftTrigger ) || IsMatch( value, m_rumble.rightTrigger ) )
-	{
-		m_updateRumble = true;
-	}
-	return true;
-}
-
 void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
 	m_deviceIdentifier = identifier;
@@ -98,4 +89,48 @@ void InputDevice::UpdateState( const Events::State& state )
 	{
 		trigger->Process( m_currentState );
 	}
+}
+
+float InputDevice::GetHighFrequencyRumble() const
+{
+	return m_rumble.highFrequency;
+}
+
+void InputDevice::SetHighFrequencyRumble( float value )
+{
+	m_rumble.highFrequency = value;
+	m_updateRumble = true;
+}
+
+float InputDevice::GetLowFrequencyRumble() const
+{
+	return m_rumble.lowFrequency;
+}
+
+void InputDevice::SetLowFrequencyRumble( float value )
+{
+	m_rumble.lowFrequency = value;
+	m_updateRumble = true;
+}
+
+float InputDevice::GetLeftTriggerRumble() const
+{
+	return m_rumble.leftTrigger;
+}
+
+void InputDevice::SetLeftTriggerRumble( float value )
+{
+	m_rumble.leftTrigger = value;
+	m_updateRumble = true;
+}
+
+float InputDevice::GetRightTriggerRumble() const
+{
+	return m_rumble.rightTrigger;
+}
+
+void InputDevice::SetRightTriggerRumble( float value )
+{
+	m_rumble.rightTrigger = value;
+	m_updateRumble = true;
 }

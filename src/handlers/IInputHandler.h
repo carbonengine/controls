@@ -17,6 +17,11 @@ class IInputHandler
 {
 public:
 	/**
+	 * @brief Virtual destructor to ensure proper cleanup of derived classes.
+	 */
+	virtual ~IInputHandler() = default;
+
+	/**
 	 * @brief Initializes the input handler.
 	 * @return true if initialization succeeded, false otherwise.
 	 */

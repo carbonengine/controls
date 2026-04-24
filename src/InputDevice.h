@@ -3,7 +3,6 @@
 #include "DeviceEnums.h"
 #include "events/Events.h"
 #include "events/InputEventTrigger.h"
-#include <string>
 #include "handlers/IInputHandler.h"
 
 BLUE_DECLARE_VECTOR( InputEventTrigger );
@@ -24,7 +23,6 @@ BLUE_DECLARE_STRUCTURE_LIST( RawDeviceIdPart );
  * Rumble output is written back to the handler when rumble values change.
  */
 BLUE_CLASS( InputDevice ) :
-	public INotify,
 	public IListNotify
 {
 public:
@@ -49,16 +47,6 @@ public:
 		const struct IList* theList ) override;
 
 	/**
-	 * @brief Notification callback when a Blue variable is modified.
-	 *
-	 * Detects changes to rumble values and flags them for the next Update().
-	 *
-	 * @param value The modified variable.
-	 * @return true always.
-	 */
-	bool OnModified( Be::Var * value ) override;
-
-	/**
 	 * @brief Sets the device identifier metadata.
 	 * @param identifier The DeviceIdentifier describing this device.
 	 */
@@ -81,6 +69,50 @@ public:
 	 * @return The device name.
 	 */
 	BlueSharedString GetName() const;
+
+	/**
+	* @brief Gets the current intensity of the high frequency rumble motor.
+	*/
+	float GetHighFrequencyRumble() const;
+
+	/**
+	* @brief Sets the intensity of the high frequency rumble motor.
+	* Ensures that the value gets sent to the input handler on the next Update() call.
+	*/
+	void SetHighFrequencyRumble( float value );
+
+	/**
+	* @brief Gets the current intensity of the low frequency rumble motor.
+	*/
+	float GetLowFrequencyRumble() const;
+
+	/**
+	* @brief Sets the intensity of the low frequency rumble motor.
+	* Ensures that the value gets sent to the input handler on the next Update() call
+	*/
+	void SetLowFrequencyRumble( float value );
+
+	/**
+	* @brief Gets the current intensity of the left trigger rumble motor.
+	*/
+	float GetLeftTriggerRumble() const;
+
+	/**
+	* @brief Sets the intensity of the left trigger rumble motor.
+	* Ensures that the value gets sent to the input handler on the next Update() call.
+	*/
+	void SetLeftTriggerRumble( float value );
+	
+	/**
+	* @brief Gets the current intensity of the right trigger rumble motor.
+	*/
+	float GetRightTriggerRumble() const;
+
+	/**
+	* @brief Sets the intensity of the right trigger rumble motor.
+	* Ensures that the value gets sent to the input handler on the next Update() call.
+	*/
+	void SetRightTriggerRumble( float value );
 
 private:
 	/**
