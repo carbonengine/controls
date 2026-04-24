@@ -68,7 +68,7 @@ IRootPtr ControlManager::Activate( BlueSharedString deviceID )
 		return foundDevice->GetRawRoot();
 	}
 	
-	CCP_LOGERR( "Device with ID: %s is not connected", deviceID );
+	CCP_LOGERR( "Device with ID: %s is not connected", deviceID.c_str() );
 	return nullptr;
 }
 
