@@ -2,6 +2,8 @@
 
 #ifdef WIN32
 #include "handlers/InputHandlerWin.h"
+#elif defined(__APPLE__)
+#include "handlers/InputHandlerApple.h"
 #else
 #include "handlers/InputHandlerStub.h"
 #endif
@@ -12,6 +14,8 @@ ControlManager::ControlManager( IRoot* lockobj ) :
 	PARENTLOCK( m_activeDevices ),
 #ifdef WIN32
 	m_inputHandler( new InputHandlerWin() )
+#elif defined(__APPLE__)
+	m_inputHandler( new InputHandlerApple() )
 #else
 	m_inputHandler( new InputHandlerStub() )
 #endif

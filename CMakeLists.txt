@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(_carbon_controls VERSION 1.0.0)
 
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
+
 include(cmake/CcpBuildConfigurations.cmake)
 include(cmake/CcpTargetConfigurations.cmake)
   
@@ -40,6 +44,13 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/handlers/InputHandlerStub.h
 )
 
+if(APPLE)
+    list(APPEND CARBON_CONTROLS_SOURCE_FILES
+        src/handlers/InputHandlerApple.h
+        src/handlers/InputHandlerApple.mm
+    )
+endif()
+
 ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
 set_build_flavor(_carbon_controls)
 
@@ -47,6 +58,23 @@ set_build_flavor(_carbon_controls)
 #add_trinity_dev_debug_flags(_carbon_controls)
 
 target_precompile_headers(_carbon_controls PRIVATE src/StdAfx.h)
+
+if(APPLE)
+    # ControlManager.cpp includes InputHandlerApple.h which pulls in Obj-C types; compile it as Obj-C++.
+    set_source_files_properties(
+        src/ControlManager.cpp
+        PROPERTIES
+            LANGUAGE OBJCXX
+            COMPILE_FLAGS "-fobjc-arc -Wno-unguarded-availability-new"
+            SKIP_PRECOMPILE_HEADERS ON
+    )
+    set_source_files_properties(
+        src/handlers/InputHandlerApple.mm
+        PROPERTIES
+            COMPILE_FLAGS "-fobjc-arc -Wno-unguarded-availability-new"
+            SKIP_PRECOMPILE_HEADERS ON
+    )
+endif()
 
 set_target_properties(_carbon_controls PROPERTIES
     VS_GLOBAL_RunCodeAnalysis false
@@ -65,8 +93,57 @@ target_compile_definitions(_carbon_controls PRIVATE BLUE_WITH_PYTHON=1 BLUEBUILD
 if( WIN32 )
     find_package(gameinput CONFIG REQUIRED)
     target_link_libraries(_carbon_controls PRIVATE Microsoft::GameInput BlueExposure Python3::Python)
+elseif( APPLE )
+    target_link_libraries(_carbon_controls PRIVATE
+        BlueExposure
+        Python3::Python
+        "-framework GameController"
+        "-framework Foundation"
+    )
 else()
     target_link_libraries(_carbon_controls PRIVATE BlueExposure Python3::Python)
+endif()
+
+# -----------------------------------------------------------------------------
+# controller_diagnostic — standalone console app that drives IInputHandler directly.
+# -----------------------------------------------------------------------------
+set(CONTROLLER_DIAGNOSTIC_SOURCES
+    tools/controller_diagnostic.cpp
+    src/events/Events.cpp
+)
+if(WIN32)
+    list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES
+        src/handlers/InputHandlerWin.cpp
+    )
+elseif(APPLE)
+    list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES
+        src/handlers/InputHandlerApple.mm
+    )
+else()
+    list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES
+        src/handlers/InputHandlerStub.cpp
+    )
+endif()
+
+add_executable(controller_diagnostic ${CONTROLLER_DIAGNOSTIC_SOURCES})
+target_include_directories(controller_diagnostic PRIVATE src)
+target_link_libraries(controller_diagnostic PRIVATE BlueExposure)
+
+if(APPLE)
+    set_source_files_properties(
+        tools/controller_diagnostic.cpp
+        PROPERTIES
+            LANGUAGE OBJCXX
+            COMPILE_FLAGS "-fobjc-arc"
+    )
+    target_link_libraries(controller_diagnostic PRIVATE
+        "-framework GameController"
+        "-framework Foundation"
+        "-framework CoreHaptics"
+    )
+elseif(WIN32)
+    find_package(gameinput CONFIG REQUIRED)
+    target_link_libraries(controller_diagnostic PRIVATE Microsoft::GameInput)
 endif()
 
 # Provide an install target if this is the top level project only
