@@ -9,6 +9,9 @@
 
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
+#import <CoreHaptics/CoreHaptics.h>
+
+#include <array>
 
 /**
  * @brief Apple Game Controller framework implementation of IInputHandler.
@@ -17,7 +20,10 @@
  * `valueDidChangeHandler` for state accumulation. Device state snapshots
  * are pushed into a per-slot vector by the handler and consumed on Update().
  *
- * Rumble is stubbed and reported as unsupported in the DeviceIdentifier.
+ * Rumble is delivered through GCDeviceHaptics + CoreHaptics: one persistent
+ * looping advanced pattern player is created per supported locality on
+ * connect, and each Rumble() call updates that channel's intensity via a
+ * dynamic-parameter send.
  */
 class InputHandlerApple : public IInputHandler
 {
@@ -56,6 +62,25 @@ public:
 	void SetBackgroundEventsEnabled( bool enabled ) override;
 
 private:
+	/// @brief Ordinal index of a rumble channel; matches the four fields of Events::Rumble.
+	enum HapticsChannelIndex
+	{
+		LowFrequency = 0,
+		HighFrequency,
+		LeftTrigger,
+		RightTrigger,
+		ChannelCount
+	};
+
+	/// @brief Per-locality CoreHaptics state: the engine, its persistent looping player, and the last intensity we sent.
+	struct HapticsChannel
+	{
+		__strong CHHapticEngine* engine = nil;
+		__strong id<CHHapticAdvancedPatternPlayer> player = nil;
+		float lastIntensity = 0.0f;
+		bool supported = false;
+	};
+
 	/**
 	 * @brief Per-device bookkeeping slot.
 	 *
@@ -76,6 +101,8 @@ private:
 		std::vector<BlueSharedString> buttonNames = {};
 		std::vector<BlueSharedString> axisNames = {};
 		std::vector<BlueSharedString> switchNames = {};
+		__strong GCDeviceHaptics* haptics = nil;                        ///< Non-nil when the controller exposes any rumble locality (macOS 11+).
+		std::array<HapticsChannel, ChannelCount> hapticsChannels{};     ///< Per-channel engines/players/state, indexed by HapticsChannelIndex.
 	};
 
 	/**
@@ -97,6 +124,18 @@ private:
 	 * @brief Finds a device slot by GCController pointer.
 	 */
 	DeviceSlot* GetDeviceSlot( GCController* controller	);
+
+	/// @brief Brings up per-locality CoreHaptics engines and looping players; downgrades slot->identifier.rumbleCapacity on any per-channel failure.
+	void InitializeHapticsForSlot( DeviceSlot& slot );
+
+	/// @brief Stops and releases every haptics engine/player attached to the slot; safe to call on a partially-initialized or empty slot.
+	void ShutdownHapticsForSlot( DeviceSlot& slot );
+
+	/// @brief (Re)creates a channel's looping player against its live engine and re-applies the cached intensity. Called from setup and from the engine reset handler.
+	bool RebuildChannelPlayer( DeviceSlot& slot, HapticsChannelIndex channel );
+
+	/// @brief Sends a dynamic intensity update to a single channel; returns without error if the channel is unsupported.
+	void SendChannelIntensity( DeviceSlot& slot, HapticsChannelIndex channel, float intensity );
 
 	mutable std::mutex m_deviceMutex;                              ///< Protects m_deviceSlots.
 	mutable std::mutex m_readingMutex;                             ///< Protects per-slot accumulated readings.

@@ -134,3 +134,9 @@ void InputDevice::SetRightTriggerRumble( float value )
 	m_rumble.rightTrigger = value;
 	m_updateRumble = true;
 }
+
+void InputDevice::ResetRumble()
+{
+	m_rumble = Events::Rumble{};
+	m_updateRumble = false;
+}

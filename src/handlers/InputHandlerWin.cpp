@@ -287,6 +287,12 @@ void InputHandlerWin::SetDeviceActivation( BlueSharedString deviceID, bool activ
 	}
 	else
 	{
+		if( foundDevice->device )
+		{
+			GameInputRumbleParams zeroed = {};
+			std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
+			foundDevice->device->SetRumbleState( &zeroed );
+		}
 		if( foundDevice->readCallbackToken != 0 )
 		{
 			m_gameInput->UnregisterCallback( foundDevice->readCallbackToken );

@@ -114,6 +114,9 @@ public:
 	*/
 	void SetRightTriggerRumble( float value );
 
+	/// @brief Zeroes all rumble intensities without scheduling a hardware write.
+	void ResetRumble();
+
 private:
 	/**
 	 * @brief Processes a single state snapshot through all sorted triggers.

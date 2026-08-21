@@ -99,6 +99,7 @@ elseif( APPLE )
         Python3::Python
         "-framework GameController"
         "-framework Foundation"
+        "-framework CoreHaptics"
     )
 else()
     target_link_libraries(_carbon_controls PRIVATE BlueExposure Python3::Python)

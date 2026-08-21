@@ -3,6 +3,7 @@
 
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
+#import <CoreHaptics/CoreHaptics.h>
 
 #include <algorithm>
 #include <sstream>
@@ -12,6 +13,49 @@
 
 namespace
 {
+// Locality string for a given HapticsChannelIndex; the ordering here MUST match the enum.
+API_AVAILABLE( macos( 11.0 ) )
+GCHapticsLocality LocalityForChannel( int channel )
+{
+	switch( channel )
+	{
+	case 0: return GCHapticsLocalityLeftHandle;
+	case 1: return GCHapticsLocalityRightHandle;
+	case 2: return GCHapticsLocalityLeftTrigger;
+	case 3: return GCHapticsLocalityRightTrigger;
+	}
+	return GCHapticsLocalityDefault;
+}
+
+// Sharpness is fixed per channel: handles feel rumbly (low sharpness), triggers snappy (high sharpness).
+float SharpnessForChannel( int channel )
+{
+	switch( channel )
+	{
+	case 0:
+	case 1: return 0.3f;
+	case 2:
+	case 3: return 0.7f;
+	}
+	return 0.5f;
+}
+
+// Clears the corresponding rumble-capacity flag when a channel's engine or player fails to come up.
+void ClearCapacityForChannel( DeviceEnums::RumbleCapacity& capacity, int channel )
+{
+	switch( channel )
+	{
+	case 0: capacity.hasLowFrequencyRumble = false; break;
+	case 1: capacity.hasHighFrequencyRumble = false; break;
+	case 2: capacity.hasLeftTriggerRumble = false; break;
+	case 3: capacity.hasRightTriggerRumble = false; break;
+	}
+	if( capacity.rumbleMotorCount > 0 )
+	{
+		capacity.rumbleMotorCount -= 1;
+	}
+}
+
 // Sanitize a value so it can appear in a device ID string (strip spaces / punctuation).
 std::string SanitizeForDeviceID( NSString* input )
 {
@@ -166,9 +210,45 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
     identifier.buttonCount = static_cast<uint32_t>( buttons.size() );
     identifier.axisCount = static_cast<uint32_t>( axes.size() + triggerAxes.size() );
 	identifier.switchCount = static_cast<uint32_t>( dpads.size() );
-    
-	// Rumble is stubbed; report no capacity so callers do not attempt to drive motors.
+
 	identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+	// GCDeviceHaptics + CoreHaptics are 11.0+; leave capacity zeroed on older systems or controllers without haptics.
+	if( @available( macOS 11.0, * ) )
+	{
+		GCDeviceHaptics* haptics = controller.haptics;
+		if( haptics == nil )
+		{
+			CCP_LOGNOTICE( "InputHandlerApple: '%s' reports no GCDeviceHaptics support",
+				identifier.name.c_str() );
+		}
+		else
+		{
+			NSSet<GCHapticsLocality>* localities = haptics.supportedLocalities;
+			NSMutableString* dump = [NSMutableString stringWithString:@""];
+			for( GCHapticsLocality loc in localities )
+			{
+				if( dump.length > 0 )
+				{
+					[dump appendString:@", "];
+				}
+				[dump appendString:loc];
+			}
+			CCP_LOGNOTICE( "InputHandlerApple: '%s' haptics localities: [%s]",
+				identifier.name.c_str(),
+				dump.UTF8String ? dump.UTF8String : "" );
+
+			const bool hasLow = [localities containsObject:GCHapticsLocalityLeftHandle];
+			const bool hasHigh = [localities containsObject:GCHapticsLocalityRightHandle];
+			const bool hasLeftTrig = [localities containsObject:GCHapticsLocalityLeftTrigger];
+			const bool hasRightTrig = [localities containsObject:GCHapticsLocalityRightTrigger];
+
+			identifier.rumbleCapacity.hasLowFrequencyRumble = hasLow;
+			identifier.rumbleCapacity.hasHighFrequencyRumble = hasHigh;
+			identifier.rumbleCapacity.hasLeftTriggerRumble = hasLeftTrig;
+			identifier.rumbleCapacity.hasRightTriggerRumble = hasRightTrig;
+			identifier.rumbleCapacity.rumbleMotorCount = hasLow + hasHigh + hasLeftTrig + hasRightTrig;
+		}
+	}
 
 	return identifier;
 }
@@ -199,6 +279,7 @@ InputHandlerApple::~InputHandlerApple()
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
 		for( auto& slot : m_deviceSlots )
 		{
+			ShutdownHapticsForSlot( *slot );
 			if( slot->controller != nil )
 			{
 				slot->controller.physicalInputProfile.valueDidChangeHandler = nil;
@@ -327,7 +408,13 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
                     slot->switchNames.push_back( SharedStringFromNSString( dpad.localizedName ) );
                 }
             }
+			DeviceSlot* rawSlot = slot.get();
 			m_deviceSlots.push_back( std::move( slot ) );
+			if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
+			{
+				InitializeHapticsForSlot( *rawSlot );
+			}
+			identifier = rawSlot->identifier;
 			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' connected", identifier.name.c_str() );
 		}
 	}
@@ -353,6 +440,7 @@ void InputHandlerApple::HandleControllerDisconnected( GCController* controller )
 		{
 			if( slot->controller == controller )
 			{
+				ShutdownHapticsForSlot( *slot );
 				slot->pendingRemoval = true;
 				slot->active = false;
 				slot->controller.physicalInputProfile.valueDidChangeHandler = nil;
@@ -451,6 +539,10 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 			}
 		}
 		slot->active = false;
+		for( int i = 0; i < ChannelCount; ++i )
+		{
+			SendChannelIntensity( *slot, static_cast<HapticsChannelIndex>( i ), 0.0f );
+		}
 	}
 }
 
@@ -469,6 +561,7 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 			if( ( *it )->pendingRemoval )
 			{
 				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' final removal", ( *it )->identifier.name.c_str() );
+				ShutdownHapticsForSlot( **it );
 				if( ( *it )->controller != nil )
 				{
 					( *it )->controller.physicalInputProfile.valueDidChangeHandler = nil;
@@ -496,14 +589,23 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 
 void InputHandlerApple::Rumble( BlueSharedString deviceId, Events::Rumble rumble )
 {
-	// Stubbed: CoreHaptics integration is deferred.
-	CCP_LOGNOTICE(
-		"InputHandlerApple: Rumble stub for device '%s' (low=%.2f high=%.2f leftTrig=%.2f rightTrig=%.2f)",
-		deviceId.c_str(),
+	auto* slot = GetDeviceSlot( deviceId );
+	if( slot == nullptr || slot->haptics == nil )
+	{
+		return;
+	}
+
+	const float requested[ChannelCount] = {
 		rumble.lowFrequency,
 		rumble.highFrequency,
 		rumble.leftTrigger,
-		rumble.rightTrigger );
+		rumble.rightTrigger,
+	};
+
+	for( int i = 0; i < ChannelCount; ++i )
+	{
+		SendChannelIntensity( *slot, static_cast<HapticsChannelIndex>( i ), requested[i] );
+	}
 }
 
 InputHandlerApple::DeviceSlot* InputHandlerApple::GetDeviceSlot( BlueSharedString deviceId )
@@ -568,5 +670,255 @@ void InputHandlerApple::SetBackgroundEventsEnabled( bool enabled )
 		CCP_LOGNOTICE( "InputHandlerApple: Disabling background event monitoring" );
 		GCController.shouldMonitorBackgroundEvents = NO;
 	}
+}
+
+void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
+{
+	if( !( @available( macOS 11.0, * ) ) )
+	{
+		slot.identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+		return;
+	}
+
+	if( slot.controller == nil )
+	{
+		slot.identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+		return;
+	}
+
+	GCDeviceHaptics* haptics = slot.controller.haptics;
+	if( haptics == nil )
+	{
+		slot.identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+		return;
+	}
+	slot.haptics = haptics;
+
+	const bool wants[ChannelCount] = {
+		slot.identifier.rumbleCapacity.hasLowFrequencyRumble,
+		slot.identifier.rumbleCapacity.hasHighFrequencyRumble,
+		slot.identifier.rumbleCapacity.hasLeftTriggerRumble,
+		slot.identifier.rumbleCapacity.hasRightTriggerRumble,
+	};
+
+	DeviceSlot* rawSlot = &slot;
+	for( int i = 0; i < ChannelCount; ++i )
+	{
+		if( !wants[i] )
+		{
+			continue;
+		}
+
+		HapticsChannel& channel = slot.hapticsChannels[i];
+		NSError* err = nil;
+		channel.engine = [haptics createEngineWithLocality:LocalityForChannel( i )];
+		if( channel.engine == nil )
+		{
+			CCP_LOGWARN( "InputHandlerApple: Failed to create haptics engine for channel %d on device '%s'",
+				i, slot.identifier.name.c_str() );
+			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
+			continue;
+		}
+
+		channel.engine.autoShutdownEnabled = NO;
+
+		const int channelIndex = i;
+		channel.engine.resetHandler = ^{
+			CCP_LOGWARN( "InputHandlerApple: Haptics engine reset on channel %d, rebuilding", channelIndex );
+			std::unique_lock<std::mutex> lock( this->m_deviceMutex );
+			bool slotAlive = false;
+			for( auto& s : m_deviceSlots )
+			{
+				if( s.get() == rawSlot )
+				{
+					slotAlive = true;
+					break;
+				}
+			}
+			if( !slotAlive )
+			{
+				return;
+			}
+			NSError* restartErr = nil;
+			if( ![rawSlot->hapticsChannels[channelIndex].engine startAndReturnError:&restartErr] )
+			{
+				CCP_LOGWARN( "InputHandlerApple: Failed to restart engine on channel %d: %s",
+					channelIndex,
+					restartErr.localizedDescription.UTF8String ? restartErr.localizedDescription.UTF8String : "(no message)" );
+				return;
+			}
+			this->RebuildChannelPlayer( *rawSlot, static_cast<HapticsChannelIndex>( channelIndex ) );
+		};
+
+		channel.engine.stoppedHandler = ^( CHHapticEngineStoppedReason reason ) {
+			CCP_LOGWARN( "InputHandlerApple: Haptics engine stopped on channel %d (reason=%ld)",
+				channelIndex, (long)reason );
+		};
+
+		if( ![channel.engine startAndReturnError:&err] )
+		{
+			CCP_LOGWARN( "InputHandlerApple: Failed to start haptics engine on channel %d for device '%s': %s",
+				i, slot.identifier.name.c_str(),
+				err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+			channel.engine = nil;
+			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
+			continue;
+		}
+
+		if( !RebuildChannelPlayer( slot, static_cast<HapticsChannelIndex>( i ) ) )
+		{
+			[channel.engine stopWithCompletionHandler:nil];
+			channel.engine = nil;
+			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
+			continue;
+		}
+		channel.supported = true;
+	}
+
+	if( slot.identifier.rumbleCapacity.rumbleMotorCount == 0 )
+	{
+		slot.haptics = nil;
+	}
+}
+
+bool InputHandlerApple::RebuildChannelPlayer( DeviceSlot& slot, HapticsChannelIndex channel )
+{
+	if( !( @available( macOS 11.0, * ) ) )
+	{
+		return false;
+	}
+
+	HapticsChannel& ch = slot.hapticsChannels[channel];
+	if( ch.engine == nil )
+	{
+		return false;
+	}
+
+	NSError* err = nil;
+	CHHapticEventParameter* intensity = [[CHHapticEventParameter alloc]
+		initWithParameterID:CHHapticEventParameterIDHapticIntensity value:1.0f];
+	CHHapticEventParameter* sharpness = [[CHHapticEventParameter alloc]
+		initWithParameterID:CHHapticEventParameterIDHapticSharpness value:SharpnessForChannel( channel )];
+
+	// 30s is CoreHaptics' documented maximum event duration; loopEnabled on the player extends it indefinitely.
+	CHHapticEvent* event = [[CHHapticEvent alloc]
+		initWithEventType:CHHapticEventTypeHapticContinuous
+			   parameters:@[intensity, sharpness]
+			 relativeTime:0.0
+				 duration:30.0];
+
+	CHHapticPattern* pattern = [[CHHapticPattern alloc] initWithEvents:@[event] parameters:@[] error:&err];
+	if( pattern == nil )
+	{
+		CCP_LOGWARN( "InputHandlerApple: Failed to build haptics pattern on channel %d: %s",
+			(int)channel,
+			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+		return false;
+	}
+
+	id<CHHapticAdvancedPatternPlayer> player = [ch.engine createAdvancedPlayerWithPattern:pattern error:&err];
+	if( player == nil )
+	{
+		CCP_LOGWARN( "InputHandlerApple: Failed to create advanced player on channel %d: %s",
+			(int)channel,
+			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+		return false;
+	}
+	player.loopEnabled = YES;
+
+	if( ![player startAtTime:0 error:&err] )
+	{
+		CCP_LOGWARN( "InputHandlerApple: Failed to start advanced player on channel %d: %s",
+			(int)channel,
+			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+		return false;
+	}
+
+	ch.player = player;
+
+	CHHapticDynamicParameter* param = [[CHHapticDynamicParameter alloc]
+		initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl
+					  value:std::clamp( ch.lastIntensity, 0.0f, 1.0f )
+			   relativeTime:0.0];
+	NSError* sendErr = nil;
+	if( ![player sendParameters:@[param] atTime:0 error:&sendErr] )
+	{
+		CCP_LOGWARN( "InputHandlerApple: Failed to send initial intensity on channel %d: %s",
+			(int)channel,
+			sendErr.localizedDescription.UTF8String ? sendErr.localizedDescription.UTF8String : "(no message)" );
+	}
+	return true;
+}
+
+void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIndex channel, float intensity )
+{
+	if( !( @available( macOS 11.0, * ) ) )
+	{
+		return;
+	}
+
+	const float clamped = std::clamp( intensity, 0.0f, 1.0f );
+
+	id<CHHapticAdvancedPatternPlayer> player = nil;
+	{
+		std::unique_lock<std::mutex> lock( m_deviceMutex );
+		HapticsChannel& ch = slot.hapticsChannels[channel];
+		if( !ch.supported )
+		{
+			return;
+		}
+		if( ch.lastIntensity == clamped )
+		{
+			return;
+		}
+		ch.lastIntensity = clamped;
+		player = ch.player;
+	}
+
+	if( player == nil )
+	{
+		return;
+	}
+
+	CHHapticDynamicParameter* param = [[CHHapticDynamicParameter alloc]
+		initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl
+					  value:clamped
+			   relativeTime:0.0];
+	NSError* err = nil;
+	if( ![player sendParameters:@[param] atTime:0 error:&err] )
+	{
+		CCP_LOGNOTICE( "InputHandlerApple: sendParameters failed on channel %d: %s",
+			(int)channel,
+			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+	}
+}
+
+void InputHandlerApple::ShutdownHapticsForSlot( DeviceSlot& slot )
+{
+	if( !( @available( macOS 11.0, * ) ) )
+	{
+		return;
+	}
+
+	for( auto& ch : slot.hapticsChannels )
+	{
+		// Nil first so any queued reset/stopped callback that reaches m_deviceMutex sees the channel already torn down.
+		id<CHHapticAdvancedPatternPlayer> player = ch.player;
+		CHHapticEngine* engine = ch.engine;
+		ch.player = nil;
+		ch.engine = nil;
+		ch.supported = false;
+		ch.lastIntensity = 0.0f;
+
+		if( player != nil )
+		{
+			[player stopAtTime:0 error:nil];
+		}
+		if( engine != nil )
+		{
+			[engine stopWithCompletionHandler:nil];
+		}
+	}
+	slot.haptics = nil;
 }
 #endif // __APPLE__
