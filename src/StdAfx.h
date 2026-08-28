@@ -1,13 +1,10 @@
 #pragma once
 
-#if BLUE_WITH_PYTHON
-#include <Python.h>
-#endif
+#include <BlueExposure.h>
+#include <Blue.h>
+#include <IBlueOS.h>
+#include <IBluePersist.h>
+#include <BlueStatistics.h>
+#include <BlueListUtil.h>
+#include <CCPLog.h>
 
-#include "BlueSharedString.h"
-#include "IBlueClasses.h"
-#include "INotify.h"
-
-#include "BlueRegistration.h"
-#include "BlueListUtil.h"
-#include "BlueStructureList.h"

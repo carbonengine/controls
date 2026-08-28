@@ -527,23 +527,7 @@ InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( CComPtr<IGameInputD
 	return nullptr;
 }
 
-const std::vector<BlueSharedString> InputHandlerWin::GetButtonNames( BlueSharedString deviceId )
-{
-	return {};
-}
-
-const std::vector<BlueSharedString> InputHandlerWin::GetAxisNames( BlueSharedString deviceId )
-{
-	return {};
-}
-
-const std::vector<BlueSharedString> InputHandlerWin::GetSwitchNames( BlueSharedString deviceId )
-{
-	return {};
-}
-
 void InputHandlerWin::SetBackgroundEventsEnabled( bool enabled )
 {
-	// GameInput on Windows does not require any special handling for background events, so this is a no-op.
 }
 #endif // WIN32

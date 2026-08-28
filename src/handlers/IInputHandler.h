@@ -61,24 +61,6 @@ public:
 	virtual void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) = 0;
 	
 	/**
-	 * @brief Gets all the button names associated with this deviceid. The ordering of the list is the same as for the events
-	 * @param deviceId Unique identifier of the target device.
-	 */
-	virtual const std::vector<BlueSharedString> GetButtonNames( BlueSharedString deviceId ) = 0;
-	
-	/**
-	 * @brief Gets all the axes names associated with this deviceid. The ordering of the list is the same as for the events
-	 * @param deviceId Unique identifier of the target device.
-	 */
-	virtual const std::vector<BlueSharedString> GetAxisNames( BlueSharedString deviceId ) = 0;
-	
-	/**
-	 * @brief Gets all the switch names associated with this deviceid. The ordering of the list is the same as for the events
-	 * @param deviceId Unique identifier of the target device.
-	 */
-	virtual const std::vector<BlueSharedString> GetSwitchNames( BlueSharedString deviceId ) = 0;
-	
-	/**
 	 * @brief Enables or disables background event processing for the specified device. When enabled, the handler will continue 
 	 * to process input events even when the application is not in focus.
 	 */

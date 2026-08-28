@@ -24,7 +24,7 @@ public:
 	 *        consumed by other event triggers with identical conditions.
 	 * @param state The device state to mark.
 	 */
-	virtual void Own( Events::State& state ) = 0; 
+	virtual void Own( Events::State& state ) = 0;
 };
 BLUE_DECLARE_INTERFACE( IInputEvent );
 BLUE_DECLARE_IVECTOR( IInputEvent );

@@ -23,5 +23,8 @@ const Be::ClassInfo* InputDevice::ExposeToBlue()
 		MAP_PROPERTY( "lowFrequencyRumble", GetLowFrequencyRumble, SetLowFrequencyRumble, "The intensity of the low frequency rumble motor (0-1)" )
 		MAP_PROPERTY( "leftTriggerRumble", GetLeftTriggerRumble, SetLeftTriggerRumble, "The intensity of the left trigger rumble motor (0-1)" )
 		MAP_PROPERTY( "rightTriggerRumble", GetRightTriggerRumble, SetRightTriggerRumble, "The intensity of the right trigger rumble motor (0-1)" )
+		MAP_METHOD_AND_WRAP( "GetButtonName", GetButtonName, "Returns the name of the button at an index, if applicable")
+		MAP_METHOD_AND_WRAP( "GetAxisName", GetAxisName, "Returns the name of the axis at an index, if applicable")
+		MAP_METHOD_AND_WRAP( "GetSwitchName", GetSwitchName, "Returns the name of the switch at an index, if applicable")
 	EXPOSURE_END()
 }

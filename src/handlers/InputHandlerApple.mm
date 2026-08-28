@@ -210,6 +210,35 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
     identifier.buttonCount = static_cast<uint32_t>( buttons.size() );
     identifier.axisCount = static_cast<uint32_t>( axes.size() + triggerAxes.size() );
 	identifier.switchCount = static_cast<uint32_t>( dpads.size() );
+    
+    for( const GCControllerButtonInput* button : buttons )
+    {
+        if( button )
+        {
+            identifier.buttonNames.push_back( SharedStringFromNSString( button.localizedName ) );
+        }
+    }
+    for( const GCControllerAxisInput* axis : axes )
+    {
+        if( axis )
+        {
+            identifier.axisNames.push_back( SharedStringFromNSString( axis.localizedName ) );
+        }
+    }
+    for( const GCControllerButtonInput* axis : triggerAxes )
+    {
+        if( axis )
+        {
+            identifier.axisNames.push_back( SharedStringFromNSString( axis.localizedName ) );
+        }
+    }
+    for( const GCControllerDirectionPad* dpad : dpads )
+    {
+        if( dpad )
+        {
+            identifier.switchNames.push_back( SharedStringFromNSString( dpad.localizedName ) );
+        }
+    }
 
 	identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
 	// GCDeviceHaptics + CoreHaptics are 11.0+; leave capacity zeroed on older systems or controllers without haptics.
@@ -380,34 +409,7 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 			slot->triggerAxes = triggerAxes;
 			slot->switches = switches;
 			slot->identifier = identifier;
-            for( const GCControllerButtonInput* button : buttons )
-            {
-                if( button )
-                {
-                    slot->buttonNames.push_back( SharedStringFromNSString( button.localizedName ) );
-                }
-            }
-            for( const GCControllerAxisInput* axis : axes )
-            {
-                if( axis )
-                {
-                    slot->axisNames.push_back( SharedStringFromNSString( axis.localizedName ) );
-                }
-            }
-            for( const GCControllerButtonInput* axis : triggerAxes )
-            {
-                if( axis )
-                {
-                    slot->axisNames.push_back( SharedStringFromNSString( axis.localizedName ) );
-                }
-            }
-            for( const GCControllerDirectionPad* dpad : switches )
-            {
-                if( dpad )
-                {
-                    slot->switchNames.push_back( SharedStringFromNSString( dpad.localizedName ) );
-                }
-            }
+            
 			DeviceSlot* rawSlot = slot.get();
 			m_deviceSlots.push_back( std::move( slot ) );
 			if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
@@ -626,36 +628,6 @@ InputHandlerApple::DeviceSlot* InputHandlerApple::GetDeviceSlot( GCController* c
 			return slot->controller == controller;
 		} );
 	return it != m_deviceSlots.end() ? it->get() : nullptr;
-}
-
-const std::vector<BlueSharedString> InputHandlerApple::GetButtonNames( BlueSharedString deviceId )
-{
-    auto deviceSlot = GetDeviceSlot( deviceId) ;
-    if( deviceSlot )
-    {
-        return deviceSlot->buttonNames;
-    }
-    return {};
-}
-
-const std::vector<BlueSharedString> InputHandlerApple::GetAxisNames( BlueSharedString deviceId )
-{
-    auto deviceSlot = GetDeviceSlot( deviceId) ;
-    if( deviceSlot )
-    {
-        return deviceSlot->axisNames;
-    }
-    return {};
-}
-
-const std::vector<BlueSharedString> InputHandlerApple::GetSwitchNames( BlueSharedString deviceId )
-{
-    auto deviceSlot = GetDeviceSlot( deviceId) ;
-    if( deviceSlot )
-    {
-        return deviceSlot->switchNames;
-    }
-    return {};
 }
 
 void InputHandlerApple::SetBackgroundEventsEnabled( bool enabled )

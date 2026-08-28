@@ -46,6 +46,34 @@ BlueSharedString InputDevice::GetName() const
 	return m_deviceIdentifier.name;
 }
 
+
+BlueSharedString InputDevice::GetButtonName( uint32_t index ) const
+{
+	if( index < m_deviceIdentifier.buttonNames.size() )
+	{
+		return m_deviceIdentifier.buttonNames[ index ];
+	}
+	return BlueSharedString("");
+}
+
+BlueSharedString InputDevice::GetAxisName( uint32_t index ) const
+{
+	if( index < m_deviceIdentifier.axisNames.size() )
+	{
+		return m_deviceIdentifier.axisNames[ index ];
+	}
+	return BlueSharedString("");
+}
+
+BlueSharedString InputDevice::GetSwitchName( uint32_t index ) const
+{
+	if( index < m_deviceIdentifier.switchNames.size() )
+	{
+		return m_deviceIdentifier.switchNames[ index ];
+	}
+	return BlueSharedString("");
+}
+
 void InputDevice::Update( IInputHandler* inputHandler )
 {
 	if( m_triggersDirty )

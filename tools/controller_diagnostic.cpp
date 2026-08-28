@@ -372,9 +372,9 @@ int main( int /*argc*/, char** /*argv*/ )
 
 	handler->SetDeviceActivation( chosen.deviceID, true );
 
-	const std::vector<BlueSharedString> buttonNames = handler->GetButtonNames( chosen.deviceID );
-	const std::vector<BlueSharedString> axisNames = handler->GetAxisNames( chosen.deviceID );
-	const std::vector<BlueSharedString> switchNames = handler->GetSwitchNames( chosen.deviceID );
+	const std::vector<BlueSharedString> buttonNames = chosen.buttonNames;
+	const std::vector<BlueSharedString> axisNames = chosen.axisNames;
+	const std::vector<BlueSharedString> switchNames = chosen.switchNames;
 
 	Events::State latest;
 	// Initialise sizes so an empty poll still renders a stable table.

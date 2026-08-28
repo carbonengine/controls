@@ -30,15 +30,6 @@ public:
 	/** @copydoc IInputHandler::Rumble() */
 	void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) override;
 	
-	/** @copydoc IInputHandler::GetButtonNames() */
-	const std::vector<BlueSharedString> GetButtonNames( BlueSharedString deviceId ) override;
-	
-	/** @copydoc IInputHandler::GetAxisNames() */
-	const std::vector<BlueSharedString> GetAxisNames( BlueSharedString deviceId ) override;
-	
-	/** @copydoc IInputHandler::GetSwitchNames() */
-	const std::vector<BlueSharedString> GetSwitchNames( BlueSharedString deviceId ) override;
-
 	/** @copydoc IInputHandler::SetBackgroundEventsEnabled() */
 	void SetBackgroundEventsEnabled( bool enabled ) override;
 };

@@ -26,21 +26,6 @@ void InputHandlerStub::Rumble( BlueSharedString deviceId, Events::Rumble rumble 
 {
 }
 
-const std::vector<BlueSharedString> InputHandlerStub::GetButtonNames( BlueSharedString deviceId )
-{
-	return {};
-}
-
-const std::vector<BlueSharedString> InputHandlerStub::GetAxisNames( BlueSharedString deviceId )
-{
-	return {};
-}
-
-const std::vector<BlueSharedString> InputHandlerStub::GetSwitchNames( BlueSharedString deviceId )
-{
-	return {};
-}
-
 void InputHandlerStub::SetBackgroundEventsEnabled( bool enabled )
 {
 }
