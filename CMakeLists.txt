@@ -150,7 +150,6 @@ if(APPLE)
         "-framework CoreHaptics"
     )
 elseif(WIN32)
-    find_package(gameinput CONFIG REQUIRED)
     target_link_libraries(controller_diagnostic PRIVATE Microsoft::GameInput)
 endif()
 
