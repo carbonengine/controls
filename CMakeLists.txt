@@ -96,10 +96,6 @@ if( WIN32 )
     target_link_libraries(_carbon_controls PRIVATE 
         Microsoft::GameInput 
     )
-
-    target_link_options(_carbon_controls PRIVATE
-        "/WHOLEARCHIVE:$<TARGET_FILE_NAME:BlueExposure>"
-    )
 elseif( APPLE )
     target_link_libraries(_carbon_controls PRIVATE
         "-framework GameController"
