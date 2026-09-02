@@ -2,9 +2,9 @@
 #include "InputHandlerWin.h"
 
 #include <algorithm>
-#include <gameinput.h>
 #include <sstream>
-#include <Windows.h>
+#include <Windows.h> 
+#include <gameinput_v3.h>
 #include <iomanip>
 
 #include "../ControlManager.h"
@@ -70,7 +70,7 @@ BlueSharedString GetDeviceIDAsString( APP_LOCAL_DEVICE_ID deviceId )
 {
 	std::stringstream ss = {};
 	ss << std::hex << std::nouppercase << std::setfill( '0' ) << std::setw( 2 );
-	for( size_t i = 0; i < sizeof(deviceId.value) / sizeof(BYTE); ++i )
+	for( size_t i = 0; i < sizeof( deviceId.value ) / sizeof( BYTE ); ++i )
 	{
 		ss << static_cast<int>( deviceId.value[i] );
 	}
@@ -117,7 +117,7 @@ InputHandlerWin::~InputHandlerWin()
 	{
 		m_gameInput = nullptr;
 	}
-	
+
 	CCP_LOGNOTICE( "InputHandlerWin: Shut down" );
 }
 
@@ -257,7 +257,7 @@ void CALLBACK InputHandlerWin::OnDeviceRead(
 		if( foundSlot )
 		{
 			std::unique_lock<std::shared_mutex> lock( self->m_readingMutex );
-			foundSlot->accumulatedStates.push_back( std::move(state) );
+			foundSlot->accumulatedStates.push_back( std::move( state ) );
 		}
 	}
 }
@@ -308,7 +308,7 @@ std::vector<Events::State> InputHandlerWin::Update( BlueSharedString deviceID )
 		return {};
 	}
 
-	// need to remove devices here, but not in the callback 
+	// need to remove devices here, but not in the callback
 	if( m_devicesRemoved )
 	{
 		std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
@@ -379,7 +379,7 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	{
 		// check the registry for the device name, using the vendor/product ID as a key
 		auto registryName = RegistryValues::GetStringValueFromHKLM(
-			"SYSTEM\\CurrentControlSet\\Control\\MediaProperties\\PrivateProperties\\Joystick\\OEM\\VID_" + std::string(vid) + "&PID_" + std::string(pid),
+			"SYSTEM\\CurrentControlSet\\Control\\MediaProperties\\PrivateProperties\\Joystick\\OEM\\VID_" + std::string( vid ) + "&PID_" + std::string( pid ),
 			"OEMName" );
 		if( !registryName.empty() )
 		{
@@ -389,7 +389,7 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 
 	if( identifier.name.empty() && info->displayName )
 	{
-		identifier.name = BlueSharedString( static_cast<const char*>( info->displayName) );
+		identifier.name = BlueSharedString( static_cast<const char*>( info->displayName ) );
 	}
 
 	bool hasLowFreq = ( info->supportedRumbleMotors & GameInputRumbleMotors::GameInputRumbleLowFrequency ) != 0;
@@ -483,7 +483,7 @@ void InputHandlerWin::Rumble( BlueSharedString deviceID, Events::Rumble rumble )
 {
 
 	auto deviceSlot = GetDeviceSlot( deviceID );
-	
+
 	if( deviceSlot )
 	{
 		GameInputRumbleParams rumbleParams = {};
@@ -509,7 +509,7 @@ InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( BlueSharedString de
 		return &( *it );
 	}
 
-	return nullptr;	
+	return nullptr;
 }
 
 InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( CComPtr<IGameInputDevice> device )
@@ -529,5 +529,16 @@ InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( CComPtr<IGameInputD
 
 void InputHandlerWin::SetBackgroundEventsEnabled( bool enabled )
 {
+	if( m_gameInput )
+	{
+		if( enabled )
+		{
+			m_gameInput->SetFocusPolicy( GameInputFocusPolicy::GameInputEnableBackgroundInput );
+		}
+		else
+		{
+			m_gameInput->SetFocusPolicy( GameInputFocusPolicy::GameInputDefaultFocusPolicy );
+		}
+	}
 }
 #endif // WIN32

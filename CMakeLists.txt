@@ -92,10 +92,23 @@ target_link_libraries(_carbon_controls PRIVATE
 )
 if( WIN32 )
     find_package(gameinput CONFIG REQUIRED)
-    
+
     target_link_libraries(_carbon_controls PRIVATE 
         Microsoft::GameInput 
     )
+
+    # The Windows SDK ships a legacy v1 GameInput.h that shadows the vcpkg v3 header
+    # on case-insensitive Windows. Copy the vcpkg header to a unique filename so neither the
+    # compiler nor IntelliSense can ever resolve to the SDK version.
+    get_target_property(_gameinput_inc Microsoft::GameInput INTERFACE_INCLUDE_DIRECTORIES)
+    if(_gameinput_inc)
+        configure_file(
+            "${_gameinput_inc}/gameinput.h"
+            "${CMAKE_BINARY_DIR}/gameinput_vcpkg/gameinput_v3.h"
+            COPYONLY)
+        target_include_directories(_carbon_controls BEFORE PRIVATE
+            "${CMAKE_BINARY_DIR}/gameinput_vcpkg")
+    endif()
 elseif( APPLE )
     target_link_libraries(_carbon_controls PRIVATE
         "-framework GameController"
@@ -147,6 +160,9 @@ if(APPLE)
     )
 elseif(WIN32)
     target_link_libraries(controller_diagnostic PRIVATE Microsoft::GameInput)
+    # Point at the copied unique-name header (see comment on _carbon_controls above).
+    target_include_directories(controller_diagnostic BEFORE PRIVATE
+        "${CMAKE_BINARY_DIR}/gameinput_vcpkg")
 endif()
 
 # Provide an install target if this is the top level project only

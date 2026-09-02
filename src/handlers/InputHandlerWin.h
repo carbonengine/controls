@@ -1,14 +1,14 @@
 #pragma once
 #ifdef WIN32
 #include "IInputHandler.h"
-#include <gameinput.h>
+#include <Windows.h>   
+#include <gameinput_v3.h>
 
-#include <array>
+#include <array>	
 #include <mutex>
 #include "../events/IInputEvent.h"
 
 using namespace GameInput::v3;
-
 /**
  * @brief Windows implementation of IInputHandler using the GameInput API.
  *
