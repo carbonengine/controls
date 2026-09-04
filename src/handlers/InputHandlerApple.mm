@@ -152,42 +152,69 @@ void CollectProfileElements(
     std::vector<GCControllerDirectionPad*>&outSwitches )
 {
     GCPhysicalInputProfile* profile = controller.physicalInputProfile;
-    
-    for( GCControllerButtonInput* button in profile.allButtons )
+
+    // .allButtons/.allAxes/.allDpads are NSSets with undefined enumeration order. Instead iterate the
+    // .buttons/.axes/.dpads dictionaries by sorted key so the resulting element order is deterministic.
+    // An element can be reachable under several keys at once (see GCControllerElement.aliases), so we
+    // also dedupe by identity, keeping only the earliest (alphabetically smallest) key for each element.
+    NSArray<NSString*>* buttonKeys = [profile.buttons.allKeys sortedArrayUsingSelector:@selector( compare: )];
+    for( NSString* key in buttonKeys )
     {
+        GCControllerButtonInput* button = profile.buttons[key];
         // we don't want buttons that are part of a collection, like a dpad group
         if( button.collection == nil )
         {
             if( IsAnalogTriggerButton( button ) )
             {
-                outTriggerAxes.push_back( button );
+                if( std::find( outTriggerAxes.begin(), outTriggerAxes.end(), button ) == outTriggerAxes.end() )
+                {
+                    outTriggerAxes.push_back( button );
+                }
             }
             else
             {
-                outButtons.push_back( button );
+                if( std::find( outButtons.begin(), outButtons.end(), button ) == outButtons.end() )
+                {
+                    outButtons.push_back( button );
+                }
             }
         }
     }
-    
-    for( GCControllerAxisInput* axis in profile.allAxes )
+
+    NSArray<NSString*>* axisKeys = [profile.axes.allKeys sortedArrayUsingSelector:@selector( compare: )];
+    for( NSString* key in axisKeys )
     {
+        GCControllerAxisInput* axis = profile.axes[key];
         // Skip axes that belong to a collection (e.g. dpad X/Y components) — the parent
-        // element is handled in the allDpads pass below, which decides whether it becomes
+        // element is handled in the dpad pass below, which decides whether it becomes
         // a switch or contributes its child axes here.
-        if( axis.collection == nil )
+        if( axis.collection == nil && std::find( outAxes.begin(), outAxes.end(), axis ) == outAxes.end() )
         {
             outAxes.push_back( axis );
         }
     }
-    for( GCControllerDirectionPad* dpad in profile.allDpads )
+
+    NSArray<NSString*>* dpadKeys = [profile.dpads.allKeys sortedArrayUsingSelector:@selector( compare: )];
+    for( NSString* key in dpadKeys )
     {
+        GCControllerDirectionPad* dpad = profile.dpads[key];
+        if( std::find( outSwitches.begin(), outSwitches.end(), dpad ) != outSwitches.end() )
+        {
+            continue;
+        }
         // Apple models thumbsticks and touchpads as direction pads too. Those report analog child
         // axes, whereas a real d-pad is digital. Expose the analog ones as a pair of axes and keep
         // only digital d-pads in the switch dimension.
         if( dpad.xAxis != nil && dpad.yAxis != nil && dpad.xAxis.isAnalog )
         {
-            outAxes.push_back( dpad.xAxis );
-            outAxes.push_back( dpad.yAxis );
+            if( std::find( outAxes.begin(), outAxes.end(), dpad.xAxis ) == outAxes.end() )
+            {
+                outAxes.push_back( dpad.xAxis );
+            }
+            if( std::find( outAxes.begin(), outAxes.end(), dpad.yAxis ) == outAxes.end() )
+            {
+                outAxes.push_back( dpad.yAxis );
+            }
         }
         else
         {
