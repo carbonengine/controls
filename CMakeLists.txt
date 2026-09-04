@@ -19,6 +19,7 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/ControlManager_Blue.cpp
     src/ControlManager.h
     src/DeviceEnums.h
+    src/DeviceEnums.cpp
     src/InputDevice.h
     src/InputDevice.cpp
     src/InputDevice_Blue.cpp
@@ -127,6 +128,7 @@ endif()
 set(CONTROLLER_DIAGNOSTIC_SOURCES
     tools/controller_diagnostic.cpp
     src/events/Events.cpp
+    src/DeviceEnums.cpp
 )
 if(WIN32)
     list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES

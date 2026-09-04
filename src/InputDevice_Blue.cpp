@@ -21,9 +21,6 @@ const Be::ClassInfo* InputDevice::ExposeToBlue()
 		MAP_PROPERTY( "leftTriggerRumble", GetLeftTriggerRumble, SetLeftTriggerRumble, "The intensity of the left trigger rumble motor (0-1)" )
 		MAP_PROPERTY( "rightTriggerRumble", GetRightTriggerRumble, SetRightTriggerRumble, "The intensity of the right trigger rumble motor (0-1)" )
 		MAP_METHOD_AND_WRAP( "ResetRumble", ResetRumble, "Resets all rumble motors to 0 intensity" )
-		MAP_METHOD_AND_WRAP( "GetButtonNames", GetButtonNames, "Gets the names of all buttons on the device" )
-		MAP_METHOD_AND_WRAP( "GetAxisNames", GetAxisNames, "Gets the names of all axes on the device" )
-		MAP_METHOD_AND_WRAP( "GetSwitchNames", GetSwitchNames, "Gets the names of all switches on the device" )
 
 	EXPOSURE_END()
 }

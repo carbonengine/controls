@@ -2,6 +2,7 @@
 #include "InputHandlerWin.h"
 
 #include <algorithm>
+#include <iterator>
 #include <sstream>
 #include <Windows.h> 
 #include <gameinput_v3.h>
@@ -65,274 +66,366 @@ std::string GetStringValueFromHKLM( const std::string& regSubKey, const std::str
 
 namespace Mapping
 {
-BlueSharedString GetName( GameInputLabel label )
+// Folds the several parallel GameInputLabel naming families (Xbox letters, PlayStation
+// icons, generic words, LB/L1 style abbreviations) down to the abstract slot the element
+// occupies. The glyph flavour is re-applied later from the device family, which is what
+// makes the final identifier identical across platforms.
+DeviceEnums::ElementPosition ToPosition( GameInputLabel label )
 {
+	using Position = DeviceEnums::ElementPosition;
+
 	switch( label )
 	{
-	case GameInputLabel::GameInputLabelUnknown:
-		return BlueSharedString( "Unknown" );
-	case GameInputLabel::GameInputLabelNone:
-		return BlueSharedString( "None" );
-	case GameInputLabel::GameInputLabelXboxGuide:
-		return BlueSharedString( "XboxGuide" );
-	case GameInputLabel::GameInputLabelXboxBack:
-		return BlueSharedString( "XboxBack" );
-	case GameInputLabel::GameInputLabelXboxStart:
-		return BlueSharedString( "XboxStart" );
-	case GameInputLabel::GameInputLabelXboxMenu:
-		return BlueSharedString( "XboxMenu" );
-	case GameInputLabel::GameInputLabelXboxView:
-		return BlueSharedString( "XboxView" );
 	case GameInputLabel::GameInputLabelXboxA:
-		return BlueSharedString( "XboxA" );
-	case GameInputLabel::GameInputLabelXboxB:
-		return BlueSharedString( "XboxB" );
-	case GameInputLabel::GameInputLabelXboxX:
-		return BlueSharedString( "XboxX" );
-	case GameInputLabel::GameInputLabelXboxY:
-		return BlueSharedString( "XboxY" );
-	case GameInputLabel::GameInputLabelXboxDPadUp:
-		return BlueSharedString( "XboxDPadUp" );
-	case GameInputLabel::GameInputLabelXboxDPadDown:
-		return BlueSharedString( "XboxDPadDown" );
-	case GameInputLabel::GameInputLabelXboxDPadLeft:
-		return BlueSharedString( "XboxDPadLeft" );
-	case GameInputLabel::GameInputLabelXboxDPadRight:
-		return BlueSharedString( "XboxDPadRight" );
-	case GameInputLabel::GameInputLabelXboxLeftShoulder:
-		return BlueSharedString( "XboxLeftShoulder" );
-	case GameInputLabel::GameInputLabelXboxLeftTrigger:
-		return BlueSharedString( "XboxLeftTrigger" );
-	case GameInputLabel::GameInputLabelXboxLeftStickButton:
-		return BlueSharedString( "XboxLeftStickButton" );
-	case GameInputLabel::GameInputLabelXboxRightShoulder:
-		return BlueSharedString( "XboxRightShoulder" );
-	case GameInputLabel::GameInputLabelXboxRightTrigger:
-		return BlueSharedString( "XboxRightTrigger" );
-	case GameInputLabel::GameInputLabelXboxRightStickButton:
-		return BlueSharedString( "XboxRightStickButton" );
-	case GameInputLabel::GameInputLabelXboxPaddle1:
-		return BlueSharedString( "XboxPaddle1" );
-	case GameInputLabel::GameInputLabelXboxPaddle2:
-		return BlueSharedString( "XboxPaddle2" );
-	case GameInputLabel::GameInputLabelXboxPaddle3:
-		return BlueSharedString( "XboxPaddle3" );
-	case GameInputLabel::GameInputLabelXboxPaddle4:
-		return BlueSharedString( "XboxPaddle4" );
-	case GameInputLabel::GameInputLabelLetterA:
-		return BlueSharedString( "LetterA" );
-	case GameInputLabel::GameInputLabelLetterB:
-		return BlueSharedString( "LetterB" );
-	case GameInputLabel::GameInputLabelLetterC:
-		return BlueSharedString( "LetterC" );
-	case GameInputLabel::GameInputLabelLetterD:
-		return BlueSharedString( "LetterD" );
-	case GameInputLabel::GameInputLabelLetterE:
-		return BlueSharedString( "LetterE" );
-	case GameInputLabel::GameInputLabelLetterF:
-		return BlueSharedString( "LetterF" );
-	case GameInputLabel::GameInputLabelLetterG:
-		return BlueSharedString( "LetterG" );
-	case GameInputLabel::GameInputLabelLetterH:
-		return BlueSharedString( "LetterH" );
-	case GameInputLabel::GameInputLabelLetterI:
-		return BlueSharedString( "LetterI" );
-	case GameInputLabel::GameInputLabelLetterJ:
-		return BlueSharedString( "LetterJ" );
-	case GameInputLabel::GameInputLabelLetterK:
-		return BlueSharedString( "LetterK" );
-	case GameInputLabel::GameInputLabelLetterL:
-		return BlueSharedString( "LetterL" );
-	case GameInputLabel::GameInputLabelLetterM:
-		return BlueSharedString( "LetterM" );
-	case GameInputLabel::GameInputLabelLetterN:
-		return BlueSharedString( "LetterN" );
-	case GameInputLabel::GameInputLabelLetterO:
-		return BlueSharedString( "LetterO" );
-	case GameInputLabel::GameInputLabelLetterP:
-		return BlueSharedString( "LetterP" );
-	case GameInputLabel::GameInputLabelLetterQ:
-		return BlueSharedString( "LetterQ" );
-	case GameInputLabel::GameInputLabelLetterR:
-		return BlueSharedString( "LetterR" );
-	case GameInputLabel::GameInputLabelLetterS:
-		return BlueSharedString( "LetterS" );
-	case GameInputLabel::GameInputLabelLetterT:
-		return BlueSharedString( "LetterT" );
-	case GameInputLabel::GameInputLabelLetterU:
-		return BlueSharedString( "LetterU" );
-	case GameInputLabel::GameInputLabelLetterV:
-		return BlueSharedString( "LetterV" );
-	case GameInputLabel::GameInputLabelLetterW:
-		return BlueSharedString( "LetterW" );
-	case GameInputLabel::GameInputLabelLetterX:
-		return BlueSharedString( "LetterX" );
-	case GameInputLabel::GameInputLabelLetterY:
-		return BlueSharedString( "LetterY" );
-	case GameInputLabel::GameInputLabelLetterZ:
-		return BlueSharedString( "LetterZ" );
-	case GameInputLabel::GameInputLabelNumber0:
-		return BlueSharedString( "Number0" );
-	case GameInputLabel::GameInputLabelNumber1:
-		return BlueSharedString( "Number1" );
-	case GameInputLabel::GameInputLabelNumber2:
-		return BlueSharedString( "Number2" );
-	case GameInputLabel::GameInputLabelNumber3:
-		return BlueSharedString( "Number3" );
-	case GameInputLabel::GameInputLabelNumber4:
-		return BlueSharedString( "Number4" );
-	case GameInputLabel::GameInputLabelNumber5:
-		return BlueSharedString( "Number5" );
-	case GameInputLabel::GameInputLabelNumber6:
-		return BlueSharedString( "Number6" );
-	case GameInputLabel::GameInputLabelNumber7:
-		return BlueSharedString( "Number7" );
-	case GameInputLabel::GameInputLabelNumber8:
-		return BlueSharedString( "Number8" );
-	case GameInputLabel::GameInputLabelNumber9:
-		return BlueSharedString( "Number9" );
-	case GameInputLabel::GameInputLabelArrowUp:
-		return BlueSharedString( "ArrowUp" );
-	case GameInputLabel::GameInputLabelArrowUpRight:
-		return BlueSharedString( "ArrowUpRight" );
-	case GameInputLabel::GameInputLabelArrowRight:
-		return BlueSharedString( "ArrowRight" );
-	case GameInputLabel::GameInputLabelArrowDownRight:
-		return BlueSharedString( "ArrowDownRight" );
-	case GameInputLabel::GameInputLabelArrowDown:
-		return BlueSharedString( "ArrowDown" );
-	case GameInputLabel::GameInputLabelArrowDownLLeft:
-		return BlueSharedString( "ArrowDownLeft" );
-	case GameInputLabel::GameInputLabelArrowLeft:
-		return BlueSharedString( "ArrowLeft" );
-	case GameInputLabel::GameInputLabelArrowUpLeft:
-		return BlueSharedString( "ArrowUpLeft" );
-	case GameInputLabel::GameInputLabelArrowUpDown:
-		return BlueSharedString( "ArrowUpDown" );
-	case GameInputLabel::GameInputLabelArrowLeftRight:
-		return BlueSharedString( "ArrowLeftRight" );
-	case GameInputLabel::GameInputLabelArrowUpDownLeftRight:
-		return BlueSharedString( "ArrowUpDownLeftRight" );
-	case GameInputLabel::GameInputLabelArrowClockwise:
-		return BlueSharedString( "ArrowClockwise" );
-	case GameInputLabel::GameInputLabelArrowCounterClockwise:
-		return BlueSharedString( "ArrowCounterClockwise" );
-	case GameInputLabel::GameInputLabelArrowReturn:
-		return BlueSharedString( "ArrowReturn" );
-	case GameInputLabel::GameInputLabelIconBranding:
-		return BlueSharedString( "IconBranding" );
-	case GameInputLabel::GameInputLabelIconHome:
-		return BlueSharedString( "IconHome" );
-	case GameInputLabel::GameInputLabelIconMenu:
-		return BlueSharedString( "IconMenu" );
 	case GameInputLabel::GameInputLabelIconCross:
-		return BlueSharedString( "IconCross" );
+		return Position::FaceSouth;
+	case GameInputLabel::GameInputLabelXboxB:
 	case GameInputLabel::GameInputLabelIconCircle:
-		return BlueSharedString( "IconCircle" );
+		return Position::FaceEast;
+	case GameInputLabel::GameInputLabelXboxX:
 	case GameInputLabel::GameInputLabelIconSquare:
-		return BlueSharedString( "IconSquare" );
+		return Position::FaceWest;
+	case GameInputLabel::GameInputLabelXboxY:
 	case GameInputLabel::GameInputLabelIconTriangle:
-		return BlueSharedString( "IconTriangle" );
-	case GameInputLabel::GameInputLabelIconStar:
-		return BlueSharedString( "IconStar" );
-	case GameInputLabel::GameInputLabelIconDPadUp:
-		return BlueSharedString( "IconDPadUp" );
-	case GameInputLabel::GameInputLabelIconDPadDown:
-		return BlueSharedString( "IconDPadDown" );
-	case GameInputLabel::GameInputLabelIconDPadLeft:
-		return BlueSharedString( "IconDPadLeft" );
-	case GameInputLabel::GameInputLabelIconDPadRight:
-		return BlueSharedString( "IconDPadRight" );
-	case GameInputLabel::GameInputLabelIconDialClockwise:
-		return BlueSharedString( "IconDialClockwise" );
-	case GameInputLabel::GameInputLabelIconDialCounterClockwise:
-		return BlueSharedString( "IconDialCounterClockwise" );
-	case GameInputLabel::GameInputLabelIconSliderLeftRight:
-		return BlueSharedString( "IconSliderLeftRight" );
-	case GameInputLabel::GameInputLabelIconSliderUpDown:
-		return BlueSharedString( "IconSliderUpDown" );
-	case GameInputLabel::GameInputLabelIconWheelUpDown:
-		return BlueSharedString( "IconWheelUpDown" );
-	case GameInputLabel::GameInputLabelIconPlus:
-		return BlueSharedString( "IconPlus" );
-	case GameInputLabel::GameInputLabelIconMinus:
-		return BlueSharedString( "IconMinus" );
-	case GameInputLabel::GameInputLabelIconSuspension:
-		return BlueSharedString( "IconSuspension" );
-	case GameInputLabel::GameInputLabelHome:
-		return BlueSharedString( "Home" );
-	case GameInputLabel::GameInputLabelGuide:
-		return BlueSharedString( "Guide" );
-	case GameInputLabel::GameInputLabelMode:
-		return BlueSharedString( "Mode" );
-	case GameInputLabel::GameInputLabelSelect:
-		return BlueSharedString( "Select" );
-	case GameInputLabel::GameInputLabelMenu:
-		return BlueSharedString( "Menu" );
-	case GameInputLabel::GameInputLabelView:
-		return BlueSharedString( "View" );
-	case GameInputLabel::GameInputLabelBack:
-		return BlueSharedString( "Back" );
-	case GameInputLabel::GameInputLabelStart:
-		return BlueSharedString( "Start" );
-	case GameInputLabel::GameInputLabelOptions:
-		return BlueSharedString( "Options" );
-	case GameInputLabel::GameInputLabelShare:
-		return BlueSharedString( "Share" );
-	case GameInputLabel::GameInputLabelUp:
-		return BlueSharedString( "Up" );
-	case GameInputLabel::GameInputLabelDown:
-		return BlueSharedString( "Down" );
-	case GameInputLabel::GameInputLabelLeft:
-		return BlueSharedString( "Left" );
-	case GameInputLabel::GameInputLabelRight:
-		return BlueSharedString( "Right" );
+		return Position::FaceNorth;
+
+	case GameInputLabel::GameInputLabelXboxLeftShoulder:
 	case GameInputLabel::GameInputLabelLB:
-		return BlueSharedString( "LB" );
-	case GameInputLabel::GameInputLabelLT:
-		return BlueSharedString( "LT" );
-	case GameInputLabel::GameInputLabelLSB:
-		return BlueSharedString( "LSB" );
 	case GameInputLabel::GameInputLabelL1:
-		return BlueSharedString( "L1" );
+		return Position::LeftShoulder;
+	case GameInputLabel::GameInputLabelXboxLeftTrigger:
+	case GameInputLabel::GameInputLabelLT:
 	case GameInputLabel::GameInputLabelL2:
-		return BlueSharedString( "L2" );
+		return Position::LeftTrigger;
+	case GameInputLabel::GameInputLabelXboxLeftStickButton:
+	case GameInputLabel::GameInputLabelLSB:
 	case GameInputLabel::GameInputLabelL3:
-		return BlueSharedString( "L3" );
+		return Position::LeftStickButton;
+
+	case GameInputLabel::GameInputLabelXboxRightShoulder:
 	case GameInputLabel::GameInputLabelRB:
-		return BlueSharedString( "RB" );
-	case GameInputLabel::GameInputLabelRT:
-		return BlueSharedString( "RT" );
-	case GameInputLabel::GameInputLabelRSB:
-		return BlueSharedString( "RSB" );
 	case GameInputLabel::GameInputLabelR1:
-		return BlueSharedString( "R1" );
+		return Position::RightShoulder;
+	case GameInputLabel::GameInputLabelXboxRightTrigger:
+	case GameInputLabel::GameInputLabelRT:
 	case GameInputLabel::GameInputLabelR2:
-		return BlueSharedString( "R2" );
+		return Position::RightTrigger;
+	case GameInputLabel::GameInputLabelXboxRightStickButton:
+	case GameInputLabel::GameInputLabelRSB:
 	case GameInputLabel::GameInputLabelR3:
-		return BlueSharedString( "R3" );
+		return Position::RightStickButton;
+
+	case GameInputLabel::GameInputLabelXboxMenu:
+	case GameInputLabel::GameInputLabelXboxStart:
+	case GameInputLabel::GameInputLabelMenu:
+	case GameInputLabel::GameInputLabelStart:
+	case GameInputLabel::GameInputLabelOptions:
+	case GameInputLabel::GameInputLabelIconMenu:
+		return Position::Start;
+
+	case GameInputLabel::GameInputLabelXboxView:
+	case GameInputLabel::GameInputLabelXboxBack:
+	case GameInputLabel::GameInputLabelView:
+	case GameInputLabel::GameInputLabelBack:
+	case GameInputLabel::GameInputLabelSelect:
+	case GameInputLabel::GameInputLabelShare:
+		return Position::Select;
+
+	case GameInputLabel::GameInputLabelXboxGuide:
+	case GameInputLabel::GameInputLabelGuide:
+	case GameInputLabel::GameInputLabelHome:
+	case GameInputLabel::GameInputLabelMode:
+	case GameInputLabel::GameInputLabelIconHome:
+		return Position::Guide;
+
+	case GameInputLabel::GameInputLabelXboxDPadUp:
+	case GameInputLabel::GameInputLabelIconDPadUp:
+	case GameInputLabel::GameInputLabelUp:
+		return Position::DPadUp;
+	case GameInputLabel::GameInputLabelXboxDPadDown:
+	case GameInputLabel::GameInputLabelIconDPadDown:
+	case GameInputLabel::GameInputLabelDown:
+		return Position::DPadDown;
+	case GameInputLabel::GameInputLabelXboxDPadLeft:
+	case GameInputLabel::GameInputLabelIconDPadLeft:
+	case GameInputLabel::GameInputLabelLeft:
+		return Position::DPadLeft;
+	case GameInputLabel::GameInputLabelXboxDPadRight:
+	case GameInputLabel::GameInputLabelIconDPadRight:
+	case GameInputLabel::GameInputLabelRight:
+		return Position::DPadRight;
+
+	case GameInputLabel::GameInputLabelXboxPaddle1:
 	case GameInputLabel::GameInputLabelPaddleLeft1:
-		return BlueSharedString( "PaddleLeft1" );
+		return Position::PaddleLeft1;
+	case GameInputLabel::GameInputLabelXboxPaddle2:
 	case GameInputLabel::GameInputLabelPaddleLeft2:
-		return BlueSharedString( "PaddleLeft2" );
+		return Position::PaddleLeft2;
+	case GameInputLabel::GameInputLabelXboxPaddle3:
 	case GameInputLabel::GameInputLabelPaddleRight1:
-		return BlueSharedString( "PaddleRight1" );
+		return Position::PaddleRight1;
+	case GameInputLabel::GameInputLabelXboxPaddle4:
 	case GameInputLabel::GameInputLabelPaddleRight2:
-		return BlueSharedString( "PaddleRight2" );
+		return Position::PaddleRight2;
+
 	default:
-		return BlueSharedString( "Unknown" );
+		return Position::Unknown;
 	}
 }
 
-BlueSharedString GetCustomName( std::string typeDescriptor, uint32_t index )
+// GameInput's neutral label families (letters, numbers, arrows and the remaining icons)
+// are already vendor-agnostic, so they carry over to InputElement one-to-one instead of
+// going through the position/family resolution.
+DeviceEnums::InputElement ToNeutralElement( GameInputLabel label )
 {
-	std::string ss = "Custom " + typeDescriptor + " " + std::to_string( index );
-	return BlueSharedString( ss );
+	using Element = DeviceEnums::InputElement;
+
+	if( label >= GameInputLabel::GameInputLabelLetterA && label <= GameInputLabel::GameInputLabelLetterZ )
+	{
+		const auto offset = static_cast<uint32_t>( label ) - static_cast<uint32_t>( GameInputLabel::GameInputLabelLetterA );
+		return static_cast<Element>( static_cast<uint16_t>( Element::LetterA ) + offset );
+	}
+
+	if( label >= GameInputLabel::GameInputLabelNumber0 && label <= GameInputLabel::GameInputLabelNumber9 )
+	{
+		const auto offset = static_cast<uint32_t>( label ) - static_cast<uint32_t>( GameInputLabel::GameInputLabelNumber0 );
+		return static_cast<Element>( static_cast<uint16_t>( Element::Number0 ) + offset );
+	}
+
+	switch( label )
+	{
+	case GameInputLabel::GameInputLabelArrowUp:
+		return Element::ArrowUp;
+	case GameInputLabel::GameInputLabelArrowUpRight:
+		return Element::ArrowUpRight;
+	case GameInputLabel::GameInputLabelArrowRight:
+		return Element::ArrowRight;
+	case GameInputLabel::GameInputLabelArrowDownRight:
+		return Element::ArrowDownRight;
+	case GameInputLabel::GameInputLabelArrowDown:
+		return Element::ArrowDown;
+	case GameInputLabel::GameInputLabelArrowDownLLeft:
+		return Element::ArrowDownLeft;
+	case GameInputLabel::GameInputLabelArrowLeft:
+		return Element::ArrowLeft;
+	case GameInputLabel::GameInputLabelArrowUpLeft:
+		return Element::ArrowUpLeft;
+	case GameInputLabel::GameInputLabelArrowUpDown:
+		return Element::ArrowUpDown;
+	case GameInputLabel::GameInputLabelArrowLeftRight:
+		return Element::ArrowLeftRight;
+	case GameInputLabel::GameInputLabelArrowUpDownLeftRight:
+		return Element::ArrowUpDownLeftRight;
+	case GameInputLabel::GameInputLabelArrowClockwise:
+		return Element::ArrowClockwise;
+	case GameInputLabel::GameInputLabelArrowCounterClockwise:
+		return Element::ArrowCounterClockwise;
+	case GameInputLabel::GameInputLabelArrowReturn:
+		return Element::ArrowReturn;
+
+	case GameInputLabel::GameInputLabelIconBranding:
+		return Element::IconBranding;
+	case GameInputLabel::GameInputLabelIconStar:
+		return Element::IconStar;
+	case GameInputLabel::GameInputLabelIconPlus:
+		return Element::IconPlus;
+	case GameInputLabel::GameInputLabelIconMinus:
+		return Element::IconMinus;
+	case GameInputLabel::GameInputLabelIconSuspension:
+		return Element::IconSuspension;
+	case GameInputLabel::GameInputLabelIconDialClockwise:
+		return Element::IconDialClockwise;
+	case GameInputLabel::GameInputLabelIconDialCounterClockwise:
+		return Element::IconDialCounterClockwise;
+	case GameInputLabel::GameInputLabelIconSliderLeftRight:
+		return Element::IconSliderLeftRight;
+	case GameInputLabel::GameInputLabelIconSliderUpDown:
+		return Element::IconSliderUpDown;
+	case GameInputLabel::GameInputLabelIconWheelUpDown:
+		return Element::IconWheelUpDown;
+
+	default:
+		return Element::Unknown;
+	}
 }
 
-void GetButtonIdentifiers( const GameInputControllerInfo* info, std::vector<BlueSharedString>& buttonNames )
+// Resolves a label to a canonical element, preferring the position/family path and
+// falling back to the vendor-neutral label families.
+DeviceEnums::InputElement ToElement( GameInputLabel label, DeviceEnums::DeviceFamily family )
 {
-	buttonNames.clear();
+	const auto position = ToPosition( label );
+	if( position != DeviceEnums::ElementPosition::Unknown )
+	{
+		return DeviceEnums::ResolveElement( position, family );
+	}
+	return ToNeutralElement( label );
+}
+
+// Hardware families are resolved from the USB vendor ID rather than from the labels the
+// driver reports, so the same controller yields the same glyph flavour regardless of how
+// the OS chose to describe it.
+DeviceEnums::DeviceFamily GetDeviceFamily( uint16_t vendorId )
+{
+	constexpr uint16_t VENDOR_MICROSOFT = 0x045E;
+	constexpr uint16_t VENDOR_SONY = 0x054C;
+	constexpr uint16_t VENDOR_NINTENDO = 0x057E;
+
+	switch( vendorId )
+	{
+	case VENDOR_MICROSOFT:
+		return DeviceEnums::DeviceFamily::Xbox;
+	case VENDOR_SONY:
+		return DeviceEnums::DeviceFamily::PlayStation;
+	case VENDOR_NINTENDO:
+		return DeviceEnums::DeviceFamily::Nintendo;
+	default:
+		return DeviceEnums::DeviceFamily::Generic;
+	}
+}
+
+// Canonical ordering of the gamepad view's buttons.
+//
+// GameInputGamepadInfo::supportedLayout advertises exactly which of these a device
+// actually has - even a generic pad reports a layout - so the published button list is
+// built from that mask instead of a hard-coded set. Entries are emitted in this order and
+// ReadDeviceState samples the same order, keeping indices aligned.
+//
+// The D-pad bits are deliberately absent: the D-pad is published as a switch, so listing
+// it here as well would duplicate the element. The thumbstick direction bits are absent
+// for the same reason - they are derived from the stick axes.
+struct GamepadButtonMapping
+{
+	GameInputGamepadButtons mask;
+	DeviceEnums::ElementPosition position;
+	GameInputLabel GameInputGamepadInfo::* label;
+};
+
+constexpr GamepadButtonMapping GAMEPAD_BUTTONS[] = {
+	{ GameInputGamepadMenu, DeviceEnums::ElementPosition::Start, &GameInputGamepadInfo::menuButtonLabel },
+	{ GameInputGamepadView, DeviceEnums::ElementPosition::Select, &GameInputGamepadInfo::viewButtonLabel },
+	{ GameInputGamepadA, DeviceEnums::ElementPosition::FaceSouth, &GameInputGamepadInfo::aButtonLabel },
+	{ GameInputGamepadB, DeviceEnums::ElementPosition::FaceEast, &GameInputGamepadInfo::bButtonLabel },
+	{ GameInputGamepadX, DeviceEnums::ElementPosition::FaceWest, &GameInputGamepadInfo::xButtonLabel },
+	{ GameInputGamepadY, DeviceEnums::ElementPosition::FaceNorth, &GameInputGamepadInfo::yButtonLabel },
+	// C and Z have no canonical position; they are described purely by their label.
+	{ GameInputGamepadC, DeviceEnums::ElementPosition::Unknown, &GameInputGamepadInfo::cButtonLabel },
+	{ GameInputGamepadZ, DeviceEnums::ElementPosition::Unknown, &GameInputGamepadInfo::zButtonLabel },
+	{ GameInputGamepadLeftShoulder, DeviceEnums::ElementPosition::LeftShoulder, &GameInputGamepadInfo::leftShoulderButtonLabel },
+	{ GameInputGamepadRightShoulder, DeviceEnums::ElementPosition::RightShoulder, &GameInputGamepadInfo::rightShoulderButtonLabel },
+	// Digital trigger buttons carry no label field of their own.
+	{ GameInputGamepadLeftTriggerButton, DeviceEnums::ElementPosition::LeftTrigger, nullptr },
+	{ GameInputGamepadRightTriggerButton, DeviceEnums::ElementPosition::RightTrigger, nullptr },
+	{ GameInputGamepadLeftThumbstick, DeviceEnums::ElementPosition::LeftStickButton, &GameInputGamepadInfo::leftThumbstickButtonLabel },
+	{ GameInputGamepadRightThumbstick, DeviceEnums::ElementPosition::RightStickButton, &GameInputGamepadInfo::rightThumbstickButtonLabel },
+	{ GameInputGamepadPaddleLeft1, DeviceEnums::ElementPosition::PaddleLeft1, nullptr },
+	{ GameInputGamepadPaddleLeft2, DeviceEnums::ElementPosition::PaddleLeft2, nullptr },
+	{ GameInputGamepadPaddleRight1, DeviceEnums::ElementPosition::PaddleRight1, nullptr },
+	{ GameInputGamepadPaddleRight2, DeviceEnums::ElementPosition::PaddleRight2, nullptr } };
+
+// The subset of GAMEPAD_BUTTONS the device actually exposes, in publication order.
+std::vector<GameInputGamepadButtons> GetGamepadButtonMasks( GameInputGamepadButtons supportedLayout )
+{
+	std::vector<GameInputGamepadButtons> masks;
+	masks.reserve( std::size( GAMEPAD_BUTTONS ) );
+	for( const auto& mapping : GAMEPAD_BUTTONS )
+	{
+		if( ( supportedLayout & mapping.mask ) != 0 )
+		{
+			masks.push_back( mapping.mask );
+		}
+	}
+	return masks;
+}
+
+// Appends the vendor-specific extras a gamepad-view device declares through
+// GameInputGamepadInfo::extraButtonCount / extraAxisCount.
+//
+// The extras have no gamepad-view representation, so they are only reachable through the
+// raw controller view, where they follow the standard layout and therefore occupy the
+// trailing entries of the raw arrays.
+//
+// Raw labels are unreliable on gamepad-view devices and regularly repeat a label the
+// standard layout already covers (an extra reporting LSB/RSB, for example). Such an extra
+// is not a separate control, so it is dropped entirely rather than published a second
+// time. The raw indices of the extras that survive are reported back so ReadDeviceState
+// can sample exactly those, keeping state indices aligned with the published elements.
+void AppendExtraElements(
+	const GameInputLabel* labels,
+	uint32_t totalCount,
+	uint32_t extraCount,
+	DeviceEnums::DeviceFamily family,
+	std::vector<DeviceEnums::InputElement>& elements,
+	std::vector<uint32_t>* extraIndices )
+{
+	if( extraCount == 0 || extraCount > totalCount )
+	{
+		return;
+	}
+
+	const uint32_t firstExtra = totalCount - extraCount;
+	for( uint32_t i = 0; i < extraCount; ++i )
+	{
+		const uint32_t rawIndex = firstExtra + i;
+		const auto element = labels ? ToElement( labels[rawIndex], family ) : DeviceEnums::InputElement::Unknown;
+		if( element != DeviceEnums::InputElement::Unknown &&
+			std::find( elements.begin(), elements.end(), element ) != elements.end() )
+		{
+			continue;
+		}
+
+		elements.push_back( element );
+		if( extraIndices )
+		{
+			extraIndices->push_back( rawIndex );
+		}
+	}
+}
+
+void GetButtonIdentifiers(
+	const GameInputControllerInfo* info,
+	const GameInputGamepadInfo* gamepadInfo,
+	DeviceEnums::DeviceFamily family,
+	std::vector<DeviceEnums::InputElement>& buttonElements,
+	std::vector<uint32_t>* extraButtonIndices = nullptr )
+{
+	buttonElements.clear();
+	if( extraButtonIndices )
+	{
+		extraButtonIndices->clear();
+	}
+
+	// Same reasoning as GetAxisIdentifiers: when the device exposes a gamepad view the raw
+	// controller buttons carry no trustworthy labels (a DualSense reports GameInputLabelNone
+	// for most of them), so the gamepad view is the sole source of button identity when it
+	// is available.
+	if( gamepadInfo )
+	{
+		for( const auto& mapping : GAMEPAD_BUTTONS )
+		{
+			if( ( gamepadInfo->supportedLayout & mapping.mask ) == 0 )
+			{
+				continue;
+			}
+
+			// The position/family path keeps the glyph flavour consistent across platforms;
+			// buttons without a canonical position fall back to the label the driver reports.
+			auto element = DeviceEnums::ResolveElement( mapping.position, family );
+			if( element == DeviceEnums::InputElement::Unknown && mapping.label )
+			{
+				element = ToElement( gamepadInfo->*mapping.label, family );
+			}
+			buttonElements.push_back( element );
+		}
+
+		AppendExtraElements(
+			info ? info->controllerButtonLabels : nullptr,
+			info ? info->controllerButtonCount : 0,
+			gamepadInfo->extraButtonCount,
+			family,
+			buttonElements,
+			extraButtonIndices );
+		return;
+	}
 
 	if( !info )
 	{
@@ -345,23 +438,52 @@ void GetButtonIdentifiers( const GameInputControllerInfo* info, std::vector<Blue
 		return;
 	}
 	const uint32_t buttonCount = info->controllerButtonCount;
-	buttonNames.reserve( buttonCount );
-	uint32_t unknownButtonIndex = 0;
+	buttonElements.reserve( buttonCount );
 
 	for( uint32_t i = 0; i < buttonCount; ++i )
 	{
-		if( labels[i] == GameInputLabel::GameInputLabelUnknown || labels[i] == GameInputLabel::GameInputLabelNone )
-		{
-			buttonNames.push_back( GetCustomName( "Button", unknownButtonIndex++ ) );
-			continue;
-		}
-		buttonNames.push_back( BlueSharedString( GetName( labels[i] ) ) );
+		buttonElements.push_back( ToElement( labels[i], family ) );
 	}
 }
 
-void GetAxisIdentifiers( const GameInputControllerInfo* info, std::vector<BlueSharedString>& axisNames )
+void GetAxisIdentifiers(
+	const GameInputControllerInfo* info,
+	const GameInputGamepadInfo* gamepadInfo,
+	DeviceEnums::DeviceFamily family,
+	std::vector<DeviceEnums::InputElement>& axisElements,
+	std::vector<uint32_t>* extraAxisIndices = nullptr )
 {
-	axisNames.clear();
+	axisElements.clear();
+	if( extraAxisIndices )
+	{
+		extraAxisIndices->clear();
+	}
+
+	// Gamepad-capable devices are described by the gamepad view rather than by the raw
+	// controller axes. GameInput makes no guarantee that the raw axis ordering matches the
+	// GameInputGamepadState field ordering - on a DualSense it does not - so inferring roles
+	// from raw axis indices produces both unmapped and duplicated axes. Emit the documented
+	// GameInputGamepadState ordering instead; ReadDeviceState fills these by field.
+	if( gamepadInfo )
+	{
+		axisElements = {
+			DeviceEnums::InputElement::LeftStickX,
+			DeviceEnums::InputElement::LeftStickY,
+			DeviceEnums::InputElement::RightStickX,
+			DeviceEnums::InputElement::RightStickY,
+			DeviceEnums::InputElement::LeftTriggerAxis,
+			DeviceEnums::InputElement::RightTriggerAxis };
+
+		AppendExtraElements(
+			info ? info->controllerAxisLabels : nullptr,
+			info ? info->controllerAxisCount : 0,
+			gamepadInfo->extraAxisCount,
+			family,
+			axisElements,
+			extraAxisIndices );
+		return;
+	}
+
 	if( !info )
 	{
 		return;
@@ -373,35 +495,38 @@ void GetAxisIdentifiers( const GameInputControllerInfo* info, std::vector<BlueSh
 	}
 
 	const uint32_t axisCount = info->controllerAxisCount;
-	axisNames.reserve( axisCount );
-	uint32_t unknownAxisIndex = 0;
+	axisElements.reserve( axisCount );
 	for( uint32_t i = 0; i < axisCount; ++i )
 	{
-		if( labels[i] == GameInputLabel::GameInputLabelUnknown || labels[i] == GameInputLabel::GameInputLabelNone )
+		// Without a gamepad view the only trustworthy source of meaning is the label itself.
+		auto element = DeviceEnums::InputElement::Unknown;
+		switch( ToPosition( labels[i] ) )
 		{
-			axisNames.push_back( GetCustomName( "Axis", unknownAxisIndex++ ) );
-			continue;
+		case DeviceEnums::ElementPosition::LeftTrigger:
+			element = DeviceEnums::ResolveElement( DeviceEnums::ElementPosition::LeftTriggerAxis, family );
+			break;
+		case DeviceEnums::ElementPosition::RightTrigger:
+			element = DeviceEnums::ResolveElement( DeviceEnums::ElementPosition::RightTriggerAxis, family );
+			break;
+		default:
+			element = ToNeutralElement( labels[i] );
+			break;
 		}
-		axisNames.push_back( BlueSharedString( GetName( labels[i] ) ) );
+		axisElements.push_back( element );
 	}
 }
 
-void GetSwitchIdentifiers( const GameInputControllerInfo* info, std::vector<BlueSharedString>& switchNames )
+void GetSwitchIdentifiers(
+	const GameInputControllerInfo* info,
+	std::vector<DeviceEnums::InputElement>& switchElements )
 {
-	switchNames.clear();
+	switchElements.clear();
 	if( !info )
 	{
 		return;
 	}
 
-	// GameInput has no per-switch name: GameInputControllerSwitchInfo only carries a label
-	// per switch *position*. Synthesize one name per switch element instead.
-	const uint32_t switchCount = info->controllerSwitchCount;
-	switchNames.reserve( switchCount );
-	for( uint32_t i = 0; i < switchCount; ++i )
-	{
-		switchNames.push_back( GetCustomName( "Dpad", i ) );
-	}
+	switchElements.assign( info->controllerSwitchCount, DeviceEnums::InputElement::DPad );
 }
 
 // Events::SwitchPosition is defined to mirror GameInputSwitchPosition value-for-value so the
@@ -429,7 +554,7 @@ Events::SwitchPosition MapSwitchPosition( GameInputSwitchPosition position )
 
 namespace
 {
-// Converts the 32 byte device ID from GameInput into a string to be used as a unique identifier for devices.
+// Converts the 32 byte device ID from GameInput into a string to be used as a unique identifier for devices.BlueSharedString GetDeviceIDAsString( APP_LOCAL_DEVICE_ID deviceId )
 BlueSharedString GetDeviceIDAsString( APP_LOCAL_DEVICE_ID deviceId )
 {
 	std::stringstream ss = {};
@@ -559,6 +684,7 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 				slot->device = device;
 			}
 			slot->pendingRemoval = false;
+			ConfigureGamepadSlot( *slot, device );
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' reconnected", identifier.name.c_str() );
 		}
 		else
@@ -568,6 +694,7 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 				false,
 				identifier
 			};
+			ConfigureGamepadSlot( slot, device );
 
 			std::unique_lock<std::shared_mutex> lock( self->m_deviceMutex );
 			self->m_deviceSlots.push_back( std::move( slot ) );
@@ -615,14 +742,19 @@ void CALLBACK InputHandlerWin::OnDeviceRead(
 	{
 		return;
 	}
-	auto state = self->ReadDeviceState( reading );
+	// Resolve the slot first: ReadDeviceState needs its gamepad capability and axis roles.
+	// GetDeviceSlot takes m_deviceMutex, so it must not be called while that lock is held.
+	auto foundSlot = self->GetDeviceSlot( device );
+	if( !foundSlot )
 	{
-		auto foundSlot = self->GetDeviceSlot( device );
-		if( foundSlot )
-		{
-			std::unique_lock<std::shared_mutex> lock( self->m_readingMutex );
-			foundSlot->accumulatedStates.push_back( std::move( state ) );
-		}
+		reading->Release();
+		return;
+	}
+
+	auto state = self->ReadDeviceState( reading, *foundSlot );
+	{
+		std::unique_lock<std::shared_mutex> lock( self->m_readingMutex );
+		foundSlot->accumulatedStates.push_back( std::move( state ) );
 	}
 }
 
@@ -737,6 +869,7 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 
 	identifier.vendorID = BlueSharedString( vid );
 	identifier.productID = BlueSharedString( pid );
+	identifier.family = Mapping::GetDeviceFamily( info->vendorId );
 
 	if( info->deviceFamily == GameInputDeviceFamily::GameInputFamilyHid )
 	{
@@ -766,14 +899,81 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	identifier.rumbleCapacity.hasRightTriggerRumble = hasRightTrigger;
 
 	identifier.rumbleCapacity.rumbleMotorCount = hasLowFreq + hasHighFreq + hasLeftTrigger + hasRightTrigger;
+	// The gamepad view, when present, describes buttons and axes; the controller view is
+	// still the source for switches and for devices without a gamepad view.
+	const bool supportsGamepad = ( info->supportedInput & GameInputKind::GameInputKindGamepad ) != 0;
+	const GameInputGamepadInfo* gamepadInfo = supportsGamepad ? info->gamepadInfo : nullptr;
+
+	Mapping::GetButtonIdentifiers( info->controllerInfo, gamepadInfo, identifier.family, identifier.buttonElements );
+	Mapping::GetAxisIdentifiers( info->controllerInfo, gamepadInfo, identifier.family, identifier.axisElements );
 	if( info->controllerInfo != nullptr )
 	{
-		// extract the button/axis/switch names from the controller info if available
-		Mapping::GetButtonIdentifiers( info->controllerInfo, identifier.buttons );
-		Mapping::GetAxisIdentifiers( info->controllerInfo, identifier.axes );
-		Mapping::GetSwitchIdentifiers( info->controllerInfo, identifier.switches );
+		Mapping::GetSwitchIdentifiers( info->controllerInfo, identifier.switchElements );
 	}
 	return identifier;
+}
+
+bool InputHandlerWin::SupportsGamepad( IGameInputDevice* device )
+{
+	if( !device )
+	{
+		return false;
+	}
+
+	const GameInputDeviceInfo* info = nullptr;
+	device->GetDeviceInfo( &info );
+	if( info == nullptr )
+	{
+		return false;
+	}
+
+	// Without the gamepad info block the layout is unknown, so the gamepad view cannot be
+	// used as the source of button identity.
+	return ( info->supportedInput & GameInputKind::GameInputKindGamepad ) != 0 && info->gamepadInfo != nullptr;
+}
+
+std::vector<GameInputGamepadButtons> InputHandlerWin::GetGamepadButtonMasks( IGameInputDevice* device )
+{
+	if( !device )
+	{
+		return {};
+	}
+
+	const GameInputDeviceInfo* info = nullptr;
+	device->GetDeviceInfo( &info );
+	if( info == nullptr || info->gamepadInfo == nullptr )
+	{
+		return {};
+	}
+
+	return Mapping::GetGamepadButtonMasks( info->gamepadInfo->supportedLayout );
+}
+
+void InputHandlerWin::ConfigureGamepadSlot( DeviceSlot& slot, IGameInputDevice* device )
+{
+	slot.supportsGamepad = SupportsGamepad( device );
+	slot.gamepadButtonMasks = GetGamepadButtonMasks( device );
+	slot.extraButtonIndices.clear();
+	slot.extraAxisIndices.clear();
+
+	if( !slot.supportsGamepad )
+	{
+		return;
+	}
+
+	const GameInputDeviceInfo* info = nullptr;
+	device->GetDeviceInfo( &info );
+	if( info == nullptr || info->gamepadInfo == nullptr )
+	{
+		return;
+	}
+
+	// Re-run the identifier builders purely for their extra-index output so the sampled raw
+	// indices are exactly the ones whose elements were published.
+	const auto family = Mapping::GetDeviceFamily( info->vendorId );
+	std::vector<DeviceEnums::InputElement> elements;
+	Mapping::GetButtonIdentifiers( info->controllerInfo, info->gamepadInfo, family, elements, &slot.extraButtonIndices );
+	Mapping::GetAxisIdentifiers( info->controllerInfo, info->gamepadInfo, family, elements, &slot.extraAxisIndices );
 }
 
 void InputHandlerWin::RegisterForDeviceAdded( DeviceChangedCallback callback )
@@ -787,9 +987,9 @@ void InputHandlerWin::RegisterForDeviceRemoved( DeviceChangedCallback callback )
 }
 
 // ---------------------------------------------------------------------------
-// ReadDeviceState  –  get the most recent reading for a device
+// ReadDeviceState  â€“  get the most recent reading for a device
 // ---------------------------------------------------------------------------
-Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading )
+Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot )
 {
 	Events::State state = {};
 
@@ -805,7 +1005,35 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading )
 	auto axisCount = reading->GetControllerAxisCount();
 	auto switchCount = reading->GetControllerSwitchCount();
 
-	if( buttonCount > 0 )
+	GameInputGamepadState gamepadState = {};
+	const bool hasGamepadState = slot.supportsGamepad && reading->GetGamepadState( &gamepadState );
+
+	if( hasGamepadState )
+	{
+		// Matches the elements GetButtonIdentifiers published for this device: the buttons
+		// GameInputGamepadInfo::supportedLayout advertises, in the same order.
+		state.buttons.resize( slot.gamepadButtonMasks.size() );
+		for( size_t index = 0; index < slot.gamepadButtonMasks.size(); ++index )
+		{
+			state.buttons[index].pressed = ( gamepadState.buttons & slot.gamepadButtonMasks[index] ) != 0;
+		}
+
+		// The extras have no gamepad-view representation; they live in the raw controller view
+		// at the indices GetButtonIdentifiers actually published.
+		if( !slot.extraButtonIndices.empty() && buttonCount > 0 )
+		{
+			auto buttonReading = std::make_unique<bool[]>( buttonCount );
+			reading->GetControllerButtonState( buttonCount, buttonReading.get() );
+
+			for( uint32_t rawIndex : slot.extraButtonIndices )
+			{
+				Events::Button extra = {};
+				extra.pressed = rawIndex < buttonCount && buttonReading[rawIndex] != 0;
+				state.buttons.push_back( extra );
+			}
+		}
+	}
+	else if( buttonCount > 0 )
 	{
 		auto buttonReading = std::make_unique<bool[]>( buttonCount );
 		reading->GetControllerButtonState( buttonCount, buttonReading.get() );
@@ -817,7 +1045,38 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading )
 		}
 	}
 
-	if( axisCount > 0 )
+	// Raw controller axes are normalized to the HID logical range, so a centered stick
+	// reads 0.5 rather than 0.0, and the raw ordering does not necessarily match the
+	// gamepad field ordering. The gamepad view uses the documented GameInputGamepadState
+	// convention (-1..1 for sticks with right/up positive, 0..1 for triggers), so when the
+	// device exposes one it is the sole source of axis data and the order matches the
+	// six elements GetAxisIdentifiers published for this device.
+	if( hasGamepadState )
+	{
+		state.axis.resize( 6 );
+		state.axis[0].value = gamepadState.leftThumbstickX;
+		state.axis[1].value = gamepadState.leftThumbstickY;
+		state.axis[2].value = gamepadState.rightThumbstickX;
+		state.axis[3].value = gamepadState.rightThumbstickY;
+		state.axis[4].value = gamepadState.leftTrigger;
+		state.axis[5].value = gamepadState.rightTrigger;
+
+		// As with the extra buttons, the extra axes only exist in the raw controller view and
+		// keep their HID logical normalization; their meaning is vendor-specific.
+		if( !slot.extraAxisIndices.empty() && axisCount > 0 )
+		{
+			auto axisReading = std::make_unique<float[]>( axisCount );
+			reading->GetControllerAxisState( axisCount, axisReading.get() );
+
+			for( uint32_t rawIndex : slot.extraAxisIndices )
+			{
+				Events::Axis extra = {};
+				extra.value = rawIndex < axisCount ? axisReading[rawIndex] : 0.0f;
+				state.axis.push_back( extra );
+			}
+		}
+	}
+	else if( axisCount > 0 )
 	{
 		auto axisReading = std::make_unique<float[]>( axisCount );
 		reading->GetControllerAxisState( axisCount, axisReading.get() );

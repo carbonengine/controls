@@ -141,17 +141,22 @@ void InputDevice::ResetRumble()
 	m_updateRumble = false;
 }
 
-std::vector<BlueSharedString> InputDevice::GetButtonNames() const
+std::vector<DeviceEnums::InputElement> InputDevice::GetButtonElements() const
 {
-	return m_deviceIdentifier.buttons;
+	return m_deviceIdentifier.buttonElements;
 }
 
-std::vector<BlueSharedString> InputDevice::GetAxisNames() const
+std::vector<DeviceEnums::InputElement> InputDevice::GetAxisElements() const
 {
-	return m_deviceIdentifier.axes;
+	return m_deviceIdentifier.axisElements;
 }
 
-std::vector<BlueSharedString> InputDevice::GetSwitchNames() const
+std::vector<DeviceEnums::InputElement> InputDevice::GetSwitchElements() const
 {
-	return m_deviceIdentifier.switches;
+	return m_deviceIdentifier.switchElements;
+}
+
+DeviceEnums::DeviceFamily InputDevice::GetDeviceFamily() const
+{
+	return m_deviceIdentifier.family;
 }

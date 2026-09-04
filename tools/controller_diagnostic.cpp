@@ -65,9 +65,9 @@ void OnDeviceAdded( DeviceEnums::DeviceIdentifier& identifier )
 		std::printf( "[+] Device connected: %s (id=%s, buttons=%zu, axes=%zu, switches=%zu)\n",
 			identifier.name.c_str(),
 			identifier.deviceID.c_str(),
-			identifier.buttons.size(),
-			identifier.axes.size(),
-			identifier.switches.size() );
+			identifier.buttonElements.size(),
+			identifier.axisElements.size(),
+			identifier.switchElements.size() );
 		std::fflush( stdout );
 	}
 }
@@ -324,6 +324,54 @@ const char* NameAt( const std::vector<BlueSharedString>& names, size_t index )
 	return "(unnamed)";
 }
 
+// Canonical, platform-agnostic key for an element; this is what the localization system keys off.
+const char* KeyAt( const std::vector<DeviceEnums::InputElement>& elements, size_t index )
+{
+	if( index < elements.size() )
+	{
+		return DeviceEnums::ToKeyString( elements[index] );
+	}
+	return "Unknown";
+}
+
+const char* FamilyName( DeviceEnums::DeviceFamily family )
+{
+	switch( family )
+	{
+	case DeviceEnums::DeviceFamily::Generic:
+		return "Generic";
+	case DeviceEnums::DeviceFamily::Xbox:
+		return "Xbox";
+	case DeviceEnums::DeviceFamily::PlayStation:
+		return "PlayStation";
+	case DeviceEnums::DeviceFamily::Nintendo:
+		return "Nintendo";
+	default:
+		return "Unknown";
+	}
+}
+
+// Device names reported by the OS are frequently empty or generic, so qualify them with
+// the hardware identity that actually distinguishes one controller from another.
+std::string DescribeDevice( const DeviceEnums::DeviceIdentifier& id )
+{
+	std::string name = id.name.c_str();
+	if( name.empty() )
+	{
+		name = "(unnamed device)";
+	}
+
+	std::string description = name;
+	description += " [";
+	description += FamilyName( id.family );
+	description += " VID:";
+	description += id.vendorID.empty() ? "????" : id.vendorID.c_str();
+	description += " PID:";
+	description += id.productID.empty() ? "????" : id.productID.c_str();
+	description += "]";
+	return description;
+}
+
 void RenderState(
 	const DeviceEnums::DeviceIdentifier& id,
 	const Events::State& state,
@@ -332,7 +380,7 @@ void RenderState(
 {
 	// Move cursor to top-left and clear from cursor down.
 	std::printf( "\x1b[H\x1b[J" );
-	std::printf( "Controller Diagnostic - %s (id=%s)\n", id.name.c_str(), id.deviceID.c_str() );
+	std::printf( "Controller Diagnostic - %s (id=%s)\n", DescribeDevice( id ).c_str(), id.deviceID.c_str() );
 	std::printf( "buttons=%zu axes=%zu switches=%zu   (Ctrl+C to quit)\n",
 		state.buttons.size(), state.axis.size(), state.switches.size() );
 	std::printf( "Rumble motors=%u: [1]low=%s%.2f [2]high=%s%.2f [3]lTrig=%s%.2f [4]rTrig=%s%.2f\n\n",
@@ -351,23 +399,19 @@ void RenderState(
 	{
 		const Events::ButtonState logical = ( i < buttonTrackers.size() ) ? buttonTrackers[i].displayed : Events::ButtonState::Up;
 
-		const auto name = id.buttons.size() > i ? id.buttons[i].c_str() : "(unnamed)";
-
-		std::printf( "  %2zu %-24s: %-8s\n", i, name, ButtonStateName( logical ) );
+		std::printf( "  %2zu %-20s: %-8s\n", i, KeyAt( id.buttonElements, i ), ButtonStateName( logical ) );
 	}
 
 	std::printf( "\nAxes:\n" );
 	for( size_t i = 0; i < state.axis.size(); ++i )
 	{
-		const auto name = id.axes.size() > i ? id.axes[i].c_str() : "(unnamed)";
-		std::printf( "  %2zu %-24s: %s %+.3f\n", i, name, RenderAxisBar( state.axis[i].value ).c_str(), state.axis[i].value );
+		std::printf( "  %2zu %-20s: %s %+.3f\n", i, KeyAt( id.axisElements, i ), RenderAxisBar( state.axis[i].value ).c_str(), state.axis[i].value );
 	}
 
 	std::printf( "\nSwitches:\n" );
 	for( size_t i = 0; i < state.switches.size(); ++i )
 	{
-		const auto name = id.switches.size() > i ? id.switches[i].c_str() : "(unnamed)";
-		std::printf( "  %2zu %-24s: %s\n", i, name, SwitchPositionName( state.switches[i].position ) );
+		std::printf( "  %2zu %-20s: %s\n", i, KeyAt( id.switchElements, i ), SwitchPositionName( state.switches[i].position ) );
 	}
 
 	std::fflush( stdout );
@@ -431,11 +475,11 @@ int main( int /*argc*/, char** /*argv*/ )
 				{
 					std::printf( "  [%zu] %s  (id=%s, buttons=%zu, axes=%zu, switches=%zu)\n",
 						i + 1,
-						snapshot[i].name.c_str(),
+						DescribeDevice( snapshot[i] ).c_str(),
 						snapshot[i].deviceID.c_str(),
-						snapshot[i].buttons.size(),
-						snapshot[i].axes.size(),
-						snapshot[i].switches.size() );
+						snapshot[i].buttonElements.size(),
+						snapshot[i].axisElements.size(),
+						snapshot[i].switchElements.size() );
 				}
 				std::printf( "\nPress 1-%zu to connect.\n", maxShown );
 			}
@@ -483,11 +527,11 @@ int main( int /*argc*/, char** /*argv*/ )
 
 	Events::State latest;
 	// Initialise sizes so an empty poll still renders a stable table.
-	latest.buttons.resize( chosen.buttons.size() );
-	latest.axis.resize( chosen.axes.size() );
-	latest.switches.resize( chosen.switches.size() );
+	latest.buttons.resize( chosen.buttonElements.size() );
+	latest.axis.resize( chosen.axisElements.size() );
+	latest.switches.resize( chosen.switchElements.size() );
 
-	std::vector<ButtonLogicalTracker> buttonTrackers( chosen.buttons.size() );
+	std::vector<ButtonLogicalTracker> buttonTrackers( chosen.buttonElements.size() );
 
 	RumblePulse pulses[4] = {};
 	const uint64_t pulseDurationUs = 500 * 1000;

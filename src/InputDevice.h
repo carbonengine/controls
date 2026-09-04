@@ -118,9 +118,17 @@ public:
 	/// @brief Zeroes all rumble intensities without scheduling a hardware write.
 	void ResetRumble();
 
-	std::vector<BlueSharedString> GetButtonNames() const;
-	std::vector<BlueSharedString> GetAxisNames() const;
-	std::vector<BlueSharedString> GetSwitchNames() const;
+	/// @brief Canonical button identifiers; InputElement::Unknown marks an unmapped button.
+	std::vector<DeviceEnums::InputElement> GetButtonElements() const;
+
+	/// @brief Canonical axis identifiers; InputElement::Unknown marks an unmapped axis.
+	std::vector<DeviceEnums::InputElement> GetAxisElements() const;
+
+	/// @brief Canonical switch identifiers; InputElement::Unknown marks an unmapped switch.
+	std::vector<DeviceEnums::InputElement> GetSwitchElements() const;
+
+	/// @brief Hardware family this device belongs to.
+	DeviceEnums::DeviceFamily GetDeviceFamily() const;
 
 private:
 	/**

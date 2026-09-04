@@ -53,6 +53,10 @@ private:
 		DeviceEnums::DeviceIdentifier identifier{};    ///< Device metadata.
 		std::vector<Events::State> accumulatedStates{}; ///< States accumulated from reading callbacks, consumed by Update().
 		GameInputCallbackToken readCallbackToken = 0;  ///< Token for the registered reading callback.
+		bool supportsGamepad = false;                  ///< True when the device exposes a gamepad view, whose axis values are already correctly signed.
+		std::vector<GameInputGamepadButtons> gamepadButtonMasks{}; ///< Gamepad buttons this device supports, in the order they are published.
+		std::vector<uint32_t> extraButtonIndices{};    ///< Raw controller indices of the vendor-specific buttons published after the gamepad layout.
+		std::vector<uint32_t> extraAxisIndices{};      ///< Raw controller indices of the vendor-specific axes published after the gamepad axes.
 	};
 
 	/**
@@ -77,9 +81,11 @@ private:
 	/**
 	 * @brief Reads the current hardware state from a single GameInput reading.
 	 * @param reading The GameInput reading to process.
+	 * @param slot The device slot the reading belongs to, supplying the gamepad
+	 * capability and the resolved axis roles.
 	 * @return An Events::State snapshot populated from the reading.
 	 */
-	Events::State ReadDeviceState( IGameInputReading* reading );
+	Events::State ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot );
 
 	/**
 	 * @brief Static callback invoked by GameInput when a device connects or disconnects.
@@ -106,6 +112,31 @@ private:
 	 * @return A populated DeviceIdentifier.
 	 */
 	static DeviceEnums::DeviceIdentifier GetIdentifier( IGameInputDevice* device );
+
+	/**
+	 * @brief Reports whether a device exposes a GameInput gamepad view.
+	 * @param device The GameInput device to query.
+	 * @return true when GameInputKindGamepad is supported.
+	 */
+	static bool SupportsGamepad( IGameInputDevice* device );
+
+	/**
+	 * @brief Returns the gamepad buttons a device supports, in publication order.
+	 *
+	 * Derived from GameInputGamepadInfo::supportedLayout, so the list matches the button
+	 * identifiers published for the device and can be used to sample the button mask.
+	 *
+	 * @param device The GameInput device, may be null.
+	 * @return The supported button masks, or an empty list if the device has no gamepad view.
+	 */
+	static std::vector<GameInputGamepadButtons> GetGamepadButtonMasks( IGameInputDevice* device );
+
+	/**
+	 * @brief Fills the gamepad-view fields of a slot from the device's layout information.
+	 * @param slot The slot to configure.
+	 * @param device The GameInput device, may be null.
+	 */
+	static void ConfigureGamepadSlot( DeviceSlot& slot, IGameInputDevice* device );
 
 	mutable std::shared_mutex m_deviceMutex;  ///< Protects m_deviceSlots.
 	mutable std::shared_mutex m_readingMutex; ///< Protects per-device accumulated readings.
