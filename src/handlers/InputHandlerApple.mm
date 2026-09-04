@@ -745,7 +745,7 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 
 		const int channelIndex = i;
 		channel.engine.resetHandler = ^{
-			CCP_LOGWARN( "InputHandlerApple: Haptics engine reset on channel %d, rebuilding", channelIndex );
+			CCP_LOGWARN( "InputHandlerApple: Haptics engine reset on channel %d, restarting", channelIndex );
 			std::unique_lock<std::mutex> lock( this->m_deviceMutex );
 			bool slotAlive = false;
 			for( auto& s : m_deviceSlots )
@@ -768,7 +768,9 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 					restartErr.localizedDescription.UTF8String ? restartErr.localizedDescription.UTF8String : "(no message)" );
 				return;
 			}
-			this->RebuildChannelPlayer( *rawSlot, static_cast<HapticsChannelIndex>( channelIndex ) );
+			// The previous player belongs to the old engine instance; drop it and force the next Rumble() to rebuild.
+			rawSlot->hapticsChannels[channelIndex].player = nil;
+			rawSlot->hapticsChannels[channelIndex].lastIntensity = -1.0f;
 		};
 
 		channel.engine.stoppedHandler = ^( CHHapticEngineStoppedReason reason ) {
@@ -786,13 +788,6 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 			continue;
 		}
 
-		if( !RebuildChannelPlayer( slot, static_cast<HapticsChannelIndex>( i ) ) )
-		{
-			[channel.engine stopWithCompletionHandler:nil];
-			channel.engine = nil;
-			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
-			continue;
-		}
 		channel.supported = true;
 	}
 
@@ -800,75 +795,6 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 	{
 		slot.haptics = nil;
 	}
-}
-
-bool InputHandlerApple::RebuildChannelPlayer( DeviceSlot& slot, HapticsChannelIndex channel )
-{
-	if( !( @available( macOS 11.0, * ) ) )
-	{
-		return false;
-	}
-
-	HapticsChannel& ch = slot.hapticsChannels[channel];
-	if( ch.engine == nil )
-	{
-		return false;
-	}
-
-	NSError* err = nil;
-	CHHapticEventParameter* intensity = [[CHHapticEventParameter alloc]
-		initWithParameterID:CHHapticEventParameterIDHapticIntensity value:1.0f];
-	CHHapticEventParameter* sharpness = [[CHHapticEventParameter alloc]
-		initWithParameterID:CHHapticEventParameterIDHapticSharpness value:SharpnessForChannel( channel )];
-
-	// 30s is CoreHaptics' documented maximum event duration; loopEnabled on the player extends it indefinitely.
-	CHHapticEvent* event = [[CHHapticEvent alloc]
-		initWithEventType:CHHapticEventTypeHapticContinuous
-			   parameters:@[intensity, sharpness]
-			 relativeTime:0.0
-				 duration:30.0];
-
-	CHHapticPattern* pattern = [[CHHapticPattern alloc] initWithEvents:@[event] parameters:@[] error:&err];
-	if( pattern == nil )
-	{
-		CCP_LOGWARN( "InputHandlerApple: Failed to build haptics pattern on channel %d: %s",
-			(int)channel,
-			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
-		return false;
-	}
-
-	id<CHHapticAdvancedPatternPlayer> player = [ch.engine createAdvancedPlayerWithPattern:pattern error:&err];
-	if( player == nil )
-	{
-		CCP_LOGWARN( "InputHandlerApple: Failed to create advanced player on channel %d: %s",
-			(int)channel,
-			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
-		return false;
-	}
-	player.loopEnabled = YES;
-
-	if( ![player startAtTime:0 error:&err] )
-	{
-		CCP_LOGWARN( "InputHandlerApple: Failed to start advanced player on channel %d: %s",
-			(int)channel,
-			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
-		return false;
-	}
-
-	ch.player = player;
-
-	CHHapticDynamicParameter* param = [[CHHapticDynamicParameter alloc]
-		initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl
-					  value:std::clamp( ch.lastIntensity, 0.0f, 1.0f )
-			   relativeTime:0.0];
-	NSError* sendErr = nil;
-	if( ![player sendParameters:@[param] atTime:0 error:&sendErr] )
-	{
-		CCP_LOGWARN( "InputHandlerApple: Failed to send initial intensity on channel %d: %s",
-			(int)channel,
-			sendErr.localizedDescription.UTF8String ? sendErr.localizedDescription.UTF8String : "(no message)" );
-	}
-	return true;
 }
 
 void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIndex channel, float intensity )
@@ -880,11 +806,12 @@ void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIn
 
 	const float clamped = std::clamp( intensity, 0.0f, 1.0f );
 
-	id<CHHapticAdvancedPatternPlayer> player = nil;
+	CHHapticEngine* engine = nil;
+	id<CHHapticPatternPlayer> oldPlayer = nil;
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
 		HapticsChannel& ch = slot.hapticsChannels[channel];
-		if( !ch.supported )
+		if( !ch.supported || ch.engine == nil )
 		{
 			return;
 		}
@@ -893,25 +820,63 @@ void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIn
 			return;
 		}
 		ch.lastIntensity = clamped;
-		player = ch.player;
+		oldPlayer = ch.player;
+		ch.player = nil;
+		engine = ch.engine;
 	}
 
-	if( player == nil )
+	if( oldPlayer != nil )
+	{
+		[oldPlayer stopAtTime:0 error:nil];
+	}
+
+	if( clamped <= 0.0f )
 	{
 		return;
 	}
 
-	CHHapticDynamicParameter* param = [[CHHapticDynamicParameter alloc]
-		initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl
-					  value:clamped
-			   relativeTime:0.0];
 	NSError* err = nil;
-	if( ![player sendParameters:@[param] atTime:0 error:&err] )
+	CHHapticEventParameter* intensityParam = [[CHHapticEventParameter alloc]
+		initWithParameterID:CHHapticEventParameterIDHapticIntensity value:clamped];
+	CHHapticEventParameter* sharpnessParam = [[CHHapticEventParameter alloc]
+		initWithParameterID:CHHapticEventParameterIDHapticSharpness value:SharpnessForChannel( channel )];
+
+	// GCHapticDurationInfinite is the game-controller-safe way to hold a continuous event open until we stop it.
+	CHHapticEvent* event = [[CHHapticEvent alloc]
+		initWithEventType:CHHapticEventTypeHapticContinuous
+			   parameters:@[intensityParam, sharpnessParam]
+			 relativeTime:0.0
+				 duration:GCHapticDurationInfinite];
+
+	CHHapticPattern* pattern = [[CHHapticPattern alloc] initWithEvents:@[event] parameters:@[] error:&err];
+	if( pattern == nil )
 	{
-		CCP_LOGNOTICE( "InputHandlerApple: sendParameters failed on channel %d: %s",
+		CCP_LOGWARN( "InputHandlerApple: Failed to build haptics pattern on channel %d: %s",
 			(int)channel,
 			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+		return;
 	}
+
+	// GCDeviceHaptics engines reject createAdvancedPlayerWithPattern:; only the basic player is supported.
+	id<CHHapticPatternPlayer> player = [engine createPlayerWithPattern:pattern error:&err];
+	if( player == nil )
+	{
+		CCP_LOGWARN( "InputHandlerApple: Failed to create player on channel %d: %s",
+			(int)channel,
+			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+		return;
+	}
+
+	if( ![player startAtTime:0 error:&err] )
+	{
+		CCP_LOGWARN( "InputHandlerApple: Failed to start player on channel %d: %s",
+			(int)channel,
+			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+		return;
+	}
+
+	std::unique_lock<std::mutex> lock( m_deviceMutex );
+	slot.hapticsChannels[channel].player = player;
 }
 
 void InputHandlerApple::ShutdownHapticsForSlot( DeviceSlot& slot )
@@ -924,7 +889,7 @@ void InputHandlerApple::ShutdownHapticsForSlot( DeviceSlot& slot )
 	for( auto& ch : slot.hapticsChannels )
 	{
 		// Nil first so any queued reset/stopped callback that reaches m_deviceMutex sees the channel already torn down.
-		id<CHHapticAdvancedPatternPlayer> player = ch.player;
+		id<CHHapticPatternPlayer> player = ch.player;
 		CHHapticEngine* engine = ch.engine;
 		ch.player = nil;
 		ch.engine = nil;

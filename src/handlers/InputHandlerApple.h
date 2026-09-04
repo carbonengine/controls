@@ -63,11 +63,11 @@ private:
 		ChannelCount
 	};
 
-	/// @brief Per-locality CoreHaptics state: the engine, its persistent looping player, and the last intensity we sent.
+	/// @brief Per-locality CoreHaptics state: the engine, the currently-playing basic pattern player (rebuilt on every intensity change), and the last intensity we sent.
 	struct HapticsChannel
 	{
 		__strong CHHapticEngine* engine = nil;
-		__strong id<CHHapticAdvancedPatternPlayer> player = nil;
+		__strong id<CHHapticPatternPlayer> player = nil;
 		float lastIntensity = 0.0f;
 		bool supported = false;
 	};
@@ -119,10 +119,7 @@ private:
 	/// @brief Stops and releases every haptics engine/player attached to the slot; safe to call on a partially-initialized or empty slot.
 	void ShutdownHapticsForSlot( DeviceSlot& slot );
 
-	/// @brief (Re)creates a channel's looping player against its live engine and re-applies the cached intensity. Called from setup and from the engine reset handler.
-	bool RebuildChannelPlayer( DeviceSlot& slot, HapticsChannelIndex channel );
-
-	/// @brief Sends a dynamic intensity update to a single channel; returns without error if the channel is unsupported.
+	/// @brief Stops the channel's current player and (if intensity > 0) creates a fresh basic player carrying the new intensity. Basic CHHapticPatternPlayer has no in-place intensity update, so we rebuild.
 	void SendChannelIntensity( DeviceSlot& slot, HapticsChannelIndex channel, float intensity );
 
 	mutable std::mutex m_deviceMutex;                              ///< Protects m_deviceSlots.
