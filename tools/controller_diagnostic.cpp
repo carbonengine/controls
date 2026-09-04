@@ -14,6 +14,11 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
+#else
+#include <conio.h>
+#include <io.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 #ifdef __APPLE__
@@ -43,34 +48,50 @@ void HandleSignal( int )
 
 std::mutex g_deviceListMutex;
 std::vector<DeviceEnums::DeviceIdentifier> g_connectedDevices;
+// When true, callbacks stay silent so the redrawn UI isn't corrupted.
+std::atomic<bool> g_quietDeviceLog{ false };
+// Increments on every add/remove so the render loop can detect activity without polling equality.
+std::atomic<uint64_t> g_deviceListRevision{ 0 };
 
 void OnDeviceAdded( DeviceEnums::DeviceIdentifier& identifier )
 {
-	std::lock_guard<std::mutex> lock( g_deviceListMutex );
-	g_connectedDevices.push_back( identifier );
-	std::printf( "[+] Device connected: %s (id=%s, buttons=%u, axes=%u, switches=%u)\n",
-		identifier.name.c_str(),
-		identifier.deviceID.c_str(),
-		identifier.buttonCount,
-		identifier.axisCount,
-		identifier.switchCount );
-	std::fflush( stdout );
+	{
+		std::lock_guard<std::mutex> lock( g_deviceListMutex );
+		g_connectedDevices.push_back( identifier );
+	}
+	g_deviceListRevision.fetch_add( 1 );
+	if( !g_quietDeviceLog.load() )
+	{
+		std::printf( "[+] Device connected: %s (id=%s, buttons=%zu, axes=%zu, switches=%zu)\n",
+			identifier.name.c_str(),
+			identifier.deviceID.c_str(),
+			identifier.buttons.size(),
+			identifier.axes.size(),
+			identifier.switches.size() );
+		std::fflush( stdout );
+	}
 }
 
 void OnDeviceRemoved( DeviceEnums::DeviceIdentifier& identifier )
 {
-	std::lock_guard<std::mutex> lock( g_deviceListMutex );
-	const std::string toRemove( identifier.deviceID.c_str() );
-	g_connectedDevices.erase(
-		std::remove_if(
-			g_connectedDevices.begin(),
-			g_connectedDevices.end(),
-			[&toRemove]( const DeviceEnums::DeviceIdentifier& d ) {
-				return std::string( d.deviceID.c_str() ) == toRemove;
-			} ),
-		g_connectedDevices.end() );
-	std::printf( "[-] Device disconnected: %s\n", identifier.name.c_str() );
-	std::fflush( stdout );
+	{
+		std::lock_guard<std::mutex> lock( g_deviceListMutex );
+		const std::string toRemove( identifier.deviceID.c_str() );
+		g_connectedDevices.erase(
+			std::remove_if(
+				g_connectedDevices.begin(),
+				g_connectedDevices.end(),
+				[&toRemove]( const DeviceEnums::DeviceIdentifier& d ) {
+					return std::string( d.deviceID.c_str() ) == toRemove;
+				} ),
+			g_connectedDevices.end() );
+	}
+	g_deviceListRevision.fetch_add( 1 );
+	if( !g_quietDeviceLog.load() )
+	{
+		std::printf( "[-] Device disconnected: %s\n", identifier.name.c_str() );
+		std::fflush( stdout );
+	}
 }
 
 // Tick the platform run loop so device callbacks and input events are delivered.
@@ -259,8 +280,33 @@ struct RawStdinGuard
 struct RawStdinGuard
 {
 	void Enter() {}
-	int TryRead() { return -1; }
+	int TryRead()
+	{
+		if( _kbhit() )
+		{
+			int c = _getch();
+			return c < 0 ? -1 : c;
+		}
+		return -1;
+	}
 };
+
+void EnableWindowsConsoleFormatting()
+{
+	// Ensure em-dashes and other UTF-8 output render correctly.
+	SetConsoleOutputCP( CP_UTF8 );
+
+	// Enable ANSI escape sequence processing so cursor moves / clears work like on *nix.
+	HANDLE hOut = GetStdHandle( STD_OUTPUT_HANDLE );
+	if( hOut != INVALID_HANDLE_VALUE )
+	{
+		DWORD mode = 0;
+		if( GetConsoleMode( hOut, &mode ) )
+		{
+			SetConsoleMode( hOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING );
+		}
+	}
+}
 #endif
 
 struct RumblePulse
@@ -282,14 +328,11 @@ void RenderState(
 	const DeviceEnums::DeviceIdentifier& id,
 	const Events::State& state,
 	const std::vector<ButtonLogicalTracker>& buttonTrackers,
-	const std::vector<BlueSharedString>& buttonNames,
-	const std::vector<BlueSharedString>& axisNames,
-	const std::vector<BlueSharedString>& switchNames,
 	const RumblePulse ( &pulses )[4] )
 {
 	// Move cursor to top-left and clear from cursor down.
 	std::printf( "\x1b[H\x1b[J" );
-	std::printf( "Controller Diagnostic — %s (id=%s)\n", id.name.c_str(), id.deviceID.c_str() );
+	std::printf( "Controller Diagnostic - %s (id=%s)\n", id.name.c_str(), id.deviceID.c_str() );
 	std::printf( "buttons=%zu axes=%zu switches=%zu   (Ctrl+C to quit)\n",
 		state.buttons.size(), state.axis.size(), state.switches.size() );
 	std::printf( "Rumble motors=%u: [1]low=%s%.2f [2]high=%s%.2f [3]lTrig=%s%.2f [4]rTrig=%s%.2f\n\n",
@@ -307,19 +350,24 @@ void RenderState(
 	for( size_t i = 0; i < state.buttons.size(); ++i )
 	{
 		const Events::ButtonState logical = ( i < buttonTrackers.size() ) ? buttonTrackers[i].displayed : Events::ButtonState::Up;
-		std::printf( "  %2zu %-24s: %-8s\n", i, NameAt( buttonNames, i ), ButtonStateName( logical ) );
+
+		const auto name = id.buttons.size() > i ? id.buttons[i].c_str() : "(unnamed)";
+
+		std::printf( "  %2zu %-24s: %-8s\n", i, name, ButtonStateName( logical ) );
 	}
 
 	std::printf( "\nAxes:\n" );
 	for( size_t i = 0; i < state.axis.size(); ++i )
 	{
-		std::printf( "  %2zu %-24s: %s %+.3f\n", i, NameAt( axisNames, i ), RenderAxisBar( state.axis[i].value ).c_str(), state.axis[i].value );
+		const auto name = id.axes.size() > i ? id.axes[i].c_str() : "(unnamed)";
+		std::printf( "  %2zu %-24s: %s %+.3f\n", i, name, RenderAxisBar( state.axis[i].value ).c_str(), state.axis[i].value );
 	}
 
 	std::printf( "\nSwitches:\n" );
 	for( size_t i = 0; i < state.switches.size(); ++i )
 	{
-		std::printf( "  %2zu %-24s: %s\n", i, NameAt( switchNames, i ), SwitchPositionName( state.switches[i].position ) );
+		const auto name = id.switches.size() > i ? id.switches[i].c_str() : "(unnamed)";
+		std::printf( "  %2zu %-24s: %s\n", i, name, SwitchPositionName( state.switches[i].position ) );
 	}
 
 	std::fflush( stdout );
@@ -331,9 +379,12 @@ int main( int /*argc*/, char** /*argv*/ )
 	std::signal( SIGINT, HandleSignal );
 	std::signal( SIGTERM, HandleSignal );
 
+#ifdef _WIN32
+	EnableWindowsConsoleFormatting();
+#endif
+
 	auto handler = MakeInputHandler();
-	
-	handler->SetBackgroundEventsEnabled( true );
+
 	handler->RegisterForDeviceAdded( OnDeviceAdded );
 	handler->RegisterForDeviceRemoved( OnDeviceRemoved );
 
@@ -343,21 +394,75 @@ int main( int /*argc*/, char** /*argv*/ )
 		return 1;
 	}
 
-	std::printf( "Waiting for a controller to connect... (press Ctrl+C to quit)\n" );
-	std::fflush( stdout );
+	handler->SetBackgroundEventsEnabled( true );
+
+	RawStdinGuard rawStdin;
+	rawStdin.Enter();
 
 	DeviceEnums::DeviceIdentifier chosen;
 	bool haveChoice = false;
+	size_t lastRenderedCount = static_cast<size_t>( -1 );
+	uint64_t lastRenderedRevision = static_cast<uint64_t>( -1 );
 	while( !g_shouldExit.load() && !haveChoice )
 	{
 		PumpEvents();
+
+		std::vector<DeviceEnums::DeviceIdentifier> snapshot;
 		{
 			std::lock_guard<std::mutex> lock( g_deviceListMutex );
-			if( !g_connectedDevices.empty() )
+			snapshot = g_connectedDevices;
+		}
+
+		const uint64_t revision = g_deviceListRevision.load();
+		if( snapshot.size() != lastRenderedCount || revision != lastRenderedRevision )
+		{
+			std::printf( "\x1b[H\x1b[J" );
+			std::printf( "Controller Diagnostic - device selection\n" );
+			std::printf( "(Ctrl+C to quit)\n\n" );
+			if( snapshot.empty() )
 			{
-				chosen = g_connectedDevices.front();
-				haveChoice = true;
+				std::printf( "Waiting for a controller to connect...\n" );
 			}
+			else
+			{
+				std::printf( "Connected devices:\n" );
+				const size_t maxShown = snapshot.size() < 9 ? snapshot.size() : 9;
+				for( size_t i = 0; i < maxShown; ++i )
+				{
+					std::printf( "  [%zu] %s  (id=%s, buttons=%zu, axes=%zu, switches=%zu)\n",
+						i + 1,
+						snapshot[i].name.c_str(),
+						snapshot[i].deviceID.c_str(),
+						snapshot[i].buttons.size(),
+						snapshot[i].axes.size(),
+						snapshot[i].switches.size() );
+				}
+				std::printf( "\nPress 1-%zu to connect.\n", maxShown );
+			}
+			std::fflush( stdout );
+			lastRenderedCount = snapshot.size();
+			lastRenderedRevision = revision;
+		}
+
+		int key = rawStdin.TryRead();
+		while( key >= 0 )
+		{
+			if( key >= '1' && key <= '9' )
+			{
+				const size_t index = static_cast<size_t>( key - '1' );
+				if( index < snapshot.size() )
+				{
+					chosen = snapshot[index];
+					haveChoice = true;
+					break;
+				}
+			}
+			key = rawStdin.TryRead();
+		}
+
+		if( !haveChoice )
+		{
+			std::this_thread::sleep_for( std::chrono::milliseconds( 50 ) );
 		}
 	}
 
@@ -367,25 +472,22 @@ int main( int /*argc*/, char** /*argv*/ )
 		return 0;
 	}
 
+	// Selection is done - ignore any further connect/disconnect callbacks so the
+	// monitoring UI stays locked to the chosen device.
+	g_quietDeviceLog.store( true );
+
 	std::printf( "\nSelected device: %s\n", chosen.name.c_str() );
 	std::fflush( stdout );
 
 	handler->SetDeviceActivation( chosen.deviceID, true );
 
-	const std::vector<BlueSharedString> buttonNames = chosen.buttonNames;
-	const std::vector<BlueSharedString> axisNames = chosen.axisNames;
-	const std::vector<BlueSharedString> switchNames = chosen.switchNames;
-
 	Events::State latest;
 	// Initialise sizes so an empty poll still renders a stable table.
-	latest.buttons.resize( chosen.buttonCount );
-	latest.axis.resize( chosen.axisCount );
-	latest.switches.resize( chosen.switchCount );
+	latest.buttons.resize( chosen.buttons.size() );
+	latest.axis.resize( chosen.axes.size() );
+	latest.switches.resize( chosen.switches.size() );
 
-	std::vector<ButtonLogicalTracker> buttonTrackers( chosen.buttonCount );
-
-	RawStdinGuard rawStdin;
-	rawStdin.Enter();
+	std::vector<ButtonLogicalTracker> buttonTrackers( chosen.buttons.size() );
 
 	RumblePulse pulses[4] = {};
 	const uint64_t pulseDurationUs = 500 * 1000;
@@ -447,7 +549,7 @@ int main( int /*argc*/, char** /*argv*/ )
 			UpdateButtonLogicalState( buttonTrackers[i], latest.buttons[i].pressed, nowUs );
 		}
 
-		RenderState( chosen, latest, buttonTrackers, buttonNames, axisNames, switchNames, pulses );
+		RenderState( chosen, latest, buttonTrackers, pulses );
 		std::this_thread::sleep_for( std::chrono::milliseconds( 16 ) );
 	}
 

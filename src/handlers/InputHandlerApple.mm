@@ -106,6 +106,20 @@ BlueSharedString SharedStringFromNSString( NSString* string )
 	return utf8 == nullptr ? BlueSharedString() : BlueSharedString( utf8 );
 }
 
+// Elements are normally named from their localizedName. Fall back to a synthesized positional name
+// so an element never surfaces to script as an empty string.
+BlueSharedString NamedElement( NSString* localizedName, const char* typeDescriptor, size_t index )
+{
+	BlueSharedString name = SharedStringFromNSString( localizedName );
+	if( !name.empty() )
+	{
+		return name;
+	}
+
+	const std::string fallback = std::string( "Custom " ) + typeDescriptor + " " + std::to_string( index );
+	return BlueSharedString( fallback );
+}
+
 Events::SwitchPosition MapDpadPosition( GCControllerDirectionPad* dpad )
 {
 	if( dpad == nil )
@@ -158,7 +172,8 @@ void CollectProfileElements(
     for( GCControllerAxisInput* axis in profile.allAxes )
     {
         // Skip axes that belong to a collection (e.g. dpad X/Y components) — the parent
-        // element (dpad, thumbstick, touchpad) is already exposed via allDpads as a switch.
+        // element is handled in the allDpads pass below, which decides whether it becomes
+        // a switch or contributes its child axes here.
         if( axis.collection == nil )
         {
             outAxes.push_back( axis );
@@ -166,7 +181,18 @@ void CollectProfileElements(
     }
     for( GCControllerDirectionPad* dpad in profile.allDpads )
     {
-        outSwitches.push_back( dpad );
+        // Apple models thumbsticks and touchpads as direction pads too. Those report analog child
+        // axes, whereas a real d-pad is digital. Expose the analog ones as a pair of axes and keep
+        // only digital d-pads in the switch dimension.
+        if( dpad.xAxis != nil && dpad.yAxis != nil && dpad.xAxis.isAnalog )
+        {
+            outAxes.push_back( dpad.xAxis );
+            outAxes.push_back( dpad.yAxis );
+        }
+        else
+        {
+            outSwitches.push_back( dpad );
+        }
     }
 }
 
@@ -207,38 +233,34 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 		identifier.productID = BlueSharedString( [productCategory UTF8String] );
 	}
 
-    identifier.buttonCount = static_cast<uint32_t>( buttons.size() );
-    identifier.axisCount = static_cast<uint32_t>( axes.size() + triggerAxes.size() );
-	identifier.switchCount = static_cast<uint32_t>( dpads.size() );
-    
-    for( const GCControllerButtonInput* button : buttons )
-    {
-        if( button )
-        {
-            identifier.buttonNames.push_back( SharedStringFromNSString( button.localizedName ) );
-        }
-    }
-    for( const GCControllerAxisInput* axis : axes )
-    {
-        if( axis )
-        {
-            identifier.axisNames.push_back( SharedStringFromNSString( axis.localizedName ) );
-        }
-    }
-    for( const GCControllerButtonInput* axis : triggerAxes )
-    {
-        if( axis )
-        {
-            identifier.axisNames.push_back( SharedStringFromNSString( axis.localizedName ) );
-        }
-    }
-    for( const GCControllerDirectionPad* dpad : dpads )
-    {
-        if( dpad )
-        {
-            identifier.switchNames.push_back( SharedStringFromNSString( dpad.localizedName ) );
-        }
-    }
+	for( const GCControllerButtonInput* button : buttons )
+	{
+		if( button )
+		{
+			identifier.buttons.push_back( NamedElement( button.localizedName, "Button", identifier.buttons.size() ) );
+		}
+	}
+	for( const GCControllerAxisInput* axis : axes )
+	{
+		if( axis )
+		{
+			identifier.axes.push_back( NamedElement( axis.localizedName, "Axis", identifier.axes.size() ) );
+		}
+	}
+	for( const GCControllerButtonInput* axis : triggerAxes )
+	{
+		if( axis )
+		{
+			identifier.axes.push_back( NamedElement( axis.localizedName, "Axis", identifier.axes.size() ) );
+		}
+	}
+	for( const GCControllerDirectionPad* dpad : dpads )
+	{
+		if( dpad )
+		{
+			identifier.switches.push_back( NamedElement( dpad.localizedName, "Dpad", identifier.switches.size() ) );
+		}
+	}
 
 	identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
 	// GCDeviceHaptics + CoreHaptics are 11.0+; leave capacity zeroed on older systems or controllers without haptics.

@@ -46,14 +46,10 @@ struct DeviceIdentifier
 	BlueSharedString deviceID;  ///< Unique identifier for this device instance.
 	BlueSharedString vendorID;  ///< Vendor identifier.
 	BlueSharedString productID; ///< Product identifier.
-
-	uint32_t buttonCount = 0; ///< Number of buttons on the device.
-	uint32_t axisCount = 0;   ///< Number of analog axes on the device.
-	uint32_t switchCount = 0; ///< Number of hat/d-pad switches on the device.
 	
-	std::vector<BlueSharedString> buttonNames;
-	std::vector<BlueSharedString> axisNames;
-	std::vector<BlueSharedString> switchNames;
+	std::vector<BlueSharedString> buttons;
+	std::vector<BlueSharedString> axes;
+	std::vector<BlueSharedString> switches;
 
 	RumbleCapacity rumbleCapacity {}; ///< Rumble capabilities of the device.
 
@@ -68,13 +64,10 @@ struct DeviceIdentifier
 		deviceID( other.deviceID ),
 		vendorID( other.vendorID ),
 		productID( other.productID ),
-		buttonCount( other.buttonCount ),
-		axisCount( other.axisCount ),
-		switchCount( other.switchCount ),
-		rumbleCapacity( other.rumbleCapacity ),
-		buttonNames( other.buttonNames ),
-		axisNames( other.axisNames ),
-		switchNames( other.switchNames)
+		buttons( other.buttons ),
+		axes( other.axes ),
+		switches( other.switches ),
+		rumbleCapacity( other.rumbleCapacity )
 	{};
 };
 

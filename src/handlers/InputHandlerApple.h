@@ -89,9 +89,6 @@ private:
 		std::vector<Events::State> accumulatedStates; ///< States accumulated by the value-change handler.
 		bool pendingRemoval = false;                   ///< True when a disconnect notification has fired but the slot hasn't been finalized.
 		bool active = false;                            ///< True when the value-change handler is installed.
-		std::vector<BlueSharedString> buttonNames = {};
-		std::vector<BlueSharedString> axisNames = {};
-		std::vector<BlueSharedString> switchNames = {};
 		__strong GCDeviceHaptics* haptics = nil;                        ///< Non-nil when the controller exposes any rumble locality (macOS 11+).
 		std::array<HapticsChannel, ChannelCount> hapticsChannels{};     ///< Per-channel engines/players/state, indexed by HapticsChannelIndex.
 	};

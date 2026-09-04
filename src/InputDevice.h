@@ -12,6 +12,7 @@ typedef uint32_t RawDeviceIdPart;
 
 BLUE_DECLARE_STRUCTURE_LIST( RawDeviceIdPart );
 
+
 /**
  * @brief Represents a single connected input device and its event triggers.
  *
@@ -70,10 +71,6 @@ public:
 	 */
 	BlueSharedString GetName() const;
 	
-	BlueSharedString GetButtonName( uint32_t index ) const;
-	BlueSharedString GetAxisName( uint32_t index ) const;
-	BlueSharedString GetSwitchName( uint32_t index ) const;
-	
 	/**
 	* @brief Gets the current intensity of the high frequency rumble motor.
 	*/
@@ -121,6 +118,10 @@ public:
 	/// @brief Zeroes all rumble intensities without scheduling a hardware write.
 	void ResetRumble();
 
+	std::vector<BlueSharedString> GetButtonNames() const;
+	std::vector<BlueSharedString> GetAxisNames() const;
+	std::vector<BlueSharedString> GetSwitchNames() const;
+
 private:
 	/**
 	 * @brief Processes a single state snapshot through all sorted triggers.
@@ -139,5 +140,5 @@ private:
 	Events::Rumble m_rumble{};   ///< Current rumble motor intensities.
 	bool m_updateRumble = false; ///< Whether rumble values have changed since last Update().
 };
-
 TYPEDEF_BLUECLASS( InputDevice );
+
