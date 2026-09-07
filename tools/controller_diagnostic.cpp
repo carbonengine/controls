@@ -324,12 +324,26 @@ const char* NameAt( const std::vector<BlueSharedString>& names, size_t index )
 	return "(unnamed)";
 }
 
-// Canonical, platform-agnostic key for an element; this is what the localization system keys off.
-const char* KeyAt( const std::vector<DeviceEnums::InputElement>& elements, size_t index )
+// Canonical, platform-agnostic key for an element; this is what bindings are persisted against.
+const char* KeyAt( const std::vector<DeviceEnums::InputElementDescriptor>& elements, size_t index )
 {
 	if( index < elements.size() )
 	{
 		return DeviceEnums::ToKeyString( elements[index] );
+	}
+	return "Unknown";
+}
+
+// The glyph the same element renders as on this device's family. Printed alongside the
+// canonical key so a mis-resolved family is immediately visible.
+const char* GlyphAt(
+	const std::vector<DeviceEnums::InputElementDescriptor>& elements,
+	size_t index,
+	DeviceEnums::DeviceFamily family )
+{
+	if( index < elements.size() )
+	{
+		return DeviceEnums::ToGlyphKeyString( elements[index], family );
 	}
 	return "Unknown";
 }
@@ -399,7 +413,8 @@ void RenderState(
 	{
 		const Events::ButtonState logical = ( i < buttonTrackers.size() ) ? buttonTrackers[i].displayed : Events::ButtonState::Up;
 
-		std::printf( "  %2zu %-20s: %-8s\n", i, KeyAt( id.buttonElements, i ), ButtonStateName( logical ) );
+		std::printf( "  %2zu %-20s %-18s: %-8s\n", i, KeyAt( id.buttonElements, i ),
+			GlyphAt( id.buttonElements, i, id.family ), ButtonStateName( logical ) );
 	}
 
 	std::printf( "\nAxes:\n" );

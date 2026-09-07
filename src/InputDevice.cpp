@@ -11,7 +11,10 @@ BlueStructureDefinition RawDeviceIdDef[] = {
 
 InputDevice::InputDevice( IRoot* lockobj ) :
 	PARENTLOCK( m_rawDeviceId ),
-	PARENTLOCK( m_triggers )
+	PARENTLOCK( m_triggers ),
+	PARENTLOCK( m_buttons ),
+	PARENTLOCK( m_axes ),
+	PARENTLOCK( m_switches )
 {
 	m_rawDeviceId.SetStructureDefinition( RawDeviceIdDef );
 	m_rawDeviceId.SetDefaultValue( 0 );
@@ -34,6 +37,30 @@ void InputDevice::OnListModified(
 void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
 	m_deviceIdentifier = identifier;
+
+	for( uint32_t i = 0; i < identifier.buttonElements.size(); ++i )
+	{
+		InputElementPtr button;
+		button.CreateInstance();
+		button->Initialize( identifier.buttonElements[i], i );
+		m_buttons.Append( button );
+	}
+
+	for( uint32_t i = 0; i < identifier.axisElements.size(); ++i )
+	{
+		InputElementPtr axis;
+		axis.CreateInstance();
+		axis->Initialize( identifier.axisElements[i], i );
+		m_axes.Append( axis );
+	}
+
+	for( uint32_t i = 0; i < identifier.switchElements.size(); ++i )
+	{
+		InputElementPtr switchElement;
+		switchElement.CreateInstance();
+		switchElement->Initialize( identifier.switchElements[i], i );
+		m_switches.Append( switchElement );
+	}
 }
 
 BlueSharedString InputDevice::GetDeviceID() const
@@ -139,21 +166,6 @@ void InputDevice::ResetRumble()
 {
 	m_rumble = Events::Rumble{};
 	m_updateRumble = false;
-}
-
-std::vector<DeviceEnums::InputElement> InputDevice::GetButtonElements() const
-{
-	return m_deviceIdentifier.buttonElements;
-}
-
-std::vector<DeviceEnums::InputElement> InputDevice::GetAxisElements() const
-{
-	return m_deviceIdentifier.axisElements;
-}
-
-std::vector<DeviceEnums::InputElement> InputDevice::GetSwitchElements() const
-{
-	return m_deviceIdentifier.switchElements;
 }
 
 DeviceEnums::DeviceFamily InputDevice::GetDeviceFamily() const

@@ -5,388 +5,280 @@
 namespace DeviceEnums
 {
 
-const char* ToKeyString( InputElement element )
+const char* ToKeyString( InputElementDescriptor element )
 {
 	switch( element )
 	{
-	case InputElement::FaceButtonCross:
-		return "FaceButtonCross";
-	case InputElement::FaceButtonCircle:
-		return "FaceButtonCircle";
-	case InputElement::FaceButtonSquare:
-		return "FaceButtonSquare";
-	case InputElement::FaceButtonTriangle:
-		return "FaceButtonTriangle";
-	case InputElement::FaceButtonA:
-		return "FaceButtonA";
-	case InputElement::FaceButtonB:
-		return "FaceButtonB";
-	case InputElement::FaceButtonX:
-		return "FaceButtonX";
-	case InputElement::FaceButtonY:
-		return "FaceButtonY";
+	case InputElementDescriptor::FaceSouth:
+		return "FaceSouth";
+	case InputElementDescriptor::FaceEast:
+		return "FaceEast";
+	case InputElementDescriptor::FaceWest:
+		return "FaceWest";
+	case InputElementDescriptor::FaceNorth:
+		return "FaceNorth";
 
-	case InputElement::L1:
-		return "L1";
-	case InputElement::L2:
-		return "L2";
-	case InputElement::L3:
-		return "L3";
-	case InputElement::R1:
-		return "R1";
-	case InputElement::R2:
-		return "R2";
-	case InputElement::R3:
-		return "R3";
-	case InputElement::LB:
-		return "LB";
-	case InputElement::LT:
-		return "LT";
-	case InputElement::LSB:
-		return "LSB";
-	case InputElement::RB:
-		return "RB";
-	case InputElement::RT:
-		return "RT";
-	case InputElement::RSB:
-		return "RSB";
+	case InputElementDescriptor::LeftShoulder:
+		return "LeftShoulder";
+	case InputElementDescriptor::LeftTrigger:
+		return "LeftTrigger";
+	case InputElementDescriptor::LeftStickButton:
+		return "LeftStickButton";
+	case InputElementDescriptor::RightShoulder:
+		return "RightShoulder";
+	case InputElementDescriptor::RightTrigger:
+		return "RightTrigger";
+	case InputElementDescriptor::RightStickButton:
+		return "RightStickButton";
 
-	case InputElement::Start:
+	case InputElementDescriptor::Start:
 		return "Start";
-	case InputElement::Back:
-		return "Back";
-	case InputElement::Select:
+	case InputElementDescriptor::Select:
 		return "Select";
-	case InputElement::Menu:
-		return "Menu";
-	case InputElement::View:
-		return "View";
-	case InputElement::Options:
-		return "Options";
-	case InputElement::Share:
-		return "Share";
-	case InputElement::Guide:
+	case InputElementDescriptor::Guide:
 		return "Guide";
-	case InputElement::Home:
-		return "Home";
-	case InputElement::Mode:
-		return "Mode";
 
-	case InputElement::DPadUp:
+	case InputElementDescriptor::DPadUp:
 		return "DPadUp";
-	case InputElement::DPadDown:
+	case InputElementDescriptor::DPadDown:
 		return "DPadDown";
-	case InputElement::DPadLeft:
+	case InputElementDescriptor::DPadLeft:
 		return "DPadLeft";
-	case InputElement::DPadRight:
+	case InputElementDescriptor::DPadRight:
 		return "DPadRight";
-	case InputElement::DPad:
+	case InputElementDescriptor::DPad:
 		return "DPad";
 
-	case InputElement::PaddleLeft1:
+	case InputElementDescriptor::PaddleLeft1:
 		return "PaddleLeft1";
-	case InputElement::PaddleLeft2:
+	case InputElementDescriptor::PaddleLeft2:
 		return "PaddleLeft2";
-	case InputElement::PaddleRight1:
+	case InputElementDescriptor::PaddleRight1:
 		return "PaddleRight1";
-	case InputElement::PaddleRight2:
+	case InputElementDescriptor::PaddleRight2:
 		return "PaddleRight2";
 
-	case InputElement::LeftStickX:
+	case InputElementDescriptor::LeftStickX:
 		return "LeftStickX";
-	case InputElement::LeftStickY:
+	case InputElementDescriptor::LeftStickY:
 		return "LeftStickY";
-	case InputElement::RightStickX:
+	case InputElementDescriptor::RightStickX:
 		return "RightStickX";
-	case InputElement::RightStickY:
+	case InputElementDescriptor::RightStickY:
 		return "RightStickY";
-	case InputElement::LeftTriggerAxis:
+	case InputElementDescriptor::LeftTriggerAxis:
 		return "LeftTriggerAxis";
-	case InputElement::RightTriggerAxis:
+	case InputElementDescriptor::RightTriggerAxis:
 		return "RightTriggerAxis";
 
-	case InputElement::LetterA:
+	case InputElementDescriptor::LetterA:
 		return "LetterA";
-	case InputElement::LetterB:
+	case InputElementDescriptor::LetterB:
 		return "LetterB";
-	case InputElement::LetterC:
+	case InputElementDescriptor::LetterC:
 		return "LetterC";
-	case InputElement::LetterD:
+	case InputElementDescriptor::LetterD:
 		return "LetterD";
-	case InputElement::LetterE:
+	case InputElementDescriptor::LetterE:
 		return "LetterE";
-	case InputElement::LetterF:
+	case InputElementDescriptor::LetterF:
 		return "LetterF";
-	case InputElement::LetterG:
+	case InputElementDescriptor::LetterG:
 		return "LetterG";
-	case InputElement::LetterH:
+	case InputElementDescriptor::LetterH:
 		return "LetterH";
-	case InputElement::LetterI:
+	case InputElementDescriptor::LetterI:
 		return "LetterI";
-	case InputElement::LetterJ:
+	case InputElementDescriptor::LetterJ:
 		return "LetterJ";
-	case InputElement::LetterK:
+	case InputElementDescriptor::LetterK:
 		return "LetterK";
-	case InputElement::LetterL:
+	case InputElementDescriptor::LetterL:
 		return "LetterL";
-	case InputElement::LetterM:
+	case InputElementDescriptor::LetterM:
 		return "LetterM";
-	case InputElement::LetterN:
+	case InputElementDescriptor::LetterN:
 		return "LetterN";
-	case InputElement::LetterO:
+	case InputElementDescriptor::LetterO:
 		return "LetterO";
-	case InputElement::LetterP:
+	case InputElementDescriptor::LetterP:
 		return "LetterP";
-	case InputElement::LetterQ:
+	case InputElementDescriptor::LetterQ:
 		return "LetterQ";
-	case InputElement::LetterR:
+	case InputElementDescriptor::LetterR:
 		return "LetterR";
-	case InputElement::LetterS:
+	case InputElementDescriptor::LetterS:
 		return "LetterS";
-	case InputElement::LetterT:
+	case InputElementDescriptor::LetterT:
 		return "LetterT";
-	case InputElement::LetterU:
+	case InputElementDescriptor::LetterU:
 		return "LetterU";
-	case InputElement::LetterV:
+	case InputElementDescriptor::LetterV:
 		return "LetterV";
-	case InputElement::LetterW:
+	case InputElementDescriptor::LetterW:
 		return "LetterW";
-	case InputElement::LetterX:
+	case InputElementDescriptor::LetterX:
 		return "LetterX";
-	case InputElement::LetterY:
+	case InputElementDescriptor::LetterY:
 		return "LetterY";
-	case InputElement::LetterZ:
+	case InputElementDescriptor::LetterZ:
 		return "LetterZ";
 
-	case InputElement::Number0:
+	case InputElementDescriptor::Number0:
 		return "Number0";
-	case InputElement::Number1:
+	case InputElementDescriptor::Number1:
 		return "Number1";
-	case InputElement::Number2:
+	case InputElementDescriptor::Number2:
 		return "Number2";
-	case InputElement::Number3:
+	case InputElementDescriptor::Number3:
 		return "Number3";
-	case InputElement::Number4:
+	case InputElementDescriptor::Number4:
 		return "Number4";
-	case InputElement::Number5:
+	case InputElementDescriptor::Number5:
 		return "Number5";
-	case InputElement::Number6:
+	case InputElementDescriptor::Number6:
 		return "Number6";
-	case InputElement::Number7:
+	case InputElementDescriptor::Number7:
 		return "Number7";
-	case InputElement::Number8:
+	case InputElementDescriptor::Number8:
 		return "Number8";
-	case InputElement::Number9:
+	case InputElementDescriptor::Number9:
 		return "Number9";
 
-	case InputElement::ArrowUp:
+	case InputElementDescriptor::ArrowUp:
 		return "ArrowUp";
-	case InputElement::ArrowUpRight:
+	case InputElementDescriptor::ArrowUpRight:
 		return "ArrowUpRight";
-	case InputElement::ArrowRight:
+	case InputElementDescriptor::ArrowRight:
 		return "ArrowRight";
-	case InputElement::ArrowDownRight:
+	case InputElementDescriptor::ArrowDownRight:
 		return "ArrowDownRight";
-	case InputElement::ArrowDown:
+	case InputElementDescriptor::ArrowDown:
 		return "ArrowDown";
-	case InputElement::ArrowDownLeft:
+	case InputElementDescriptor::ArrowDownLeft:
 		return "ArrowDownLeft";
-	case InputElement::ArrowLeft:
+	case InputElementDescriptor::ArrowLeft:
 		return "ArrowLeft";
-	case InputElement::ArrowUpLeft:
+	case InputElementDescriptor::ArrowUpLeft:
 		return "ArrowUpLeft";
-	case InputElement::ArrowUpDown:
+	case InputElementDescriptor::ArrowUpDown:
 		return "ArrowUpDown";
-	case InputElement::ArrowLeftRight:
+	case InputElementDescriptor::ArrowLeftRight:
 		return "ArrowLeftRight";
-	case InputElement::ArrowUpDownLeftRight:
+	case InputElementDescriptor::ArrowUpDownLeftRight:
 		return "ArrowUpDownLeftRight";
-	case InputElement::ArrowClockwise:
+	case InputElementDescriptor::ArrowClockwise:
 		return "ArrowClockwise";
-	case InputElement::ArrowCounterClockwise:
+	case InputElementDescriptor::ArrowCounterClockwise:
 		return "ArrowCounterClockwise";
-	case InputElement::ArrowReturn:
+	case InputElementDescriptor::ArrowReturn:
 		return "ArrowReturn";
 
-	case InputElement::IconBranding:
+	case InputElementDescriptor::IconBranding:
 		return "IconBranding";
-	case InputElement::IconStar:
+	case InputElementDescriptor::IconStar:
 		return "IconStar";
-	case InputElement::IconPlus:
+	case InputElementDescriptor::IconPlus:
 		return "IconPlus";
-	case InputElement::IconMinus:
+	case InputElementDescriptor::IconMinus:
 		return "IconMinus";
-	case InputElement::IconSuspension:
+	case InputElementDescriptor::IconSuspension:
 		return "IconSuspension";
-	case InputElement::IconDialClockwise:
+	case InputElementDescriptor::IconDialClockwise:
 		return "IconDialClockwise";
-	case InputElement::IconDialCounterClockwise:
+	case InputElementDescriptor::IconDialCounterClockwise:
 		return "IconDialCounterClockwise";
-	case InputElement::IconSliderLeftRight:
+	case InputElementDescriptor::IconSliderLeftRight:
 		return "IconSliderLeftRight";
-	case InputElement::IconSliderUpDown:
+	case InputElementDescriptor::IconSliderUpDown:
 		return "IconSliderUpDown";
-	case InputElement::IconWheelUpDown:
+	case InputElementDescriptor::IconWheelUpDown:
 		return "IconWheelUpDown";
 
-	case InputElement::Unknown:
+	case InputElementDescriptor::Unknown:
 	default:
 		return "Unknown";
 	}
 }
 
-namespace
-{
-
-InputElement ResolveFaceButton( ElementPosition position, DeviceFamily family )
+const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily family )
 {
 	const bool playstation = ( family == DeviceFamily::PlayStation );
+	const bool nintendo = ( family == DeviceFamily::Nintendo );
 
-	switch( position )
+	switch( element )
 	{
-	case ElementPosition::FaceSouth:
-		return playstation ? InputElement::FaceButtonCross : InputElement::FaceButtonA;
-	case ElementPosition::FaceEast:
-		return playstation ? InputElement::FaceButtonCircle : InputElement::FaceButtonB;
-	case ElementPosition::FaceWest:
-		return playstation ? InputElement::FaceButtonSquare : InputElement::FaceButtonX;
-	case ElementPosition::FaceNorth:
-		return playstation ? InputElement::FaceButtonTriangle : InputElement::FaceButtonY;
-	default:
-		return InputElement::Unknown;
-	}
-}
+	// Nintendo swaps both face pairs relative to the Xbox letter layout.
+	case InputElementDescriptor::FaceSouth:
+		if( playstation ) return "FaceButtonCross";
+		return nintendo ? "FaceButtonB" : "FaceButtonA";
+	case InputElementDescriptor::FaceEast:
+		if( playstation ) return "FaceButtonCircle";
+		return nintendo ? "FaceButtonA" : "FaceButtonB";
+	case InputElementDescriptor::FaceWest:
+		if( playstation ) return "FaceButtonSquare";
+		return nintendo ? "FaceButtonY" : "FaceButtonX";
+	case InputElementDescriptor::FaceNorth:
+		if( playstation ) return "FaceButtonTriangle";
+		return nintendo ? "FaceButtonX" : "FaceButtonY";
 
-InputElement ResolveShoulder( ElementPosition position, DeviceFamily family )
-{
-	const bool playstation = ( family == DeviceFamily::PlayStation );
+	// Switch pads print L/ZL/R/ZR on the shoulders and leave the stick buttons unmarked.
+	case InputElementDescriptor::LeftShoulder:
+		if( playstation ) return "L1";
+		return nintendo ? "L" : "LB";
+	case InputElementDescriptor::LeftTrigger:
+		if( playstation ) return "L2";
+		return nintendo ? "ZL" : "LT";
+	case InputElementDescriptor::LeftStickButton:
+		return playstation ? "L3" : "LSB";
+	case InputElementDescriptor::RightShoulder:
+		if( playstation ) return "R1";
+		return nintendo ? "R" : "RB";
+	case InputElementDescriptor::RightTrigger:
+		if( playstation ) return "R2";
+		return nintendo ? "ZR" : "RT";
+	case InputElementDescriptor::RightStickButton:
+		return playstation ? "R3" : "RSB";
 
-	switch( position )
-	{
-	case ElementPosition::LeftShoulder:
-		return playstation ? InputElement::L1 : InputElement::LB;
-	case ElementPosition::LeftTrigger:
-		return playstation ? InputElement::L2 : InputElement::LT;
-	case ElementPosition::LeftStickButton:
-		return playstation ? InputElement::L3 : InputElement::LSB;
-	case ElementPosition::RightShoulder:
-		return playstation ? InputElement::R1 : InputElement::RB;
-	case ElementPosition::RightTrigger:
-		return playstation ? InputElement::R2 : InputElement::RT;
-	case ElementPosition::RightStickButton:
-		return playstation ? InputElement::R3 : InputElement::RSB;
-	default:
-		return InputElement::Unknown;
-	}
-}
-
-InputElement ResolveSystemButton( ElementPosition position, DeviceFamily family )
-{
-	switch( position )
-	{
-	case ElementPosition::Start:
+	case InputElementDescriptor::Start:
 		switch( family )
 		{
 		case DeviceFamily::PlayStation:
-			return InputElement::Options;
+			return "Options";
 		case DeviceFamily::Xbox:
-			return InputElement::Menu;
+			return "Menu";
 		case DeviceFamily::Nintendo:
-			return InputElement::Start;
+			return "IconPlus";
 		default:
-			return InputElement::Start;
+			return "Start";
 		}
-	case ElementPosition::Select:
+	case InputElementDescriptor::Select:
 		switch( family )
 		{
 		case DeviceFamily::PlayStation:
-			return InputElement::Share;
+			return "Share";
 		case DeviceFamily::Xbox:
-			return InputElement::View;
+			return "View";
 		case DeviceFamily::Nintendo:
-			return InputElement::Select;
+			return "IconMinus";
 		default:
-			return InputElement::Back;
+			return "Back";
 		}
-	case ElementPosition::Guide:
+	case InputElementDescriptor::Guide:
 		switch( family )
 		{
-		case DeviceFamily::PlayStation:
-			return InputElement::Home;
 		case DeviceFamily::Xbox:
-			return InputElement::Guide;
+			return "Guide";
+		case DeviceFamily::PlayStation:
 		case DeviceFamily::Nintendo:
-			return InputElement::Home;
+			return "Home";
 		default:
-			return InputElement::Mode;
+			return "Mode";
 		}
+
+	// Everything else reads identically on every family.
 	default:
-		return InputElement::Unknown;
-	}
-}
-
-}
-
-InputElement ResolveElement( ElementPosition position, DeviceFamily family )
-{
-	switch( position )
-	{
-	case ElementPosition::FaceSouth:
-	case ElementPosition::FaceEast:
-	case ElementPosition::FaceWest:
-	case ElementPosition::FaceNorth:
-		return ResolveFaceButton( position, family );
-
-	case ElementPosition::LeftShoulder:
-	case ElementPosition::LeftTrigger:
-	case ElementPosition::LeftStickButton:
-	case ElementPosition::RightShoulder:
-	case ElementPosition::RightTrigger:
-	case ElementPosition::RightStickButton:
-		return ResolveShoulder( position, family );
-
-	case ElementPosition::Start:
-	case ElementPosition::Select:
-	case ElementPosition::Guide:
-		return ResolveSystemButton( position, family );
-
-	// The remaining positions carry no glyph variation between families.
-	case ElementPosition::DPadUp:
-		return InputElement::DPadUp;
-	case ElementPosition::DPadDown:
-		return InputElement::DPadDown;
-	case ElementPosition::DPadLeft:
-		return InputElement::DPadLeft;
-	case ElementPosition::DPadRight:
-		return InputElement::DPadRight;
-	case ElementPosition::DPad:
-		return InputElement::DPad;
-
-	case ElementPosition::PaddleLeft1:
-		return InputElement::PaddleLeft1;
-	case ElementPosition::PaddleLeft2:
-		return InputElement::PaddleLeft2;
-	case ElementPosition::PaddleRight1:
-		return InputElement::PaddleRight1;
-	case ElementPosition::PaddleRight2:
-		return InputElement::PaddleRight2;
-
-	case ElementPosition::LeftStickX:
-		return InputElement::LeftStickX;
-	case ElementPosition::LeftStickY:
-		return InputElement::LeftStickY;
-	case ElementPosition::RightStickX:
-		return InputElement::RightStickX;
-	case ElementPosition::RightStickY:
-		return InputElement::RightStickY;
-	case ElementPosition::LeftTriggerAxis:
-		return InputElement::LeftTriggerAxis;
-	case ElementPosition::RightTriggerAxis:
-		return InputElement::RightTriggerAxis;
-
-	case ElementPosition::Unknown:
-	default:
-		return InputElement::Unknown;
+		return ToKeyString( element );
 	}
 }
 

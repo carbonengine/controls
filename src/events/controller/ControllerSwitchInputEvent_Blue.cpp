@@ -25,7 +25,7 @@ const Be::ClassInfo* ControllerSwitchInputEvent::ExposeToBlue()
 		MAP_INTERFACE( ControllerSwitchInputEvent )
 		MAP_INTERFACE( IInputEvent )
 
-		MAP_ATTRIBUTE( "switchIndex", m_switchIndex, "The switch to listen to", Be::READWRITE )
+		MAP_PROPERTY( "input", GetInput, SetInput, "The input element to listen to" )
 		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The event to listen to", Be::READWRITE | Be::ENUM, SwitchPositionChooser )
 		MAP_ATTRIBUTE_WITH_CHOOSER( "state", m_state, "The current state of the switch", Be::READWRITE | Be::ENUM, SwitchPositionChooser )
 	EXPOSURE_END()

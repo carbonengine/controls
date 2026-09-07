@@ -1,6 +1,7 @@
 #pragma once
 #include "StdAfx.h"
 #include "DeviceEnums.h"
+#include "InputElement.h"
 #include "events/Events.h"
 #include "events/InputEventTrigger.h"
 #include "handlers/IInputHandler.h"
@@ -119,13 +120,13 @@ public:
 	void ResetRumble();
 
 	/// @brief Canonical button identifiers; InputElement::Unknown marks an unmapped button.
-	std::vector<DeviceEnums::InputElement> GetButtonElements() const;
+	std::vector<DeviceEnums::InputElementDescriptor> GetButtonElements() const;
 
 	/// @brief Canonical axis identifiers; InputElement::Unknown marks an unmapped axis.
-	std::vector<DeviceEnums::InputElement> GetAxisElements() const;
+	std::vector<DeviceEnums::InputElementDescriptor> GetAxisElements() const;
 
 	/// @brief Canonical switch identifiers; InputElement::Unknown marks an unmapped switch.
-	std::vector<DeviceEnums::InputElement> GetSwitchElements() const;
+	std::vector<DeviceEnums::InputElementDescriptor> GetSwitchElements() const;
 
 	/// @brief Hardware family this device belongs to.
 	DeviceEnums::DeviceFamily GetDeviceFamily() const;
@@ -147,6 +148,9 @@ private:
 
 	Events::Rumble m_rumble{};   ///< Current rumble motor intensities.
 	bool m_updateRumble = false; ///< Whether rumble values have changed since last Update().
+	PInputElementVector m_buttons;
+	PInputElementVector m_axes;
+	PInputElementVector m_switches;
 };
 TYPEDEF_BLUECLASS( InputDevice );
 

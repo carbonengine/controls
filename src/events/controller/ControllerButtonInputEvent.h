@@ -2,6 +2,7 @@
 
 #include "../../StdAfx.h"
 #include "../IInputEvent.h"
+#include "../../InputElement.h"
 
 /**
  * @brief Input event that matches a controller button reaching a specific ButtonState.
@@ -34,9 +35,12 @@ public:
 	 * @param state The device state to modify.
 	 */
 	void Own( Events::State& state ) override;
+	
+	void SetInput( InputElement * input );
+	InputElement* GetInput() const;
 
 private:
-	uint32_t m_buttonIndex = 0;                            ///< Index of the button to monitor.
+	InputElement* m_input; ///< The input element to monitor.
 	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
 
 	bool m_previouslyPressed = false;          ///< Whether the button was pressed on the previous update.

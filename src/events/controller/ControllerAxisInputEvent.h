@@ -2,6 +2,7 @@
 
 #include "../../StdAfx.h"
 #include "../IInputEvent.h"
+#include "../../InputElement.h"
 
 /**
  * @brief Input event that matches when a controller analog axis changes value.
@@ -34,10 +35,13 @@ public:
 	 */
 	void Own( Events::State& state ) override;
 
+	void SetInput( InputElement * input );
+	InputElement* GetInput() const;
+
 private:
 	bool m_initialized = false; ///< Whether the initial axis value has been captured.
-	uint32_t m_axisIndex = 0;   ///< Index of the axis to monitor.
-	float m_value = 0.0f;       ///< Last known axis value.
+	InputElement* m_input; ///< The input element to monitor.
+	float m_value = 0.0f; ///< Last known axis value.
 	float m_delta = 0.0f;       ///< Change since last update.
 };
 

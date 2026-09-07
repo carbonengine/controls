@@ -1,5 +1,7 @@
 #pragma once
 #include "../StdAfx.h"
+#include "../DeviceEnums.h"
+
 
 /**
  * @brief Namespace containing event types and state structures for input devices.
@@ -55,6 +57,8 @@ struct Button
 {
 	bool matched = false;  ///< Whether this button has already been claimed by an event trigger.
 	bool pressed = false;  ///< Whether the button is currently pressed.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown; ///< Descriptor for the button's input element.
+	uint32_t index = 0;    ///< Index of the button within the device.
 };
 
 /**
@@ -64,6 +68,8 @@ struct Axis
 {
 	bool matched = false; ///< Whether this axis has already been claimed by an event trigger.
 	float value = 0.0f;   ///< Current axis value, typically in the range [-1.0, 1.0].
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown; ///< Descriptor for the axis's input element.
+	uint32_t index = 0;    ///< Index of the axis within the device.
 };
 
 /**
@@ -73,6 +79,8 @@ struct Switch
 {
 	bool matched = false;                              ///< Whether this switch has already been claimed by an event trigger.
 	SwitchPosition position = SwitchPosition::Center;  ///< Current switch position.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown; ///< Descriptor for the switch's input element.
+	uint32_t index = 0; ///< Index of the switch within the device.
 };
 
 /**

@@ -23,6 +23,9 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/InputDevice.h
     src/InputDevice.cpp
     src/InputDevice_Blue.cpp
+    src/InputElement.h
+    src/InputElement.cpp
+    src/InputElement_Blue.cpp
     src/StdAfx.h
     src/events/Events.h
     src/events/Events.cpp

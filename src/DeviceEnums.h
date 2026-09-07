@@ -26,107 +26,41 @@ enum class DeviceFamily : uint8_t
 };
 
 /**
- * @brief Abstract physical slot an element occupies, independent of glyph.
+ * @brief Canonical, deterministic identifier for a single input element.
  *
- * This is an intermediate representation: platform handlers fold their native
- * labels down to a position, and ResolveElement() then combines the position
- * with the DeviceFamily to produce the glyph-flavoured InputElement.
+ * Values identify the abstract slot an element occupies, never the glyph
+ * printed on it. A DualSense and an Xbox pad both report FaceSouth for their
+ * lower face button, so bindings persisted against these values stay valid
+ * when the user swaps controllers mid-session.
+ *
+ * Glyph flavour is a presentation concern, applied by ToGlyphKeyString().
+ *
+ * @warning Game clients may use this for mapping/localization etc. Be careful when changing these values.
  */
-enum class ElementPosition : uint16_t
+enum class InputElementDescriptor : uint16_t
 {
     Unknown = 0,
 
-    FaceSouth,
+    // Face buttons, by compass slot.
+    FaceSouth = 140,
     FaceEast,
     FaceWest,
     FaceNorth,
 
-    LeftShoulder,
+    // Shoulders, triggers and stick buttons.
+    LeftShoulder = 240,
     LeftTrigger,
     LeftStickButton,
     RightShoulder,
     RightTrigger,
     RightStickButton,
 
-    Start,
-    Select,
-    Guide,
-
-    DPadUp,
-    DPadDown,
-    DPadLeft,
-    DPadRight,
-
-    PaddleLeft1,
-    PaddleLeft2,
-    PaddleRight1,
-    PaddleRight2,
-
-    LeftStickX,
-    LeftStickY,
-    RightStickX,
-    RightStickY,
-    LeftTriggerAxis,
-    RightTriggerAxis,
-
-    DPad
-};
-
-/**
- * @brief Canonical, deterministic identifier for a single input element.
- *
- * These values are stable localization keys. A given physical controller
- * resolves to the same InputElement on every supported platform, so the value
- * (or its ToKeyString() form) can be used directly as a localization lookup.
- *
- * @warning Never reorder or renumber these values: they are persisted in
- * localization data. Only append new values at the end of a group.
- */
-enum class InputElement : uint16_t
-{
-    Unknown = 0,
-
-    // Face buttons, PlayStation glyphs.
-    FaceButtonCross = 100,
-    FaceButtonCircle,
-    FaceButtonSquare,
-    FaceButtonTriangle,
-
-    // Face buttons, Xbox / generic letter glyphs.
-    FaceButtonA = 120,
-    FaceButtonB,
-    FaceButtonX,
-    FaceButtonY,
-
-    // Shoulders, triggers and stick buttons, PlayStation glyphs.
-    L1 = 200,
-    L2,
-    L3,
-    R1,
-    R2,
-    R3,
-
-    // Shoulders, triggers and stick buttons, Xbox glyphs.
-    LB = 220,
-    LT,
-    LSB,
-    RB,
-    RT,
-    RSB,
-
     // System buttons.
-    Start = 300,
-    Back,
+    Start = 320,
     Select,
-    Menu,
-    View,
-    Options,
-    Share,
     Guide,
-    Home,
-    Mode,
 
-    // Directional pad.
+    // Directional pad. No family variation.
     DPadUp = 400,
     DPadDown,
     DPadLeft,
@@ -147,7 +81,9 @@ enum class InputElement : uint16_t
     LeftTriggerAxis,
     RightTriggerAxis,
 
-    // Vendor-neutral letter labels.
+    // Label-defined elements: devices whose controls are identified purely by
+    // the glyph printed on them (arcade sticks, flight gear). Not positional,
+    // and carrying no family variation.
     LetterA = 700,
     LetterB, LetterC, LetterD, LetterE, LetterF, LetterG, LetterH, LetterI,
     LetterJ, LetterK, LetterL, LetterM, LetterN, LetterO, LetterP, LetterQ,
@@ -189,27 +125,28 @@ enum class InputElement : uint16_t
 };
 
 /**
- * @brief Returns the stable string form of an InputElement.
+ * @brief Returns the stable, family-agnostic string form of an InputElement.
  *
- * The returned text matches the enumerator name (for example
- * "FaceButtonCross") and is suitable for use as a localization key.
- * Unmapped elements return "Unknown".
+ * Matches the enumerator name (for example "FaceSouth"). This is the form to
+ * persist. Unmapped elements return "Unknown".
  */
-const char* ToKeyString( InputElement element );
+const char* ToKeyString( InputElementDescriptor element );
 
 /**
- * @brief Combines an abstract element position with a device family to produce
- * the glyph-flavoured canonical element.
+ * @brief Returns the glyph-flavoured localization key for an element as it is
+ * printed on a given family of hardware.
  *
- * Because @p family is derived from hardware identity rather than from the
- * label the OS reported, a DualSense resolves to FaceButtonCross on both
- * Windows and macOS even though the two platforms report different labels.
+ * FaceSouth yields "FaceButtonCross" on PlayStation and "FaceButtonA"
+ * elsewhere. Elements with no family variation fall through to ToKeyString(),
+ * so this is safe to call for any element.
  *
- * @param position The abstract slot the element occupies.
+ * Presentation only: never persist the result, and never use it to identify
+ * an element.
+ *
+ * @param element The abstract element.
  * @param family The hardware family of the owning device.
- * @return The canonical element, or InputElement::Unknown if unresolvable.
  */
-InputElement ResolveElement( ElementPosition position, DeviceFamily family );
+const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily family );
 
 /**
  * @brief Describes the rumble/vibration capabilities of an input device.
@@ -249,15 +186,16 @@ struct DeviceIdentifier
 	BlueSharedString vendorID;  ///< Vendor identifier.
 	BlueSharedString productID; ///< Product identifier.
 
-	/// @brief Hardware family, used to resolve glyph-flavoured element names.
+	/// @brief Hardware family. Presentation metadata only; element identity
+	/// does not depend on it.
 	DeviceFamily family = DeviceFamily::Unknown;
 
 	/// Canonical button identifiers; InputElement::Unknown marks an unmapped button.
-	std::vector<InputElement> buttonElements;
+	std::vector<InputElementDescriptor> buttonElements;
 	/// Canonical axis identifiers; InputElement::Unknown marks an unmapped axis.
-	std::vector<InputElement> axisElements;
+	std::vector<InputElementDescriptor> axisElements;
 	/// Canonical switch identifiers; InputElement::Unknown marks an unmapped switch.
-	std::vector<InputElement> switchElements;
+	std::vector<InputElementDescriptor> switchElements;
 
 	RumbleCapacity rumbleCapacity {}; ///< Rumble capabilities of the device.
 

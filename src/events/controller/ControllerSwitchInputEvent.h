@@ -2,6 +2,7 @@
 
 #include "../../StdAfx.h"
 #include "../IInputEvent.h"
+#include "../../InputElement.h"
 
 /**
  * @brief Input event that matches a controller hat/d-pad switch reaching a specific position.
@@ -34,8 +35,11 @@ public:
 	 */
 	void Own( Events::State& state ) override;
 
+	void SetInput( InputElement * input );
+	InputElement* GetInput() const;
+
 private:
-	uint32_t m_switchIndex{ 0 };                         ///< Index of the switch to monitor.
+	InputElement* m_input; ///< The input element to monitor.
 	Events::SwitchPosition m_event{ Events::SwitchPosition::Any };    ///< Target switch position to match.
 	Events::SwitchPosition m_state{ Events::SwitchPosition::Center }; ///< Last matched switch position.
 };

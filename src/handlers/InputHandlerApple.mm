@@ -107,64 +107,64 @@ BlueSharedString SharedStringFromNSString( NSString* string )
 }
 
 // Apple's GCInput* dictionary keys are stable API constants, unlike localizedName which is
-// user-locale display text. Fold them to the abstract slot; the glyph flavour is re-applied
-// from the device family so the result matches what the Windows handler produces.
-DeviceEnums::ElementPosition PositionForKey( NSString* key )
+// user-locale display text. Fold them to the abstract slot the control occupies; the glyph
+// flavour is a display concern, so the result matches what the Windows handler produces.
+DeviceEnums::InputElementDescriptor ElementForKey( NSString* key )
 {
-	using Position = DeviceEnums::ElementPosition;
+	using Element = DeviceEnums::InputElementDescriptor;
 
 	if( key == nil )
 	{
-		return Position::Unknown;
+		return Element::Unknown;
 	}
 
-	if( [key isEqualToString:GCInputButtonA] ) return Position::FaceSouth;
-	if( [key isEqualToString:GCInputButtonB] ) return Position::FaceEast;
-	if( [key isEqualToString:GCInputButtonX] ) return Position::FaceWest;
-	if( [key isEqualToString:GCInputButtonY] ) return Position::FaceNorth;
+	if( [key isEqualToString:GCInputButtonA] ) return Element::FaceSouth;
+	if( [key isEqualToString:GCInputButtonB] ) return Element::FaceEast;
+	if( [key isEqualToString:GCInputButtonX] ) return Element::FaceWest;
+	if( [key isEqualToString:GCInputButtonY] ) return Element::FaceNorth;
 
-	if( [key isEqualToString:GCInputLeftShoulder] ) return Position::LeftShoulder;
-	if( [key isEqualToString:GCInputRightShoulder] ) return Position::RightShoulder;
-	if( [key isEqualToString:GCInputLeftThumbstickButton] ) return Position::LeftStickButton;
-	if( [key isEqualToString:GCInputRightThumbstickButton] ) return Position::RightStickButton;
+	if( [key isEqualToString:GCInputLeftShoulder] ) return Element::LeftShoulder;
+	if( [key isEqualToString:GCInputRightShoulder] ) return Element::RightShoulder;
+	if( [key isEqualToString:GCInputLeftThumbstickButton] ) return Element::LeftStickButton;
+	if( [key isEqualToString:GCInputRightThumbstickButton] ) return Element::RightStickButton;
 
-	if( [key isEqualToString:GCInputButtonMenu] ) return Position::Start;
-	if( [key isEqualToString:GCInputButtonOptions] ) return Position::Select;
-	if( [key isEqualToString:GCInputButtonHome] ) return Position::Guide;
+	if( [key isEqualToString:GCInputButtonMenu] ) return Element::Start;
+	if( [key isEqualToString:GCInputButtonOptions] ) return Element::Select;
+	if( [key isEqualToString:GCInputButtonHome] ) return Element::Guide;
 
-	if( [key isEqualToString:GCInputDirectionPad] ) return Position::DPad;
+	if( [key isEqualToString:GCInputDirectionPad] ) return Element::DPad;
 
 	// Triggers are analog, so they live in the axis dimension.
-	if( [key isEqualToString:GCInputLeftTrigger] ) return Position::LeftTriggerAxis;
-	if( [key isEqualToString:GCInputRightTrigger] ) return Position::RightTriggerAxis;
+	if( [key isEqualToString:GCInputLeftTrigger] ) return Element::LeftTriggerAxis;
+	if( [key isEqualToString:GCInputRightTrigger] ) return Element::RightTriggerAxis;
 
-	if( [key isEqualToString:GCInputXboxPaddleOne] ) return Position::PaddleLeft1;
-	if( [key isEqualToString:GCInputXboxPaddleTwo] ) return Position::PaddleLeft2;
-	if( [key isEqualToString:GCInputXboxPaddleThree] ) return Position::PaddleRight1;
-	if( [key isEqualToString:GCInputXboxPaddleFour] ) return Position::PaddleRight2;
+	if( [key isEqualToString:GCInputXboxPaddleOne] ) return Element::PaddleLeft1;
+	if( [key isEqualToString:GCInputXboxPaddleTwo] ) return Element::PaddleLeft2;
+	if( [key isEqualToString:GCInputXboxPaddleThree] ) return Element::PaddleRight1;
+	if( [key isEqualToString:GCInputXboxPaddleFour] ) return Element::PaddleRight2;
 
-	return Position::Unknown;
+	return Element::Unknown;
 }
 
-// Thumbstick child axes are reached through their parent d-pad element, so their position
+// Thumbstick child axes are reached through their parent d-pad element, so their identity
 // depends on which parent they came from and which component they are.
-DeviceEnums::ElementPosition PositionForThumbstickAxis( NSString* parentKey, bool isXAxis )
+DeviceEnums::InputElementDescriptor ElementForThumbstickAxis( NSString* parentKey, bool isXAxis )
 {
-	using Position = DeviceEnums::ElementPosition;
+	using Element = DeviceEnums::InputElementDescriptor;
 
 	if( parentKey == nil )
 	{
-		return Position::Unknown;
+		return Element::Unknown;
 	}
 	if( [parentKey isEqualToString:GCInputLeftThumbstick] )
 	{
-		return isXAxis ? Position::LeftStickX : Position::LeftStickY;
+		return isXAxis ? Element::LeftStickX : Element::LeftStickY;
 	}
 	if( [parentKey isEqualToString:GCInputRightThumbstick] )
 	{
-		return isXAxis ? Position::RightStickX : Position::RightStickY;
+		return isXAxis ? Element::RightStickX : Element::RightStickY;
 	}
-	return Position::Unknown;
+	return Element::Unknown;
 }
 
 // Family is resolved from the hardware's product category rather than from the element keys,
@@ -225,10 +225,10 @@ void CollectProfileElements(
 	std::vector<GCControllerAxisInput*>& outAxes,
 	std::vector<GCControllerButtonInput*>& outTriggerAxes,
 	std::vector<GCControllerDirectionPad*>&outSwitches,
-	std::vector<DeviceEnums::ElementPosition>& outButtonPositions,
-	std::vector<DeviceEnums::ElementPosition>& outAxisPositions,
-	std::vector<DeviceEnums::ElementPosition>& outTriggerAxisPositions,
-	std::vector<DeviceEnums::ElementPosition>& outSwitchPositions )
+	std::vector<DeviceEnums::InputElementDescriptor>& outButtonElements,
+	std::vector<DeviceEnums::InputElementDescriptor>& outAxisElements,
+	std::vector<DeviceEnums::InputElementDescriptor>& outTriggerAxisElements,
+	std::vector<DeviceEnums::InputElementDescriptor>& outSwitchElements )
 {
     GCPhysicalInputProfile* profile = controller.physicalInputProfile;
 
@@ -243,13 +243,13 @@ void CollectProfileElements(
         // we don't want buttons that are part of a collection, like a dpad group
         if( button.collection == nil )
         {
-            const DeviceEnums::ElementPosition position = PositionForKey( key );
+            const DeviceEnums::InputElementDescriptor element = ElementForKey( key );
             if( IsAnalogTriggerButton( button ) )
             {
                 if( std::find( outTriggerAxes.begin(), outTriggerAxes.end(), button ) == outTriggerAxes.end() )
                 {
                     outTriggerAxes.push_back( button );
-                    outTriggerAxisPositions.push_back( position );
+                    outTriggerAxisElements.push_back( element );
                 }
             }
             else
@@ -257,7 +257,7 @@ void CollectProfileElements(
                 if( std::find( outButtons.begin(), outButtons.end(), button ) == outButtons.end() )
                 {
                     outButtons.push_back( button );
-                    outButtonPositions.push_back( position );
+                    outButtonElements.push_back( element );
                 }
             }
         }
@@ -267,13 +267,13 @@ void CollectProfileElements(
     for( NSString* key in axisKeys )
     {
         GCControllerAxisInput* axis = profile.axes[key];
-        // Skip axes that belong to a collection (e.g. dpad X/Y components) — the parent
+        // Skip axes that belong to a collection (e.g. dpad X/Y components) â€” the parent
         // element is handled in the dpad pass below, which decides whether it becomes
         // a switch or contributes its child axes here.
         if( axis.collection == nil && std::find( outAxes.begin(), outAxes.end(), axis ) == outAxes.end() )
         {
             outAxes.push_back( axis );
-            outAxisPositions.push_back( PositionForKey( key ) );
+            outAxisElements.push_back( ElementForKey( key ) );
         }
     }
 
@@ -293,18 +293,18 @@ void CollectProfileElements(
             if( std::find( outAxes.begin(), outAxes.end(), dpad.xAxis ) == outAxes.end() )
             {
                 outAxes.push_back( dpad.xAxis );
-                outAxisPositions.push_back( PositionForThumbstickAxis( key, true ) );
+                outAxisElements.push_back( ElementForThumbstickAxis( key, true ) );
             }
             if( std::find( outAxes.begin(), outAxes.end(), dpad.yAxis ) == outAxes.end() )
             {
                 outAxes.push_back( dpad.yAxis );
-                outAxisPositions.push_back( PositionForThumbstickAxis( key, false ) );
+                outAxisElements.push_back( ElementForThumbstickAxis( key, false ) );
             }
         }
         else
         {
             outSwitches.push_back( dpad );
-            outSwitchPositions.push_back( DeviceEnums::ElementPosition::DPad );
+            outSwitchElements.push_back( DeviceEnums::InputElementDescriptor::DPad );
         }
     }
 }
@@ -317,10 +317,10 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 	const std::vector<GCControllerAxisInput*>& axes,
 	const std::vector<GCControllerButtonInput*>& triggerAxes,
 	const std::vector<GCControllerDirectionPad*>& dpads,
-	const std::vector<DeviceEnums::ElementPosition>& buttonPositions,
-	const std::vector<DeviceEnums::ElementPosition>& axisPositions,
-	const std::vector<DeviceEnums::ElementPosition>& triggerAxisPositions,
-	const std::vector<DeviceEnums::ElementPosition>& switchPositions )
+	const std::vector<DeviceEnums::InputElementDescriptor>& buttonElements,
+	const std::vector<DeviceEnums::InputElementDescriptor>& axisElements,
+	const std::vector<DeviceEnums::InputElementDescriptor>& triggerAxisElements,
+	const std::vector<DeviceEnums::InputElementDescriptor>& switchElements )
 {
 	DeviceEnums::DeviceIdentifier identifier;
 
@@ -354,19 +354,19 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 
 	// The canonical element enum is resolved from the stable GCInput key so it matches
 	// other platforms.
-	auto appendElement = [&identifier](
-		DeviceEnums::ElementPosition position,
-		std::vector<DeviceEnums::InputElement>& elements )
+	auto appendElement = [](
+		size_t index,
+		const std::vector<DeviceEnums::InputElementDescriptor>& source,
+		std::vector<DeviceEnums::InputElementDescriptor>& elements )
 	{
-		elements.push_back( DeviceEnums::ResolveElement( position, identifier.family ) );
+		elements.push_back( index < source.size() ? source[index] : DeviceEnums::InputElementDescriptor::Unknown );
 	};
 
 	for( size_t i = 0; i < buttons.size(); ++i )
 	{
 		if( buttons[i] )
 		{
-			const auto position = ( i < buttonPositions.size() ) ? buttonPositions[i] : DeviceEnums::ElementPosition::Unknown;
-			appendElement( position, identifier.buttonElements );
+			appendElement( i, buttonElements, identifier.buttonElements );
 		}
 	}
 
@@ -376,16 +376,14 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 	{
 		if( axes[i] )
 		{
-			const auto position = ( i < axisPositions.size() ) ? axisPositions[i] : DeviceEnums::ElementPosition::Unknown;
-			appendElement( position, identifier.axisElements );
+			appendElement( i, axisElements, identifier.axisElements );
 		}
 	}
 	for( size_t i = 0; i < triggerAxes.size(); ++i )
 	{
 		if( triggerAxes[i] )
 		{
-			const auto position = ( i < triggerAxisPositions.size() ) ? triggerAxisPositions[i] : DeviceEnums::ElementPosition::Unknown;
-			appendElement( position, identifier.axisElements );
+			appendElement( i, triggerAxisElements, identifier.axisElements );
 		}
 	}
 
@@ -393,8 +391,7 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 	{
 		if( dpads[i] )
 		{
-			const auto position = ( i < switchPositions.size() ) ? switchPositions[i] : DeviceEnums::ElementPosition::Unknown;
-			appendElement( position, identifier.switchElements );
+			appendElement( i, switchElements, identifier.switchElements );
 		}
 	}
 
@@ -540,17 +537,17 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
     std::vector<GCControllerAxisInput*> axes = {};
     std::vector<GCControllerButtonInput*> triggerAxes = {};
 	std::vector<GCControllerDirectionPad*> switches = {};
-	std::vector<DeviceEnums::ElementPosition> buttonPositions = {};
-	std::vector<DeviceEnums::ElementPosition> axisPositions = {};
-	std::vector<DeviceEnums::ElementPosition> triggerAxisPositions = {};
-	std::vector<DeviceEnums::ElementPosition> switchPositions = {};
+	std::vector<DeviceEnums::InputElementDescriptor> buttonElements = {};
+	std::vector<DeviceEnums::InputElementDescriptor> axisElements = {};
+	std::vector<DeviceEnums::InputElementDescriptor> triggerAxisElements = {};
+	std::vector<DeviceEnums::InputElementDescriptor> switchElements = {};
 	CollectProfileElements( controller, buttons, axes, triggerAxes, switches,
-		buttonPositions, axisPositions, triggerAxisPositions, switchPositions );
+		buttonElements, axisElements, triggerAxisElements, switchElements );
 
 	const uint64_t counter = m_deviceCounter.fetch_add( 1 );
 	DeviceEnums::DeviceIdentifier identifier = BuildIdentifier(
 		controller, counter, buttons, axes, triggerAxes, switches,
-		buttonPositions, axisPositions, triggerAxisPositions, switchPositions );
+		buttonElements, axisElements, triggerAxisElements, switchElements );
 
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
