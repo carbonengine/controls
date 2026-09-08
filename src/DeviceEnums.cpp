@@ -20,13 +20,13 @@ const char* ToKeyString( InputElementDescriptor element )
 
 	case InputElementDescriptor::LeftShoulder:
 		return "LeftShoulder";
-	case InputElementDescriptor::LeftTrigger:
+	case InputElementDescriptor::LeftTriggerButton:
 		return "LeftTrigger";
 	case InputElementDescriptor::LeftStickButton:
 		return "LeftStickButton";
 	case InputElementDescriptor::RightShoulder:
 		return "RightShoulder";
-	case InputElementDescriptor::RightTrigger:
+	case InputElementDescriptor::RightTriggerButton:
 		return "RightTrigger";
 	case InputElementDescriptor::RightStickButton:
 		return "RightStickButton";
@@ -226,7 +226,7 @@ const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily famil
 	case InputElementDescriptor::LeftShoulder:
 		if( playstation ) return "L1";
 		return nintendo ? "L" : "LB";
-	case InputElementDescriptor::LeftTrigger:
+	case InputElementDescriptor::LeftTriggerButton:
 		if( playstation ) return "L2";
 		return nintendo ? "ZL" : "LT";
 	case InputElementDescriptor::LeftStickButton:
@@ -234,7 +234,7 @@ const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily famil
 	case InputElementDescriptor::RightShoulder:
 		if( playstation ) return "R1";
 		return nintendo ? "R" : "RB";
-	case InputElementDescriptor::RightTrigger:
+	case InputElementDescriptor::RightTriggerButton:
 		if( playstation ) return "R2";
 		return nintendo ? "ZR" : "RT";
 	case InputElementDescriptor::RightStickButton:

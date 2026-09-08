@@ -98,7 +98,7 @@ DeviceEnums::InputElementDescriptor ToElement( GameInputLabel label )
 	case GameInputLabel::GameInputLabelXboxLeftTrigger:
 	case GameInputLabel::GameInputLabelLT:
 	case GameInputLabel::GameInputLabelL2:
-		return Element::LeftTrigger;
+		return Element::LeftTriggerButton;
 	case GameInputLabel::GameInputLabelXboxLeftStickButton:
 	case GameInputLabel::GameInputLabelLSB:
 	case GameInputLabel::GameInputLabelL3:
@@ -111,7 +111,7 @@ DeviceEnums::InputElementDescriptor ToElement( GameInputLabel label )
 	case GameInputLabel::GameInputLabelXboxRightTrigger:
 	case GameInputLabel::GameInputLabelRT:
 	case GameInputLabel::GameInputLabelR2:
-		return Element::RightTrigger;
+		return Element::RightTriggerButton;
 	case GameInputLabel::GameInputLabelXboxRightStickButton:
 	case GameInputLabel::GameInputLabelRSB:
 	case GameInputLabel::GameInputLabelR3:
@@ -252,6 +252,8 @@ DeviceEnums::InputElementDescriptor ToNeutralElement( GameInputLabel label )
 	}
 }
 
+
+
 // Hardware families are resolved from the USB vendor ID rather than from the labels the
 // driver reports, so the same controller yields the same glyph flavour regardless of how
 // the OS chose to describe it.
@@ -280,10 +282,6 @@ DeviceEnums::DeviceFamily GetDeviceFamily( uint16_t vendorId )
 // actually has - even a generic pad reports a layout - so the published button list is
 // built from that mask instead of a hard-coded set. Entries are emitted in this order and
 // ReadDeviceState samples the same order, keeping indices aligned.
-//
-// The D-pad bits are deliberately absent: the D-pad is published as a switch, so listing
-// it here as well would duplicate the element. The thumbstick direction bits are absent
-// for the same reason - they are derived from the stick axes.
 struct GamepadButtonMapping
 {
 	GameInputGamepadButtons mask;
@@ -303,14 +301,19 @@ constexpr GamepadButtonMapping GAMEPAD_BUTTONS[] = {
 	{ GameInputGamepadZ, DeviceEnums::InputElementDescriptor::Unknown },
 	{ GameInputGamepadLeftShoulder, DeviceEnums::InputElementDescriptor::LeftShoulder },
 	{ GameInputGamepadRightShoulder, DeviceEnums::InputElementDescriptor::RightShoulder },
-	{ GameInputGamepadLeftTriggerButton, DeviceEnums::InputElementDescriptor::LeftTrigger },
-	{ GameInputGamepadRightTriggerButton, DeviceEnums::InputElementDescriptor::RightTrigger },
+	{ GameInputGamepadLeftTriggerButton, DeviceEnums::InputElementDescriptor::LeftTriggerButton },
+	{ GameInputGamepadRightTriggerButton, DeviceEnums::InputElementDescriptor::RightTriggerButton },
 	{ GameInputGamepadLeftThumbstick, DeviceEnums::InputElementDescriptor::LeftStickButton },
 	{ GameInputGamepadRightThumbstick, DeviceEnums::InputElementDescriptor::RightStickButton },
 	{ GameInputGamepadPaddleLeft1, DeviceEnums::InputElementDescriptor::PaddleLeft1 },
 	{ GameInputGamepadPaddleLeft2, DeviceEnums::InputElementDescriptor::PaddleLeft2 },
 	{ GameInputGamepadPaddleRight1, DeviceEnums::InputElementDescriptor::PaddleRight1 },
-	{ GameInputGamepadPaddleRight2, DeviceEnums::InputElementDescriptor::PaddleRight2 } };
+	{ GameInputGamepadPaddleRight2, DeviceEnums::InputElementDescriptor::PaddleRight2 },
+	{ GameInputGamepadDPadDown, DeviceEnums::InputElementDescriptor::DPadDown },
+	{ GameInputGamepadDPadUp, DeviceEnums::InputElementDescriptor::DPadUp },
+	{ GameInputGamepadDPadLeft, DeviceEnums::InputElementDescriptor::DPadLeft },
+	{ GameInputGamepadDPadRight, DeviceEnums::InputElementDescriptor::DPadRight }
+};
 
 // The subset of GAMEPAD_BUTTONS the device actually exposes, in publication order.
 std::vector<GameInputGamepadButtons> GetGamepadButtonMasks( GameInputGamepadButtons supportedLayout )
@@ -327,184 +330,16 @@ std::vector<GameInputGamepadButtons> GetGamepadButtonMasks( GameInputGamepadButt
 	return masks;
 }
 
-// Appends the vendor-specific extras a gamepad-view device declares through
-// GameInputGamepadInfo::extraButtonCount / extraAxisCount.
-//
-// The extras have no gamepad-view representation, so they are only reachable through the
-// raw controller view, where they follow the standard layout and therefore occupy the
-// trailing entries of the raw arrays.
-//
-// Raw labels are unreliable on gamepad-view devices and regularly repeat a label the
-// standard layout already covers (an extra reporting LSB/RSB, for example). Such an extra
-// is not a separate control, so it is dropped entirely rather than published a second
-// time. The raw indices of the extras that survive are reported back so ReadDeviceState
-// can sample exactly those, keeping state indices aligned with the published elements.
-void AppendExtraElements(
-	const GameInputLabel* labels,
-	uint32_t totalCount,
-	uint32_t extraCount,
-	std::vector<DeviceEnums::InputElementDescriptor>& elements,
-	std::vector<uint32_t>* extraIndices )
+DeviceEnums::InputElementDescriptor GetGamepadButtonDescriptor( GameInputGamepadButtons buttonMask )
 {
-	if( extraCount == 0 || extraCount > totalCount )
+	for( const auto& mapping : GAMEPAD_BUTTONS )
 	{
-		return;
-	}
-
-	const uint32_t firstExtra = totalCount - extraCount;
-	for( uint32_t i = 0; i < extraCount; ++i )
-	{
-		const uint32_t rawIndex = firstExtra + i;
-		const auto element = labels ? ToElement( labels[rawIndex] ) : DeviceEnums::InputElementDescriptor::Unknown;
-		if( element != DeviceEnums::InputElementDescriptor::Unknown &&
-			std::find( elements.begin(), elements.end(), element ) != elements.end() )
+		if( mapping.mask == buttonMask )
 		{
-			continue;
-		}
-
-		elements.push_back( element );
-		if( extraIndices )
-		{
-			extraIndices->push_back( rawIndex );
+			return mapping.element;
 		}
 	}
-}
-
-void GetButtonIdentifiers(
-	const GameInputControllerInfo* info,
-	const GameInputGamepadInfo* gamepadInfo,
-	std::vector<DeviceEnums::InputElementDescriptor>& buttonElements,
-	std::vector<uint32_t>* extraButtonIndices = nullptr )
-{
-	buttonElements.clear();
-	if( extraButtonIndices )
-	{
-		extraButtonIndices->clear();
-	}
-
-	// Same reasoning as GetAxisIdentifiers: when the device exposes a gamepad view the raw
-	// controller buttons carry no trustworthy labels (a DualSense reports GameInputLabelNone
-	// for most of them), so the gamepad view is the sole source of button identity when it
-	// is available.
-	if( gamepadInfo )
-	{
-		for( const auto& mapping : GAMEPAD_BUTTONS )
-		{
-			if( ( gamepadInfo->supportedLayout & mapping.mask ) == 0 )
-			{
-				continue;
-			}
-
-			// Identity is the slot itself; the glyph the driver reports is irrelevant and
-			// is re-derived from the device family at display time.
-			buttonElements.push_back( mapping.element );
-		}
-
-		AppendExtraElements(
-			info ? info->controllerButtonLabels : nullptr,
-			info ? info->controllerButtonCount : 0,
-			gamepadInfo->extraButtonCount,
-			buttonElements,
-			extraButtonIndices );
-		return;
-	}
-
-	if( !info )
-	{
-		return;
-	}
-
-	const GameInputLabel* labels = info->controllerButtonLabels;
-	if( !labels )
-	{
-		return;
-	}
-	const uint32_t buttonCount = info->controllerButtonCount;
-	buttonElements.reserve( buttonCount );
-
-	for( uint32_t i = 0; i < buttonCount; ++i )
-	{
-		buttonElements.push_back( ToElement( labels[i] ) );
-	}
-}
-
-void GetAxisIdentifiers(
-	const GameInputControllerInfo* info,
-	const GameInputGamepadInfo* gamepadInfo,
-	std::vector<DeviceEnums::InputElementDescriptor>& axisElements,
-	std::vector<uint32_t>* extraAxisIndices = nullptr )
-{
-	axisElements.clear();
-	if( extraAxisIndices )
-	{
-		extraAxisIndices->clear();
-	}
-
-	// Gamepad-capable devices are described by the gamepad view rather than by the raw
-	// controller axes. GameInput makes no guarantee that the raw axis ordering matches the
-	// GameInputGamepadState field ordering - on a DualSense it does not - so inferring roles
-	// from raw axis indices produces both unmapped and duplicated axes. Emit the documented
-	// GameInputGamepadState ordering instead; ReadDeviceState fills these by field.
-	if( gamepadInfo )
-	{
-		axisElements = {
-			DeviceEnums::InputElementDescriptor::LeftStickX,
-			DeviceEnums::InputElementDescriptor::LeftStickY,
-			DeviceEnums::InputElementDescriptor::RightStickX,
-			DeviceEnums::InputElementDescriptor::RightStickY,
-			DeviceEnums::InputElementDescriptor::LeftTriggerAxis,
-			DeviceEnums::InputElementDescriptor::RightTriggerAxis };
-
-		AppendExtraElements(
-			info ? info->controllerAxisLabels : nullptr,
-			info ? info->controllerAxisCount : 0,
-			gamepadInfo->extraAxisCount,
-			axisElements,
-			extraAxisIndices );
-		return;
-	}
-
-	if( !info )
-	{
-		return;
-	}
-	const GameInputLabel* labels = info->controllerAxisLabels;
-	if( !labels )
-	{
-		return;
-	}
-
-	const uint32_t axisCount = info->controllerAxisCount;
-	axisElements.reserve( axisCount );
-	for( uint32_t i = 0; i < axisCount; ++i )
-	{
-		// Without a gamepad view the only trustworthy source of meaning is the label itself.
-		// A trigger label in the axis dimension denotes the analog travel, not the digital
-		// button, so it is remapped to the corresponding axis element.
-		auto element = ToElement( labels[i] );
-		if( element == DeviceEnums::InputElementDescriptor::LeftTrigger )
-		{
-			element = DeviceEnums::InputElementDescriptor::LeftTriggerAxis;
-		}
-		else if( element == DeviceEnums::InputElementDescriptor::RightTrigger )
-		{
-			element = DeviceEnums::InputElementDescriptor::RightTriggerAxis;
-		}
-		axisElements.push_back( element );
-	}
-}
-
-void GetSwitchIdentifiers(
-	const GameInputControllerInfo* info,
-	std::vector<DeviceEnums::InputElementDescriptor>& switchElements )
-{
-	switchElements.clear();
-	if( !info )
-	{
-		return;
-	}
-
-	switchElements.assign( info->controllerSwitchCount, DeviceEnums::InputElementDescriptor::DPad );
+	return DeviceEnums::InputElementDescriptor::Unknown;
 }
 
 // Events::SwitchPosition is defined to mirror GameInputSwitchPosition value-for-value so the
@@ -520,13 +355,227 @@ static_assert( static_cast<uint32_t>( Events::SwitchPosition::DownLeft ) == Game
 static_assert( static_cast<uint32_t>( Events::SwitchPosition::Left ) == GameInputSwitchLeft, "SwitchPosition::Left must match GameInputSwitchLeft" );
 static_assert( static_cast<uint32_t>( Events::SwitchPosition::UpLeft ) == GameInputSwitchUpLeft, "SwitchPosition::UpLeft must match GameInputSwitchUpLeft" );
 
-Events::SwitchPosition MapSwitchPosition( GameInputSwitchPosition position )
+}
+
+namespace ButtonHandling
 {
-	if( position < GameInputSwitchCenter || position > GameInputSwitchUpLeft )
+std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* info, const GameInputGamepadInfo* gamepadInfo )
+{
+	std::vector<ButtonSource> buttonSources;
+	if( !info )
 	{
-		return Events::SwitchPosition::Center;
+		return buttonSources;
 	}
-	return static_cast<Events::SwitchPosition>( position );
+	auto totalCount = info->controllerButtonCount;
+	auto startIndex = 0;
+	buttonSources.reserve( totalCount );
+
+	if( gamepadInfo )
+	{
+		const auto masks = Mapping::GetGamepadButtonMasks( gamepadInfo->supportedLayout );
+		for( const auto mask : masks )
+		{
+			ButtonHandling::ButtonSource source = {};
+			source.kind = ButtonHandling::ButtonSource::Kind::GamepadMask;
+			source.mask = mask;
+			source.descriptor = Mapping::GetGamepadButtonDescriptor( mask );
+			buttonSources.push_back( source );
+		}
+
+		startIndex = totalCount - gamepadInfo->extraButtonCount;
+	}
+
+	for( uint32_t rawIndex = startIndex; rawIndex < totalCount; ++rawIndex )
+	{
+		ButtonHandling::ButtonSource source = {};
+		source.kind = ButtonHandling::ButtonSource::Kind::RawIndex;
+		source.rawIndex = rawIndex;
+		source.descriptor = Mapping::ToElement( info->controllerButtonLabels[rawIndex] );
+
+		// extraButtonCount only says how many extras exist, not where they sit in the raw
+		// array. When the tail still carries a control the gamepad view already covers,
+		// publishing it again would emit the same element twice.
+		if( source.descriptor != DeviceEnums::InputElementDescriptor::Unknown &&
+			std::any_of( buttonSources.begin(), buttonSources.end(), [&source]( const ButtonSource& existing ) {
+				return existing.descriptor == source.descriptor;
+			} ) )
+		{
+			continue;
+		}
+
+		buttonSources.push_back( source );
+	}
+	return buttonSources;
+}
+
+Events::Button Handle( const ButtonSource& source, const GameInputGamepadState& gamepadState, const bool* rawButtons, uint32_t buttonCount )
+{
+	Events::Button button;
+	button.descriptor = source.descriptor;
+	switch( source.kind )
+	{
+	case ButtonSource::Kind::GamepadMask:
+		button.pressed = ( gamepadState.buttons & source.mask ) != 0;
+		break;
+	case ButtonSource::Kind::RawIndex:
+		if( source.rawIndex < buttonCount )
+		{
+			button.pressed = rawButtons[source.rawIndex];
+		}
+		break;
+	default:
+		break;
+	}
+	return button;
+}
+}
+
+namespace AxisHandling
+{
+std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* info, const GameInputGamepadInfo* gamepadInfo )
+{
+	std::vector<AxisSource> axisSources;
+	if( !info )
+	{
+		return axisSources;
+	}
+	auto totalCount = info->controllerAxisCount;
+	auto startIndex = 0;
+	axisSources.reserve( totalCount );
+	
+	if( gamepadInfo )
+	{
+		// The gamepad view has a fixed ordering of axes that ReadDeviceState samples by field.
+		// Extras have no gamepad-view representation and are only reachable through the raw
+		// controller view, at the indices GetAxisIdentifiers published.
+
+		// if we are using a gamepad, then we will get 6 axis (left stick x/y, right stick x/y, left trigger, right trigger)
+		for( uint32_t i = 0; i < 6; ++i )
+		{
+			AxisHandling::AxisSource source = {};
+			source.kind = AxisHandling::AxisSource::Kind::GamepadField;
+			switch( i )
+			{
+			case 0:
+				source.descriptor = DeviceEnums::InputElementDescriptor::LeftStickX;
+				break;
+			case 1:
+				source.descriptor = DeviceEnums::InputElementDescriptor::LeftStickY;
+				break;
+			case 2:
+				source.descriptor = DeviceEnums::InputElementDescriptor::RightStickX;
+				break;
+			case 3:
+				source.descriptor = DeviceEnums::InputElementDescriptor::RightStickY;
+				break;
+			case 4:
+				source.descriptor = DeviceEnums::InputElementDescriptor::LeftTriggerAxis;
+				break;
+			case 5:
+				source.descriptor = DeviceEnums::InputElementDescriptor::RightTriggerAxis;
+				break;
+			default:
+				break;
+			}
+			axisSources.push_back( source );
+		}
+		startIndex = totalCount - gamepadInfo->extraAxisCount;
+	}
+	for( uint32_t rawIndex = startIndex; rawIndex < totalCount; ++rawIndex )
+	{
+		AxisHandling::AxisSource source = {};
+		source.kind = AxisHandling::AxisSource::Kind::RawIndex;
+		source.rawIndex = rawIndex;
+		source.descriptor = Mapping::ToElement( info->controllerAxisLabels[rawIndex] );
+
+		// Same reasoning as the buttons: an extra axis that resolves to an element the
+		// gamepad view already publishes must not be emitted a second time.
+		if( source.descriptor != DeviceEnums::InputElementDescriptor::Unknown &&
+			std::any_of( axisSources.begin(), axisSources.end(), [&source]( const AxisSource& existing ) {
+				return existing.descriptor == source.descriptor;
+			} ) )
+		{
+			continue;
+		}
+
+		axisSources.push_back( source );
+	}
+	return axisSources;
+}
+
+Events::Axis Handle( const AxisSource& source, const GameInputGamepadState& gamepadState, const float* rawAxes, uint32_t axisCount )
+{
+	Events::Axis axis;
+	axis.descriptor = source.descriptor;
+	switch( source.kind )
+	{
+	case AxisSource::Kind::GamepadField:
+		switch( source.descriptor )
+		{
+		case DeviceEnums::InputElementDescriptor::LeftStickX:
+			axis.value = gamepadState.leftThumbstickX;
+			break;
+		case DeviceEnums::InputElementDescriptor::LeftStickY:
+			axis.value = gamepadState.leftThumbstickY;
+			break;
+		case DeviceEnums::InputElementDescriptor::RightStickX:
+			axis.value = gamepadState.rightThumbstickX;
+			break;
+		case DeviceEnums::InputElementDescriptor::RightStickY:
+			axis.value = gamepadState.rightThumbstickY;
+			break;
+		case DeviceEnums::InputElementDescriptor::LeftTriggerAxis:
+			axis.value = gamepadState.leftTrigger;
+			break;
+		case DeviceEnums::InputElementDescriptor::RightTriggerAxis:
+			axis.value = gamepadState.rightTrigger;
+			break;
+		default:
+			break;
+		}
+		break;
+	case AxisSource::Kind::RawIndex:
+		if( source.rawIndex < axisCount )
+		{
+			axis.value = rawAxes[source.rawIndex];
+		}
+		break;
+	default:
+		break;
+	}
+	return axis;
+}
+}
+
+namespace SwitchHandling
+{
+std::vector<uint32_t> GetSwitchSources( const GameInputControllerInfo* info )
+{
+	std::vector<uint32_t> switchSources;
+	switchSources.reserve( info->controllerSwitchCount );
+	for( uint32_t i = 0; i < static_cast<uint32_t>( info->controllerSwitchCount ); ++i )
+	{
+		switchSources.push_back( i );
+	}
+	return switchSources;
+}
+
+Events::Switch Handle( const uint32_t& sourceIndex, const GameInputSwitchPosition* rawSwitches, uint32_t switchCount )
+{
+	Events::Switch sw;
+	if( sourceIndex < switchCount )
+	{
+		const auto position = rawSwitches[sourceIndex];
+		if( position < GameInputSwitchCenter || position > GameInputSwitchUpLeft )
+		{
+			sw.position = Events::SwitchPosition::Center;
+		}
+		else
+		{
+			sw.position = static_cast<Events::SwitchPosition>( position );
+		}
+	}
+	return sw;
 }
 }
 
@@ -662,7 +711,8 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 				slot->device = device;
 			}
 			slot->pendingRemoval = false;
-			ConfigureGamepadSlot( *slot, device );
+			ConfigureDeviceSlot( *slot, device );
+			identifier = slot->identifier;
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' reconnected", identifier.name.c_str() );
 		}
 		else
@@ -672,7 +722,10 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 				false,
 				identifier
 			};
-			ConfigureGamepadSlot( slot, device );
+			ConfigureDeviceSlot( slot, device );
+			// ConfigureDeviceSlot rewrites the element lists to match what will
+			// actually be published, so the callback must see the configured copy.
+			identifier = slot.identifier;
 
 			std::unique_lock<std::shared_mutex> lock( self->m_deviceMutex );
 			self->m_deviceSlots.push_back( std::move( slot ) );
@@ -877,18 +930,6 @@ DeviceEnums::DeviceIdentifier InputHandlerWin::GetIdentifier( IGameInputDevice* 
 	identifier.rumbleCapacity.hasRightTriggerRumble = hasRightTrigger;
 
 	identifier.rumbleCapacity.rumbleMotorCount = hasLowFreq + hasHighFreq + hasLeftTrigger + hasRightTrigger;
-	// The gamepad view, when present, describes buttons and axes; the controller view is
-	// still the source for switches and for devices without a gamepad view.
-	const bool supportsGamepad = ( info->supportedInput & GameInputKind::GameInputKindGamepad ) != 0;
-	const GameInputGamepadInfo* gamepadInfo = supportsGamepad ? info->gamepadInfo : nullptr;
-
-	Mapping::GetButtonIdentifiers( info->controllerInfo, gamepadInfo, identifier.buttonElements );
-	Mapping::GetAxisIdentifiers( info->controllerInfo, gamepadInfo, identifier.axisElements );
-
-	if( info->controllerInfo != nullptr )
-	{
-		Mapping::GetSwitchIdentifiers( info->controllerInfo, identifier.switchElements );
-	}
 
 	return identifier;
 }
@@ -912,47 +953,70 @@ bool InputHandlerWin::SupportsGamepad( IGameInputDevice* device )
 	return ( info->supportedInput & GameInputKind::GameInputKindGamepad ) != 0 && info->gamepadInfo != nullptr;
 }
 
-std::vector<GameInputGamepadButtons> InputHandlerWin::GetGamepadButtonMasks( IGameInputDevice* device )
+void InputHandlerWin::ConfigureDeviceSlot( DeviceSlot& slot, IGameInputDevice* device )
 {
+	slot.buttonSources.clear();
+	slot.axisSources.clear();
+	slot.switchSources.clear();
+	// The published element lists are rebuilt below. On a reconnect the slot still carries
+	// the previous run's entries, which would otherwise be appended to instead of replaced.
+	slot.identifier.buttonElements.clear();
+	slot.identifier.axisElements.clear();
+	slot.identifier.switchElements.clear();
+	slot.needsGamepadState = false;
+	slot.needsRawButtons = false;
+	slot.needsRawAxes = false;
+	slot.needsRawSwitches = false;
+	slot.supportsGamepad = SupportsGamepad( device );
+
 	if( !device )
 	{
-		return {};
+		return;
 	}
 
 	const GameInputDeviceInfo* info = nullptr;
 	device->GetDeviceInfo( &info );
-	if( info == nullptr || info->gamepadInfo == nullptr )
+	if( info == nullptr )
 	{
-		return {};
+		return;
 	}
 
-	return Mapping::GetGamepadButtonMasks( info->gamepadInfo->supportedLayout );
-}
+	const GameInputGamepadInfo* gamepadInfo = slot.supportsGamepad ? info->gamepadInfo : nullptr;
+	const GameInputControllerInfo* controllerInfo = info->controllerInfo;
 
-void InputHandlerWin::ConfigureGamepadSlot( DeviceSlot& slot, IGameInputDevice* device )
-{
-	slot.supportsGamepad = SupportsGamepad( device );
-	slot.gamepadButtonMasks = GetGamepadButtonMasks( device );
-	slot.extraButtonIndices.clear();
-	slot.extraAxisIndices.clear();
+	// --- Buttons -----------------------------------------------------------
+	slot.buttonSources = ButtonHandling::GetButtonSources( controllerInfo, gamepadInfo );
 
+	// --- Axes --------------------------------------------------------------
+	slot.axisSources = AxisHandling::GetAxisSources( controllerInfo, gamepadInfo );
+
+	// if we have a gamepad, then the dpad buttons are handled as buttons, not switches. Otherwise, the dpad is handled as a switch.
 	if( !slot.supportsGamepad )
 	{
-		return;
+		// --- Switches -----------------------------------------------------------
+		slot.switchSources = SwitchHandling::GetSwitchSources( controllerInfo );
 	}
 
-	const GameInputDeviceInfo* info = nullptr;
-	device->GetDeviceInfo( &info );
-	if( info == nullptr || info->gamepadInfo == nullptr )
+	// --- Reading requirements ----------------------------------------------
+	// Decided once here so ReadDeviceState never has to work out which views to
+	// fetch for a given reading.
+	for( const auto& source : slot.buttonSources )
 	{
-		return;
+		slot.needsGamepadState |= source.kind == ButtonHandling::ButtonSource::Kind::GamepadMask;
+		slot.needsRawButtons |= source.kind == ButtonHandling::ButtonSource::Kind::RawIndex;
+		slot.identifier.buttonElements.push_back( source.descriptor );
 	}
-
-	// Re-run the identifier builders purely for their extra-index output so the sampled raw
-	// indices are exactly the ones whose elements were published.
-	std::vector<DeviceEnums::InputElementDescriptor> elements;
-	Mapping::GetButtonIdentifiers( info->controllerInfo, info->gamepadInfo, elements, &slot.extraButtonIndices );
-	Mapping::GetAxisIdentifiers( info->controllerInfo, info->gamepadInfo, elements, &slot.extraAxisIndices );
+	for( const auto& source : slot.axisSources )
+	{
+		slot.needsGamepadState |= source.kind == AxisHandling::AxisSource::Kind::GamepadField;
+		slot.needsRawAxes |= source.kind == AxisHandling::AxisSource::Kind::RawIndex;
+		slot.identifier.axisElements.push_back( source.descriptor );
+	}
+	for( const auto& sourceIndex : slot.switchSources )
+	{
+		slot.identifier.switchElements.push_back( DeviceEnums::InputElementDescriptor::DPad );
+	}
+	slot.needsRawSwitches = !slot.switchSources.empty();
 }
 
 void InputHandlerWin::RegisterForDeviceAdded( DeviceChangedCallback callback )
@@ -966,10 +1030,13 @@ void InputHandlerWin::RegisterForDeviceRemoved( DeviceChangedCallback callback )
 }
 
 // ---------------------------------------------------------------------------
-// ReadDeviceState  â€“  get the most recent reading for a device
+// ReadDeviceState - get the most recent reading for a device
 // ---------------------------------------------------------------------------
 Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot )
 {
+	// Pure execution of the slot's extraction plan. Every layout question was
+	// answered once in ConfigureDeviceSlot, so nothing here inspects device
+	// capabilities or element descriptors.
 	Events::State state = {};
 
 	if( !reading )
@@ -979,141 +1046,56 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, cons
 
 	state.timestamp = Events::GetTimestamp();
 
-	// convert the GameInputReading into our internal State representation
-	auto buttonCount = reading->GetControllerButtonCount();
-	auto axisCount = reading->GetControllerAxisCount();
-	auto switchCount = reading->GetControllerSwitchCount();
-
+	// retrieve the needed gamepad and controller information
 	GameInputGamepadState gamepadState = {};
-	const bool hasGamepadState = slot.supportsGamepad && reading->GetGamepadState( &gamepadState );
-
-	// Readings from the generic controller views are needed for extra buttons
-	// if the device exposes a gamepad view and has "extra buttons"
-	// and for all buttons if it does not.
-	auto genericButtonReading = std::make_unique<bool[]>( buttonCount );
-	if( buttonCount > 0 && ( !hasGamepadState || !slot.extraButtonIndices.empty() ) )
+	if( slot.needsGamepadState )
 	{
-		reading->GetControllerButtonState( buttonCount, genericButtonReading.get() );
-	}
-
-	// Same for axes
-	auto genericAxisReading = std::make_unique<float[]>( axisCount );
-	if( axisCount > 0 && ( !hasGamepadState || !slot.extraAxisIndices.empty() ) )
-	{
-		reading->GetControllerAxisState( axisCount, genericAxisReading.get() );
-	}
-
-
-	if( hasGamepadState )
-	{
-		// Matches the elements GetButtonIdentifiers published for this device: the buttons
-		// GameInputGamepadInfo::supportedLayout advertises, in the same order.
-		state.buttons.resize( slot.gamepadButtonMasks.size() );
-		for( size_t index = 0; index < slot.gamepadButtonMasks.size(); ++index )
+		if( !reading->GetGamepadState( &gamepadState ) )
 		{
-			state.buttons[index].descriptor = slot.identifier.buttonElements[index];
-			state.buttons[index].index = static_cast<uint32_t>(index);
-			state.buttons[index].pressed = ( gamepadState.buttons & slot.gamepadButtonMasks[index] ) != 0;
-		}
-
-		// The extras have no gamepad-view representation; they live in the raw controller view
-		// at the indices GetButtonIdentifiers actually published.
-		if( !slot.extraButtonIndices.empty() && buttonCount > 0 )
-		{
-			for( uint32_t rawIndex : slot.extraButtonIndices )
-			{
-				Events::Button extra = {};
-				extra.descriptor = slot.identifier.buttonElements[rawIndex];
-				extra.index = rawIndex;
-				extra.pressed = rawIndex < buttonCount && genericButtonReading[rawIndex] != 0;
-				state.buttons.push_back( extra );
-			}
-		}
-	}
-	else if( buttonCount > 0 )
-	{
-		state.buttons.resize( buttonCount );
-		for( uint32_t index = 0; index < buttonCount; ++index )
-		{
-			state.buttons[index].descriptor = slot.identifier.buttonElements[index];
-			state.buttons[index].index = static_cast<uint32_t>( index );
-			state.buttons[index].pressed = genericButtonReading[index] != 0;
+			return state;
 		}
 	}
 
-	// Raw controller axes are normalized to the HID logical range, so a centered stick
-	// reads 0.5 rather than 0.0, and the raw ordering does not necessarily match the
-	// gamepad field ordering. The gamepad view uses the documented GameInputGamepadState
-	// convention (-1..1 for sticks with right/up positive, 0..1 for triggers), so when the
-	// device exposes one it is the sole source of axis data and the order matches the
-	// six elements GetAxisIdentifiers published for this device.
-	if( hasGamepadState )
+	const uint32_t buttonCount = slot.needsRawButtons ? reading->GetControllerButtonCount() : 0;
+	auto rawButtons = std::make_unique<bool[]>( buttonCount );
+	if( slot.needsRawButtons )
 	{
-		state.axis.resize( axisCount );
-
-		for( uint32_t index = 0; index < axisCount; ++index )
-		{
-			Events::Axis axis = {};
-			auto descriptor = slot.identifier.axisElements[index];
-			axis.descriptor = descriptor;
-			axis.index = index;
-			switch( descriptor )
-			{
-			case DeviceEnums::InputElementDescriptor::LeftStickX:
-				axis.value = gamepadState.leftThumbstickX;
-				break;
-			case DeviceEnums::InputElementDescriptor::LeftStickY:
-				axis.value = gamepadState.leftThumbstickY;
-				break;
-			case DeviceEnums::InputElementDescriptor::RightStickX:
-				axis.value = gamepadState.rightThumbstickX;
-				break;
-			case DeviceEnums::InputElementDescriptor::RightStickY:
-				axis.value = gamepadState.rightThumbstickY;
-				break;
-			case DeviceEnums::InputElementDescriptor::LeftTriggerAxis:
-				axis.value = gamepadState.leftTrigger;
-				break;
-			case DeviceEnums::InputElementDescriptor::RightTriggerAxis:
-				axis.value = gamepadState.rightTrigger;
-				break;
-			case DeviceEnums::InputElementDescriptor::Unknown:
-				axis.value = genericAxisReading[index];
-				break;
-			default:
-				CCP_LOGERR( "InputHandlerWin: Unexpected axis descriptor %d for device '%s'", DeviceEnums::ToKeyString( descriptor ), slot.identifier.name.c_str() );
-				break;
-			}
-			state.axis[index] = axis;
-		}
-	}
-	else if( axisCount > 0 )
-	{
-		state.axis.resize( axisCount );
-		for( uint32_t index = 0; index < axisCount; ++index )
-		{
-			Events::Axis axis = {};
-			auto descriptor = slot.identifier.axisElements[index];
-			axis.descriptor = descriptor;
-			axis.index = index;
-			axis.value = genericAxisReading[index];
-			state.axis[index] = axis;
-		}
+		reading->GetControllerButtonState( buttonCount, rawButtons.get() );
 	}
 
+	const uint32_t axisCount = slot.needsRawAxes ? reading->GetControllerAxisCount() : 0;
+	auto rawAxes = std::make_unique<float[]>( axisCount );
+	if( slot.needsRawAxes )
+	{
+		reading->GetControllerAxisState( axisCount, rawAxes.get() );
+	}
+
+	const uint32_t switchCount = slot.needsRawSwitches ? reading->GetControllerSwitchCount() : 0;
+	auto rawSwitches = std::make_unique<GameInputSwitchPosition[]>( switchCount );
 	if( switchCount > 0 )
 	{
-		auto switchReading = std::make_unique<GameInputSwitchPosition[]>( switchCount );
-		state.switches.resize( switchCount );
-		reading->GetControllerSwitchState( switchCount, switchReading.get() );
-		for( uint32_t index = 0; index < state.switches.size(); ++index )
-		{
-			Events::Switch sw = {};
-			sw.descriptor = slot.identifier.switchElements[index];
-			sw.index = index;
-			sw.position = Mapping::MapSwitchPosition( switchReading[index] );
-			state.switches[index] = sw;
-		}
+		reading->GetControllerSwitchState( switchCount, rawSwitches.get() );
+	}
+
+	// handle the buttons
+	state.buttons.reserve( slot.buttonSources.size() );
+	for( const auto& source : slot.buttonSources )
+	{
+		state.buttons.push_back( ButtonHandling::Handle( source, gamepadState, rawButtons.get(), buttonCount ) );
+	}
+
+	// handle the axes
+	state.axis.reserve( slot.axisSources.size() );
+	for( const auto& source : slot.axisSources )
+	{
+		state.axis.push_back( AxisHandling::Handle( source, gamepadState, rawAxes.get(), axisCount ) );
+	}
+
+	// handle the switches
+	state.switches.reserve( slot.switchSources.size() );
+	for( const auto& sourceIndex : slot.switchSources )
+	{
+		state.switches.push_back( SwitchHandling::Handle( sourceIndex, rawSwitches.get(), switchCount ) );
 	}
 
 	reading->Release();
@@ -1123,7 +1105,6 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, cons
 
 void InputHandlerWin::Rumble( BlueSharedString deviceID, Events::Rumble rumble )
 {
-
 	auto deviceSlot = GetDeviceSlot( deviceID );
 
 	if( deviceSlot )

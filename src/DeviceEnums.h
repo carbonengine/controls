@@ -49,10 +49,10 @@ enum class InputElementDescriptor : uint16_t
 
     // Shoulders, triggers and stick buttons.
     LeftShoulder = 240,
-    LeftTrigger,
+    LeftTriggerButton,
     LeftStickButton,
     RightShoulder,
-    RightTrigger,
+    RightTriggerButton,
     RightStickButton,
 
     // System buttons.

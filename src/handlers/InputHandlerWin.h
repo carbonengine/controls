@@ -9,6 +9,64 @@
 #include "../events/IInputEvent.h"
 
 using namespace GameInput::v3;
+
+namespace ButtonHandling
+{
+/**
+* @brief Where a single published button is sampled from.
+*
+* Plain data: resolved once when the device connects, then walked per reading.
+*/
+struct ButtonSource
+{
+	/// @brief The reading view supplying this button.
+	enum class Kind : uint8_t
+	{
+		None, ///< Not present on this device; always reads as unpressed.
+		GamepadMask, ///< Sample the gamepad state's button mask.
+		RawIndex ///< Sample the raw controller button array.
+	};
+
+	Kind kind = Kind::None;
+	GameInputGamepadButtons mask = GameInputGamepadNone; ///< Mask to test when kind is GamepadMask.
+	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
+};
+
+std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* controllerInfo, const GameInputGamepadInfo* gamepadInfo );
+Events::Button Handle( const ButtonSource& source, const GameInputGamepadState& gamepadState, const bool* rawButtons, uint32_t buttonCount );
+}
+
+namespace AxisHandling
+{
+/**
+* @brief Where a single published axis is sampled from.
+*/
+struct AxisSource
+{
+	/// @brief The reading view supplying this axis.
+	enum class Kind : uint8_t
+	{
+		GamepadField, ///< Read a named GameInputGamepadState field.
+		RawIndex ///< Sample the raw controller axis array.
+	};
+
+	Kind kind = Kind::RawIndex;
+	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
+};
+
+std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* controllerInfo, const GameInputGamepadInfo* gamepadInfo );
+Events::Axis Handle( const AxisSource& source, const GameInputGamepadState& gamepadState );
+}
+
+namespace SwitchHandling
+{
+std::vector<uint32_t> GetSwitchSources( const GameInputControllerInfo* controllerInfo );
+Events::Switch Handle( uint32_t switchSource, const GameInputGamepadState& gamepadState );
+}
+
+
 /**
  * @brief Windows implementation of IInputHandler using the GameInput API.
  *
@@ -43,6 +101,7 @@ public:
 	/** @copydoc IInputHandler::SetBackgroundEventsEnabled() */
 	void SetBackgroundEventsEnabled( bool enabled ) override;
 private:
+
 	/**
 	 * @brief Per-device bookkeeping slot.
 	 */
@@ -54,10 +113,24 @@ private:
 		std::vector<Events::State> accumulatedStates{}; ///< States accumulated from reading callbacks, consumed by Update().
 		GameInputCallbackToken readCallbackToken = 0;  ///< Token for the registered reading callback.
 		bool supportsGamepad = false;                  ///< True when the device exposes a gamepad view, whose axis values are already correctly signed.
-		std::vector<GameInputGamepadButtons> gamepadButtonMasks{}; ///< Gamepad buttons this device supports, in the order they are published.
-		std::vector<uint32_t> extraButtonIndices{};    ///< Raw controller indices of the vendor-specific buttons published after the gamepad layout.
-		std::vector<uint32_t> extraAxisIndices{};      ///< Raw controller indices of the vendor-specific axes published after the gamepad axes.
+
+		/// @name Extraction plan
+		/// Resolved once by ConfigureDeviceSlot() when the device connects and
+		/// treated as immutable afterwards, because readings are decoded on the
+		/// GameInput callback thread. Each vector is index-aligned with the
+		/// matching identifier element list.
+		/// @{
+		std::vector<ButtonHandling::ButtonSource> buttonSources{}; ///< How to sample each published button.
+		std::vector<AxisHandling::AxisSource> axisSources{};     ///< How to sample each published axis.
+		std::vector<uint32_t> switchSources{};     ///< Raw controller switch index for each published switch.
+
+		bool needsGamepadState = false; ///< True when any source reads the gamepad view.
+		bool needsRawButtons = false;   ///< True when any source reads the raw button array.
+		bool needsRawAxes = false;      ///< True when any source reads the raw axis array.
+		bool needsRawSwitches = false;  ///< True when any source reads the raw switch array.
+		/// @}
 	};
+
 
 	/**
 	 * @brief Finds a device slot by device ID string.
@@ -80,9 +153,13 @@ private:
 
 	/**
 	 * @brief Reads the current hardware state from a single GameInput reading.
+	 *
+	 * Walks the slot's precomputed extraction plan; no layout decisions are made
+	 * here, so the cost per reading is proportional to the published element count.
+	 *
 	 * @param reading The GameInput reading to process.
-	 * @param slot The device slot the reading belongs to, supplying the gamepad
-	 * capability and the resolved axis roles.
+	 * @param slot The device slot the reading belongs to, supplying the resolved
+	 * extraction plan.
 	 * @return An Events::State snapshot populated from the reading.
 	 */
 	Events::State ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot );
@@ -121,22 +198,17 @@ private:
 	static bool SupportsGamepad( IGameInputDevice* device );
 
 	/**
-	 * @brief Returns the gamepad buttons a device supports, in publication order.
+	 * @brief Resolves the device's fixed extraction plan and publishes matching identifiers.
 	 *
-	 * Derived from GameInputGamepadInfo::supportedLayout, so the list matches the button
-	 * identifiers published for the device and can be used to sample the button mask.
+	 * Builds slot.buttonPlan, slot.axisPlan and slot.switchPlan from the device's
+	 * layout information, normalizes a button-reported DPad into a single switch,
+	 * and rewrites the identifier element lists so they stay index-aligned with
+	 * the states ReadDeviceState() will emit. Called once per device connection.
 	 *
-	 * @param device The GameInput device, may be null.
-	 * @return The supported button masks, or an empty list if the device has no gamepad view.
-	 */
-	static std::vector<GameInputGamepadButtons> GetGamepadButtonMasks( IGameInputDevice* device );
-
-	/**
-	 * @brief Fills the gamepad-view fields of a slot from the device's layout information.
-	 * @param slot The slot to configure.
+	 * @param slot The slot to configure; its identifier must already be populated.
 	 * @param device The GameInput device, may be null.
 	 */
-	static void ConfigureGamepadSlot( DeviceSlot& slot, IGameInputDevice* device );
+	static void ConfigureDeviceSlot( DeviceSlot& slot, IGameInputDevice* device );
 
 	mutable std::shared_mutex m_deviceMutex;  ///< Protects m_deviceSlots.
 	mutable std::shared_mutex m_readingMutex; ///< Protects per-device accumulated readings.
