@@ -3,7 +3,7 @@
 namespace
 {
 
-Be::VarChooser InputElementChooser[] = {
+Be::VarChooser InputElementDescriptorChooser[] = {
 	{ "Unknown", BeCast( DeviceEnums::InputElementDescriptor::Unknown ), "Unknown" },
 	{ "FaceSouth", BeCast( DeviceEnums::InputElementDescriptor::FaceSouth ), "FaceSouth" },
 	{ "FaceEast", BeCast( DeviceEnums::InputElementDescriptor::FaceEast ), "FaceEast" },
@@ -95,7 +95,7 @@ Be::VarChooser InputElementChooser[] = {
 	{ "IconWheelUpDown", BeCast( DeviceEnums::InputElementDescriptor::IconWheelUpDown ), "IconWheelUpDown" },
 	{ 0 }
 };
-BLUE_REGISTER_ENUM_EX( "InputElement", DeviceEnums::InputElementDescriptor, InputElementChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
+BLUE_REGISTER_ENUM_EX( "InputElementDescriptor", DeviceEnums::InputElementDescriptor, InputElementDescriptorChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
 }
 
 BLUE_DEFINE( InputElement );
@@ -104,7 +104,7 @@ const Be::ClassInfo* InputElement::ExposeToBlue()
 {
 	EXPOSURE_BEGIN( InputElement, "Input Element" )
 		MAP_INTERFACE( InputElement )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "element", m_element, "The canonical element identifier for this input element", Be::READ | Be::ENUM, InputElementChooser )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "element", m_element, "The canonical element identifier for this input element", Be::READ | Be::ENUM, InputElementDescriptorChooser )
 		MAP_ATTRIBUTE( "index", m_index, "The index of this input element in the device's element array", Be::READ )
 	EXPOSURE_END()
 }
