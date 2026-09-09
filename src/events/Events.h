@@ -114,6 +114,25 @@ struct Rumble
 };
 
 /**
+ * @brief Assigns the disambiguating index for an input element.
+ *
+ * Named elements are uniquely identified by their descriptor alone, so they always
+ * get index 0. Only Unknown elements need an index to tell them apart; they are
+ * numbered from 0 in publication order via @p unknownCounter.
+ *
+ * Must be used by both the DeviceIdentifier element list and the per-reading state
+ * snapshot so the two agree on what index means.
+ *
+ * @param descriptor The element's descriptor.
+ * @param unknownCounter Running count of Unknown elements published so far; incremented when used.
+ * @return The index to publish for this element.
+ */
+inline uint32_t AssignElementIndex( DeviceEnums::InputElementDescriptor descriptor, uint32_t& unknownCounter )
+{
+    return descriptor == DeviceEnums::InputElementDescriptor::Unknown ? unknownCounter++ : 0;
+}
+
+/**
  * @brief Returns the current timestamp in microseconds.
  * @return Current steady-clock time in microseconds since epoch.
  */

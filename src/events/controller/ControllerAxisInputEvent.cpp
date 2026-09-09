@@ -6,17 +6,18 @@ ControllerAxisInputEvent::ControllerAxisInputEvent( IRoot* lockobj )
 
 bool ControllerAxisInputEvent::Match( const Events::State& state )
 {
-	if( m_input )
+	if( m_attached && state.axis.size() > 0 )
 	{
-		auto element = m_input->GetElement();
-		auto index = m_input->GetIndex();
-		auto it = std::find_if( state.axis.begin(), state.axis.end(), [element, index]( const Events::Axis& axis ) {
-			return axis.descriptor == element && axis.index == index;
+		auto it = std::find_if( state.axis.begin(), state.axis.end(), [&]( const Events::Axis& axis ) {
+			return axis.descriptor == m_element && axis.index == m_index;
 		} );
+
 		if( it == state.axis.end() )
 		{
-			return false; // axis not found
+			CCP_LOGERR( "ControllerAxisInputEvent::Match: Could not find axis state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
+			return false;
 		}
+
 		const auto& axis = *it;
 
 		if( axis.matched )
@@ -41,11 +42,20 @@ bool ControllerAxisInputEvent::Match( const Events::State& state )
 
 void ControllerAxisInputEvent::Own( Events::State& state )
 {
-	auto element = m_input->GetElement();
-	auto index = m_input->GetIndex();
-	auto it = std::find_if( state.axis.begin(), state.axis.end(), [element, index]( const Events::Axis& axis ) {
-		return axis.descriptor == element && axis.index == index;
+	if( !m_attached )
+	{
+		CCP_LOGERR( "ControllerAxisInputEvent::Own: Cannot own axis state because no input element is attached." );
+		return;
+	}
+	auto it = std::find_if( state.axis.begin(), state.axis.end(), [&]( const Events::Axis& axis ) {
+		return axis.descriptor == m_element && axis.index == m_index;
 	} );
+
+	if( it == state.axis.end() )
+	{
+		CCP_LOGERR( "ControllerAxisInputEvent::Own: Could not find axis state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
+		return;
+	}
 
 	auto& axis = *it;
 
@@ -54,8 +64,11 @@ void ControllerAxisInputEvent::Own( Events::State& state )
 	axis.matched = true;
 }
 
-void ControllerAxisInputEvent::SetInput( InputElement* input )
+void ControllerAxisInputEvent::AttachTo( const InputElement* input )
 {
+	m_attached = false;
+	m_element = DeviceEnums::InputElementDescriptor::Unknown;
+	m_index = 0;
 	// check if the input is valid and is an axis
 	if( input )
 	{
@@ -77,11 +90,8 @@ void ControllerAxisInputEvent::SetInput( InputElement* input )
 			CCP_LOGERR( "ControllerAxisInputEvent::SetInput: Invalid input element for axis: %s. Ignoring the assignment", DeviceEnums::ToKeyString( element ) );
 			return;
 		}
+		m_attached = true;
+		m_element = element;
+		m_index = input->GetIndex();
 	}
-	m_input = input;
-}
-
-InputElement* ControllerAxisInputEvent::GetInput() const
-{
-	return m_input;
 }

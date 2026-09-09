@@ -370,6 +370,10 @@ std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* info,
 	auto startIndex = 0;
 	buttonSources.reserve( totalCount );
 
+	// Named buttons are identified by descriptor alone; only Unknown buttons are numbered,
+	// counted across both views so the sequence matches the published element list.
+	uint32_t unknownCount = 0;
+
 	if( gamepadInfo )
 	{
 		const auto masks = Mapping::GetGamepadButtonMasks( gamepadInfo->supportedLayout );
@@ -379,6 +383,7 @@ std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* info,
 			source.kind = ButtonHandling::ButtonSource::Kind::GamepadMask;
 			source.mask = mask;
 			source.descriptor = Mapping::GetGamepadButtonDescriptor( mask );
+			source.elementIndex = Events::AssignElementIndex( source.descriptor, unknownCount );
 			buttonSources.push_back( source );
 		}
 
@@ -403,6 +408,8 @@ std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* info,
 			continue;
 		}
 
+		// Assigned after the skip so a dropped duplicate does not consume an index.
+		source.elementIndex = Events::AssignElementIndex( source.descriptor, unknownCount );
 		buttonSources.push_back( source );
 	}
 	return buttonSources;
@@ -412,6 +419,7 @@ Events::Button Handle( const ButtonSource& source, const GameInputGamepadState& 
 {
 	Events::Button button;
 	button.descriptor = source.descriptor;
+	button.index = source.elementIndex;
 	switch( source.kind )
 	{
 	case ButtonSource::Kind::GamepadMask:
@@ -477,6 +485,7 @@ std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* info, con
 			default:
 				break;
 			}
+			source.rawIndex = i;
 			axisSources.push_back( source );
 		}
 		startIndex = totalCount - gamepadInfo->extraAxisCount;
@@ -507,6 +516,7 @@ Events::Axis Handle( const AxisSource& source, const GameInputGamepadState& game
 {
 	Events::Axis axis;
 	axis.descriptor = source.descriptor;
+	axis.index = source.rawIndex;
 	switch( source.kind )
 	{
 	case AxisSource::Kind::GamepadField:
@@ -563,6 +573,7 @@ std::vector<uint32_t> GetSwitchSources( const GameInputControllerInfo* info )
 Events::Switch Handle( const uint32_t& sourceIndex, const GameInputSwitchPosition* rawSwitches, uint32_t switchCount )
 {
 	Events::Switch sw;
+	sw.index = sourceIndex;
 	if( sourceIndex < switchCount )
 	{
 		const auto position = rawSwitches[sourceIndex];

@@ -30,6 +30,7 @@ struct ButtonSource
 	Kind kind = Kind::None;
 	GameInputGamepadButtons mask = GameInputGamepadNone; ///< Mask to test when kind is GamepadMask.
 	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
+	uint32_t elementIndex = 0; ///< Published index; only Unknown descriptors are numbered, everything else is 0.
 	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
 };
 

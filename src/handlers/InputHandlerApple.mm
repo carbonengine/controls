@@ -650,10 +650,17 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 			const auto buttonCount = rawSlot->buttons.size();
 			if( buttonCount > 0 )
 			{
+				const auto& buttonElements = rawSlot->identifier.buttonElements;
+				uint32_t unknownCount = 0;
 				state.buttons.resize( buttonCount );
 				for( NSUInteger i = 0; i < buttonCount; ++i )
 				{
 					GCControllerButtonInput* b = rawSlot->buttons[i];
+					const auto descriptor = i < buttonElements.size()
+						? buttonElements[i]
+						: DeviceEnums::InputElementDescriptor::Unknown;
+					state.buttons[i].descriptor = descriptor;
+					state.buttons[i].index = Events::AssignElementIndex( descriptor, unknownCount );
 					state.buttons[i].pressed = b.isPressed ? true : false;
 				}
 			}

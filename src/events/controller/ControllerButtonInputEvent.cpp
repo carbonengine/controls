@@ -6,13 +6,17 @@ ControllerButtonInputEvent::ControllerButtonInputEvent( IRoot* lockobj )
 
 bool ControllerButtonInputEvent::Match( const Events::State& state )
 {
-	if( m_input )
+	if( m_attached && state.buttons.size() > 0 )
 	{
-		auto element = m_input->GetElement();
-		auto index = m_input->GetIndex();
-		auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [element, index]( const Events::Button& button ) {
-			return button.descriptor == element && button.index == index;
+		auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [&]( const Events::Button& button ) {
+			return button.descriptor == m_element && button.index == m_index;
 		} );
+
+		if( it == state.buttons.end() )
+		{
+			CCP_LOGERR( "ControllerButtonInputEvent::Match: Could not find button state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
+			return false;
+		}
 
 		auto button = *it;
 		if( button.matched )
@@ -55,17 +59,31 @@ bool ControllerButtonInputEvent::Match( const Events::State& state )
 
 void ControllerButtonInputEvent::Own( Events::State& state )
 {
-	auto element = m_input->GetElement();
-	auto index = m_input->GetIndex();
-	auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [element, index]( const Events::Button& button ) {
-		return button.descriptor == element && button.index == index;
+	if( !m_attached )
+	{
+		CCP_LOGERR( "ControllerButtonInputEvent::Own: Cannot own button state because no input element is attached." );
+		return;
+	}
+	auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [&]( const Events::Button& button ) {
+		return button.descriptor == m_element && button.index == m_index;
 	} );
+
+	if( it == state.buttons.end() )
+	{
+		CCP_LOGERR( "ControllerButtonInputEvent::Own: Could not find button state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
+		return;
+	}
+
 	auto& button = *it;
 	button.matched = true;
 }
 
-void ControllerButtonInputEvent::SetInput( InputElement* input )
+void ControllerButtonInputEvent::AttachTo( const InputElement* input )
 {
+	m_attached = false;
+	m_element = DeviceEnums::InputElementDescriptor::Unknown;
+	m_index = 0;
+
 	// check if the input is valid and is an axis
 	if( input )
 	{
@@ -87,11 +105,9 @@ void ControllerButtonInputEvent::SetInput( InputElement* input )
 			// everything else is valid
 			break;
 		}
-	}
-	m_input = input;
-}
 
-InputElement* ControllerButtonInputEvent::GetInput() const
-{
-	return m_input;
+		m_element = element;
+		m_index = input->GetIndex();
+		m_attached = true;
+	}
 }

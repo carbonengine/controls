@@ -38,11 +38,12 @@ void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
 	m_deviceIdentifier = identifier;
 
+	uint32_t unknownButtons = 0;
 	for( uint32_t i = 0; i < identifier.buttonElements.size(); ++i )
 	{
 		InputElementPtr button;
 		button.CreateInstance();
-		button->Initialize( identifier.buttonElements[i], i );
+		button->Initialize( identifier.buttonElements[i], Events::AssignElementIndex( identifier.buttonElements[i], unknownButtons ) );
 		m_buttons.Append( button );
 	}
 

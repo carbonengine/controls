@@ -37,7 +37,7 @@ enum class DeviceFamily : uint8_t
  *
  * @warning Game clients may use this for mapping/localization etc. Be careful when changing these values.
  */
-enum class InputElementDescriptor : uint16_t
+enum class InputElementDescriptor : uint32_t
 {
     Unknown = 0,
 

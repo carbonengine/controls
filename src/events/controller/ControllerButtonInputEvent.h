@@ -36,13 +36,14 @@ public:
 	 */
 	void Own( Events::State& state ) override;
 	
-	void SetInput( InputElement * input );
-	InputElement* GetInput() const;
+	void AttachTo( const InputElement* input );
 
 private:
-	InputElement* m_input; ///< The input element to monitor.
-	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
+	DeviceEnums::InputElementDescriptor m_element{ DeviceEnums::InputElementDescriptor::Unknown }; ///< Input element to monitor for switch position changes.
+	uint32_t m_index{ 0 }; ///< Index of the input element in the device's element array.
+	bool m_attached{ false }; ///< Whether the input element has been attached to a physical input.
 
+	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
 	bool m_previouslyPressed = false;          ///< Whether the button was pressed on the previous update.
 	uint64_t m_previousStateChangeTimestamp = 0; ///< Timestamp of the last press/release transition.
 };

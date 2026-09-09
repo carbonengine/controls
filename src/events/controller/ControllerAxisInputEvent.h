@@ -35,12 +35,15 @@ public:
 	 */
 	void Own( Events::State& state ) override;
 
-	void SetInput( InputElement * input );
-	InputElement* GetInput() const;
+	void AttachTo( const InputElement* input );
 
 private:
 	bool m_initialized = false; ///< Whether the initial axis value has been captured.
-	InputElement* m_input; ///< The input element to monitor.
+
+	DeviceEnums::InputElementDescriptor m_element{ DeviceEnums::InputElementDescriptor::Unknown }; ///< Input element to monitor for switch position changes.
+	uint32_t m_index{ 0 }; ///< Index of the input element in the device's element array.
+	bool m_attached{ false }; ///< Whether the input element has been attached to a physical input.
+
 	float m_value = 0.0f; ///< Last known axis value.
 	float m_delta = 0.0f;       ///< Change since last update.
 };
