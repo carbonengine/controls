@@ -16,23 +16,12 @@ public:
 
 	EXPOSE_TO_BLUE();
 
-	/**
-	 * @brief Constructs a ControllerSwitchInputEvent.
-	 * @param lockobj Optional parent lock object for thread safety.
-	 */
 	ControllerSwitchInputEvent( IRoot* lockobj = nullptr );
 
-	/**
-	 * @brief Tests whether the configured switch is in the target position.
-	 * @param state The current device state.
-	 * @return true if the switch position matches, false otherwise.
-	 */
+	/** @copydoc IInputEvent::Match() */
 	bool Match( const Events::State& state ) override;
 
-	/**
-	 * @brief Marks the matched switch as owned and stores the current position.
-	 * @param state The device state to modify.
-	 */
+	/** @copydoc IInputEvent::Own() */
 	void Own( Events::State& state ) override;
 
 	void AttachTo( const InputElement* input );

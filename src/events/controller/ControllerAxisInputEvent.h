@@ -16,24 +16,13 @@ BLUE_CLASS( ControllerAxisInputEvent ) :
 public:
 	EXPOSE_TO_BLUE();
 
-	/**
-	 * @brief Constructs a ControllerAxisInputEvent.
-	 * @param lockobj Optional parent lock object for thread safety.
-	 */
 	ControllerAxisInputEvent( IRoot* lockobj = nullptr );
 
-	/**
-	 * @brief Tests whether the configured axis has changed beyond the threshold.
-	 * @param state The current device state.
-	 * @return true if the axis value changed significantly, false otherwise.
-	 */
+	/** @copydoc IInputEvent::Match() */
 	bool Match( const Events::State& state ) override;
 
-	/**
-	 * @brief Marks the matched axis as owned and updates the stored value and delta.
-	 * @param state The device state to modify.
-	 */
-	void Own( Events::State& state ) override;
+	/** @copydoc IInputEvent::Own() */
+	void Own( Events::State & state ) override;
 
 	void AttachTo( const InputElement* input );
 

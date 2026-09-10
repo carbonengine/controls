@@ -17,23 +17,12 @@ public:
 
 	EXPOSE_TO_BLUE();
 
-	/**
-	 * @brief Constructs a ControllerButtonInputEvent.
-	 * @param lockobj Optional parent lock object for thread safety.
-	 */
 	ControllerButtonInputEvent( IRoot* lockobj = nullptr );
 
-	/**
-	 * @brief Tests whether the configured button has reached the target ButtonState.
-	 * @param state The current device state.
-	 * @return true if the button matches the configured event state, false otherwise.
-	 */
+	/** @copydoc IInputEvent::Match() */
 	bool Match( const Events::State& state ) override;
 
-	/**
-	 * @brief Marks the matched button as owned in the device state.
-	 * @param state The device state to modify.
-	 */
+	/** @copydoc IInputEvent::Own() */
 	void Own( Events::State& state ) override;
 	
 	void AttachTo( const InputElement* input );
