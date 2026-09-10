@@ -635,8 +635,8 @@ InputHandlerWin::~InputHandlerWin()
 		std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
 		for( auto& slot : m_deviceSlots )
 		{
-			m_gameInput->UnregisterCallback( slot.readCallbackToken );
-			slot.device = nullptr;
+			m_gameInput->UnregisterCallback( slot->readCallbackToken );
+			slot->device = nullptr;
 		}
 	}
 
@@ -728,18 +728,17 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 		}
 		else
 		{
-			DeviceSlot slot = {
-				device,
-				false,
-				identifier
-			};
-			ConfigureDeviceSlot( slot, device );
+			auto newSlot = std::make_unique<DeviceSlot>();
+			newSlot->device = device;
+			newSlot->pendingRemoval = false;
+			newSlot->identifier = identifier;
+			ConfigureDeviceSlot( *newSlot, device );
 			// ConfigureDeviceSlot rewrites the element lists to match what will
 			// actually be published, so the callback must see the configured copy.
-			identifier = slot.identifier;
+			identifier = newSlot->identifier;
 
 			std::unique_lock<std::shared_mutex> lock( self->m_deviceMutex );
-			self->m_deviceSlots.push_back( std::move( slot ) );
+			self->m_deviceSlots.push_back( std::move( newSlot ) );
 			CCP_LOGNOTICE( "InputHandlerWin: Device '%s' connected", identifier.name.c_str() );
 		}
 		if( self->m_deviceAddedCallback )
@@ -776,9 +775,13 @@ void CALLBACK InputHandlerWin::OnDeviceRead(
 		return;
 	}
 
-	// find the device id
-	IGameInputDevice* device;
-	reading->GetDevice( &device );
+	// Take ownership of the reading reference so it is released on every exit path
+	CComPtr<IGameInputReading> ownedReading;
+	ownedReading.Attach( reading );
+
+	// find the device id. GetDevice hands back a reference, so it needs releasing too.
+	CComPtr<IGameInputDevice> device;
+	ownedReading->GetDevice( &device );
 
 	if( !device )
 	{
@@ -789,14 +792,20 @@ void CALLBACK InputHandlerWin::OnDeviceRead(
 	auto foundSlot = self->GetDeviceSlot( device );
 	if( !foundSlot )
 	{
-		reading->Release();
 		return;
 	}
 
-	auto state = self->ReadDeviceState( reading, *foundSlot );
+	auto state = self->ReadDeviceState( ownedReading, *foundSlot );
+	if( !state )
+	{
+		// An unreadable reading tells us nothing; publishing an empty snapshot would look
+		// like every element on the device had just gone neutral.
+		return;
+	}
+
 	{
 		std::unique_lock<std::shared_mutex> lock( self->m_readingMutex );
-		foundSlot->accumulatedStates.push_back( std::move( state ) );
+		foundSlot->accumulatedStates.push_back( std::move( *state ) );
 	}
 }
 
@@ -852,18 +861,18 @@ std::vector<Events::State> InputHandlerWin::Update( BlueSharedString deviceID )
 		std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
 		for( auto& slot : m_deviceSlots )
 		{
-			if( slot.pendingRemoval )
+			if( slot->pendingRemoval )
 			{
-				if( slot.device )
+				if( slot->device )
 				{
-					slot.device = nullptr;
-					slot.pendingRemoval = false;
-					if( slot.readCallbackToken != 0 )
+					slot->device = nullptr;
+					slot->pendingRemoval = false;
+					if( slot->readCallbackToken != 0 )
 					{
-						m_gameInput->UnregisterCallback( slot.readCallbackToken );
-						slot.readCallbackToken = 0;
+						m_gameInput->UnregisterCallback( slot->readCallbackToken );
+						slot->readCallbackToken = 0;
 					}
-					CCP_LOGNOTICE( "InputHandlerWin: Device '%s' final removal", slot.identifier.name.c_str() );
+					CCP_LOGNOTICE( "InputHandlerWin: Device '%s' final removal", slot->identifier.name.c_str() );
 				}
 			}
 		}
@@ -1043,18 +1052,17 @@ void InputHandlerWin::RegisterForDeviceRemoved( DeviceChangedCallback callback )
 // ---------------------------------------------------------------------------
 // ReadDeviceState - get the most recent reading for a device
 // ---------------------------------------------------------------------------
-Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot )
+std::optional<Events::State> InputHandlerWin::ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot )
 {
 	// Pure execution of the slot's extraction plan. Every layout question was
 	// answered once in ConfigureDeviceSlot, so nothing here inspects device
 	// capabilities or element descriptors.
-	Events::State state = {};
-
 	if( !reading )
 	{
-		return state;
+		return std::nullopt;
 	}
 
+	Events::State state = {};
 	state.timestamp = Events::GetTimestamp();
 
 	// retrieve the needed gamepad and controller information
@@ -1063,7 +1071,7 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, cons
 	{
 		if( !reading->GetGamepadState( &gamepadState ) )
 		{
-			return state;
+			return std::nullopt;
 		}
 	}
 
@@ -1109,8 +1117,6 @@ Events::State InputHandlerWin::ReadDeviceState( IGameInputReading* reading, cons
 		state.switches.push_back( SwitchHandling::Handle( sourceIndex, rawSwitches.get(), switchCount ) );
 	}
 
-	reading->Release();
-
 	return state;
 }
 
@@ -1135,12 +1141,12 @@ InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( BlueSharedString de
 {
 	std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
 
-	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [deviceID]( const DeviceSlot& slot ) {
-		return slot.device && slot.identifier.deviceID == deviceID;
+	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [deviceID]( const std::unique_ptr<DeviceSlot>& slot ) {
+		return slot->device && slot->identifier.deviceID == deviceID;
 	} );
 	if( it != m_deviceSlots.end() )
 	{
-		return &( *it );
+		return it->get();
 	}
 
 	return nullptr;
@@ -1150,12 +1156,12 @@ InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( CComPtr<IGameInputD
 {
 	std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
 
-	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [device]( const DeviceSlot& slot ) {
-		return slot.device == device;
+	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [device]( const std::unique_ptr<DeviceSlot>& slot ) {
+		return slot->device == device;
 	} );
 	if( it != m_deviceSlots.end() )
 	{
-		return &( *it );
+		return it->get();
 	}
 
 	return nullptr;

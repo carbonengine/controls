@@ -5,7 +5,9 @@
 #include <gameinput_v3.h>
 
 #include <array>	
+#include <memory>
 #include <mutex>
+#include <optional>
 #include "../events/IInputEvent.h"
 
 using namespace GameInput::v3;
@@ -115,12 +117,7 @@ private:
 		GameInputCallbackToken readCallbackToken = 0;  ///< Token for the registered reading callback.
 		bool supportsGamepad = false;                  ///< True when the device exposes a gamepad view, whose axis values are already correctly signed.
 
-		/// @name Extraction plan
-		/// Resolved once by ConfigureDeviceSlot() when the device connects and
-		/// treated as immutable afterwards, because readings are decoded on the
-		/// GameInput callback thread. Each vector is index-aligned with the
-		/// matching identifier element list.
-		/// @{
+	
 		std::vector<ButtonHandling::ButtonSource> buttonSources{}; ///< How to sample each published button.
 		std::vector<AxisHandling::AxisSource> axisSources{};     ///< How to sample each published axis.
 		std::vector<uint32_t> switchSources{};     ///< Raw controller switch index for each published switch.
@@ -129,7 +126,6 @@ private:
 		bool needsRawButtons = false;   ///< True when any source reads the raw button array.
 		bool needsRawAxes = false;      ///< True when any source reads the raw axis array.
 		bool needsRawSwitches = false;  ///< True when any source reads the raw switch array.
-		/// @}
 	};
 
 
@@ -161,9 +157,10 @@ private:
 	 * @param reading The GameInput reading to process.
 	 * @param slot The device slot the reading belongs to, supplying the resolved
 	 * extraction plan.
-	 * @return An Events::State snapshot populated from the reading.
+	 * @return An Events::State snapshot populated from the reading, or std::nullopt when
+	 * the reading could not be decoded and no snapshot should be published.
 	 */
-	Events::State ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot );
+	std::optional<Events::State> ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot );
 
 	/**
 	 * @brief Static callback invoked by GameInput when a device connects or disconnects.
@@ -217,7 +214,10 @@ private:
 	GameInputCallbackToken m_deviceCallbackToken = 0; ///< Token for the device status callback.
 
 	CComPtr<IGameInput> m_gameInput = nullptr;     ///< The GameInput interface.
-	std::vector<DeviceSlot> m_deviceSlots = {};     ///< All recognized devices.
+	// Held by pointer so a slot's address stays valid when the list grows. The reading
+	// callback resolves a slot on the GameInput thread and writes into it after releasing
+	// m_deviceMutex, so a reallocating vector of values would leave it writing to freed memory.
+	std::vector<std::unique_ptr<DeviceSlot>> m_deviceSlots = {};     ///< All recognized devices.
 
 	DeviceChangedCallback m_deviceAddedCallback = nullptr;   ///< Callback for device connection events.
 	DeviceChangedCallback m_deviceRemovedCallback = nullptr; ///< Callback for device disconnection events.
