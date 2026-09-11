@@ -19,7 +19,7 @@ void InputEventTrigger::Process( Events::State& state )
 		matches &= event->Match( state );
 	}
 
-	if( m_callback && matches )
+	if( matches )
 	{
 		// tag the state with the events that matched so that they won't be considered for identical events
 		for( auto& event : m_events )

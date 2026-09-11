@@ -182,3 +182,8 @@ InputDevicePtr ControlManager::FindActiveDevice( BlueSharedString deviceID ) con
 	} );
 	return foundDevice != m_activeDevices.end() ? *foundDevice : nullptr;
 }
+
+void ControlManager::SetBackgroundEventsEnabled( bool enabled )
+{
+	m_inputHandler->SetBackgroundEventsEnabled( enabled );
+}

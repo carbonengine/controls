@@ -57,6 +57,12 @@ public:
 	 */
 	void Deactivate( BlueSharedString deviceID );
 
+	/**
+	 * @brief Enables or disables background event processing for the input handlers.
+	 * @param enabled true to enable background events, false to disable.
+	 */
+	void SetBackgroundEventsEnabled( bool enabled );
+
 private:
 	/**
 	 * @brief Sets the hold-time threshold for button state transitions.
