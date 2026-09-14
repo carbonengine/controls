@@ -24,9 +24,21 @@ public:
 	/** @copydoc IInputEvent::Own() */
 	void Own( Events::State & state ) override;
 
+	/** @copydoc IInputEvent::JustMatched() */
+	bool JustMatched() override;
+
 	void AttachTo( const InputElement* input );
 
 private:
+	/**
+	 * @brief Evaluates the match condition and updates the internal tracking state.
+	 * @param state The current device state to evaluate.
+	 * @return true if the state satisfies the event condition, false otherwise.
+	 */
+	bool Evaluate( const Events::State& state );
+
+	bool m_matched{ false };           ///< Result of the most recent evaluation.
+
 	bool m_initialized = false; ///< Whether the initial axis value has been captured.
 
 	DeviceEnums::InputElementDescriptor m_element{ DeviceEnums::InputElementDescriptor::Unknown }; ///< Input element to monitor for switch position changes.

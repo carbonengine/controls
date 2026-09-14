@@ -25,6 +25,12 @@ public:
 	 * @param state The device state to mark.
 	 */
 	virtual void Own( Events::State& state ) = 0;
+
+	/**
+	 * @brief Checks whether the event has just matched since the last evaluation.
+	 * @return true if the event has just matched, false otherwise.
+	 */
+	virtual bool JustMatched( ) = 0;
 };
 BLUE_DECLARE_INTERFACE( IInputEvent );
 BLUE_DECLARE_IVECTOR( IInputEvent );

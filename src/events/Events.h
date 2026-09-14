@@ -9,7 +9,7 @@
 namespace Events
 {
 /// @brief Threshold below which axis value changes are ignored.
-const float AXIS_THRESHOLD = 0.005f;
+const float AXIS_THRESHOLD = 0.01f;
 
 /// @brief The time in microseconds after which a button state changes from Pressed to Held.
 static uint64_t g_holdTimeInMicroSeconds = 300 * 1000;

@@ -6,6 +6,18 @@ ControllerButtonInputEvent::ControllerButtonInputEvent( IRoot* lockobj )
 
 bool ControllerButtonInputEvent::Match( const Events::State& state )
 {
+	m_previouslyMatched = m_matched;
+	m_matched = Evaluate( state );
+	return m_matched;
+}
+
+bool ControllerButtonInputEvent::JustMatched()
+{
+	return m_matched && !m_previouslyMatched;
+}
+
+bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
+{
 	if( m_attached && state.buttons.size() > 0 )
 	{
 		auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [&]( const Events::Button& button ) {
@@ -19,12 +31,13 @@ bool ControllerButtonInputEvent::Match( const Events::State& state )
 		}
 
 		auto button = *it;
-		if( button.matched )
+		if( m_previousStateChangeTimestamp == 0 )
 		{
-			return false;
+			m_previousStateChangeTimestamp = state.timestamp;
 		}
 
 		bool matched = false;
+		bool isHeld = state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds;
 		switch( m_event )
 		{
 		case Events::ButtonState::Up:
@@ -34,13 +47,13 @@ bool ControllerButtonInputEvent::Match( const Events::State& state )
 			matched = button.pressed && m_previouslyPressed;
 			break;
 		case Events::ButtonState::Released:
-			matched = !button.pressed && m_previouslyPressed && ( state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds );
+			matched = !button.pressed && m_previouslyPressed && isHeld;
 			break;
 		case Events::ButtonState::Held:
-			matched = button.pressed && m_previouslyPressed && ( state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds );
+			matched = button.pressed && m_previouslyPressed && isHeld;
 			break;
 		case Events::ButtonState::Pressed:
-			matched = !button.pressed && m_previouslyPressed && ( state.timestamp - m_previousStateChangeTimestamp < Events::g_holdTimeInMicroSeconds );
+			matched = !button.pressed && m_previouslyPressed && !isHeld;
 			break;
 		default:
 			break;
@@ -51,6 +64,19 @@ bool ControllerButtonInputEvent::Match( const Events::State& state )
 			m_previousStateChangeTimestamp = state.timestamp;
 			m_previouslyPressed = button.pressed;
 		}
+
+		// another trigger already consumed this button for this state. The tracking state above is still
+		// updated so that this event does not desync from the actual button, but it cannot match.
+		if( button.matched )
+		{
+			return false;
+		}
+
+		if( matched )
+		{
+			m_currentState = m_event;
+		}
+
 
 		return matched;
 	}

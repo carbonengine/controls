@@ -113,6 +113,22 @@ void InputDevice::Update( IInputHandler* inputHandler )
 void InputDevice::UpdateState( const Events::State& state )
 {
 	m_currentState = state;
+
+	// ownership is only valid for a single evaluation pass. m_currentState is re-processed when the
+	// handler reports no new state, so stale flags would permanently block events on those elements.
+	for( auto& button : m_currentState.buttons )
+	{
+		button.matched = false;
+	}
+	for( auto& axis : m_currentState.axis )
+	{
+		axis.matched = false;
+	}
+	for( auto& switchState : m_currentState.switches )
+	{
+		switchState.matched = false;
+	}
+
 	for( const auto& trigger : m_sortedTriggers )
 	{
 		trigger->Process( m_currentState );

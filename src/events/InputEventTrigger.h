@@ -32,6 +32,9 @@ public:
 	 * All events are always evaluated (even after a mismatch) so that their
 	 * internal state (e.g. held-button timers) stays up to date.
 	 *
+	 * If this is not a repeat trigger, the callback is only invoked on the first
+	 * state that matches. The events must stop matching before it can fire again.
+	 *
 	 * @param state The current device state; matched parts will be marked as owned.
 	 */
 	void Process( Events::State& state );
@@ -45,6 +48,8 @@ public:
 private:
 	BlueScriptCallback m_callback;  ///< Script callback invoked when all events match.
 	PIInputEventVector m_events;    ///< Collection of input event conditions.
+	bool m_repeat{ false };         ///< Whether the callback fires for every matching state instead of only the first one.
+	bool m_triggered{ false };      ///< Whether the callback has fired for the currently matching combination of events.
 };
 
 TYPEDEF_BLUECLASS( InputEventTrigger );

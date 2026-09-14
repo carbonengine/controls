@@ -712,7 +712,6 @@ void CALLBACK InputHandlerWin::OnDeviceStatusChanged(
 	auto identifier = self->GetIdentifier( device );
 	if( isConnected && !wasConnected )
 	{
-		device->AddRef();
 		auto slot = self->GetDeviceSlot( identifier.deviceID );
 		if( slot )
 		{

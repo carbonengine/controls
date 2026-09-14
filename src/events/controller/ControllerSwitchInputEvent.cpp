@@ -6,6 +6,18 @@ ControllerSwitchInputEvent::ControllerSwitchInputEvent( IRoot* lockobj )
 
 bool ControllerSwitchInputEvent::Match( const Events::State& state )
 {
+	m_previouslyMatched = m_matched;
+	m_matched = Evaluate( state );
+	return m_matched;
+}
+
+bool ControllerSwitchInputEvent::JustMatched()
+{
+	return m_matched && !m_previouslyMatched;
+}
+
+bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
+{
 	if( m_attached && state.switches.size() > 0 )
 	{
 		auto it = std::find_if( state.switches.begin(), state.switches.end(), [&]( const Events::Switch& switchState ) {

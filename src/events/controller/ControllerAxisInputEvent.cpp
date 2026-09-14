@@ -6,6 +6,18 @@ ControllerAxisInputEvent::ControllerAxisInputEvent( IRoot* lockobj )
 
 bool ControllerAxisInputEvent::Match( const Events::State& state )
 {
+	m_matched = Evaluate( state );
+	return m_matched;
+}
+
+bool ControllerAxisInputEvent::JustMatched()
+{
+	// an axis only matches when its value moved past the threshold, so every match is a new event
+	return m_matched;
+}
+
+bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
+{
 	if( m_attached && state.axis.size() > 0 )
 	{
 		auto it = std::find_if( state.axis.begin(), state.axis.end(), [&]( const Events::Axis& axis ) {

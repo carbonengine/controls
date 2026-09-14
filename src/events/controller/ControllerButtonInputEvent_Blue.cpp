@@ -14,7 +14,7 @@ const Be::ClassInfo* ControllerButtonInputEvent::ExposeToBlue()
 		MAP_ATTRIBUTE( "index", m_index, "The index of the input element in the device's element array", Be::READ )
 
 		MAP_ATTRIBUTE( "previouslyPressed", m_previouslyPressed, "Whether the button was pressed on the previous update", Be::READ )
-		MAP_ATTRIBUTE( "previousStateChangeTimestamp", m_previousStateChangeTimestamp, "Timestamp of the last press/release transition", Be::READ )
+		MAP_ATTRIBUTE( "previousStateChangeTimestamp", m_previousStateChangeTimestamp, "Timestamp of the last state transition", Be::READ )
 
 		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The event to listen to", Be::READWRITE | Be::ENUM, Events::ButtonStateChooser )
 	EXPOSURE_END()
