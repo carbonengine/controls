@@ -195,8 +195,9 @@ const char* ToKeyString( InputElementDescriptor element )
 	case InputElementDescriptor::IconWheelUpDown:
 		return "IconWheelUpDown";
 
-	case InputElementDescriptor::Unknown:
 	default:
+		// Unknown elements are told apart by the index published alongside them,
+		// so callers append that; returning a pointer into a temporary here would dangle.
 		return "Unknown";
 	}
 }

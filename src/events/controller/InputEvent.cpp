@@ -1,22 +1,22 @@
-#include "ControllerAxisInputEvent.h"
+#include "InputEvent.h"
 
-ControllerAxisInputEvent::ControllerAxisInputEvent( IRoot* lockobj )
+InputEvent::InputEvent( IRoot* lockobj )
 {
 }
 
-bool ControllerAxisInputEvent::Match( const Events::State& state )
+bool InputEvent::Match( const Events::State& state )
 {
 	m_matched = Evaluate( state );
 	return m_matched;
 }
 
-bool ControllerAxisInputEvent::JustMatched()
+bool InputEvent::JustMatched()
 {
 	// an axis only matches when its value moved past the threshold, so every match is a new event
 	return m_matched;
 }
 
-bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
+bool InputEvent::Evaluate( const Events::State& state )
 {
 	if( m_attached && state.axis.size() > 0 )
 	{
@@ -24,7 +24,7 @@ bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
 
 		if( it == state.axis.end() )
 		{
-			CCP_LOGERR( "ControllerAxisInputEvent::Match: Could not find axis state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
+			CCP_LOGERR( "InputEvent::Match: Could not find axis state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
 			return false;
 		}
 
@@ -50,18 +50,18 @@ bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
 	return false;
 }
 
-void ControllerAxisInputEvent::Own( Events::State& state )
+void InputEvent::Own( Events::State& state )
 {
 	if( !m_attached )
 	{
-		CCP_LOGERR( "ControllerAxisInputEvent::Own: Cannot own axis state because no input element is attached." );
+			CCP_LOGERR( "InputEvent::Own: Cannot own axis state because no input element is attached." );
 		return;
 	}
 	auto it = state.axis.find( static_cast<uint32_t>( m_element ) + m_index );
 
 	if( it == state.axis.end() )
 	{
-		CCP_LOGERR( "ControllerAxisInputEvent::Own: Could not find axis state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
+		CCP_LOGERR( "InputEvent::Own: Could not find axis state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
 		return;
 	}
 
@@ -72,7 +72,7 @@ void ControllerAxisInputEvent::Own( Events::State& state )
 	axis.matched = true;
 }
 
-void ControllerAxisInputEvent::AttachTo( const InputElement* input )
+void InputEvent::AttachTo( const InputElement* input )
 {
 	m_attached = false;
 	m_element = DeviceEnums::InputElementDescriptor::Unknown;

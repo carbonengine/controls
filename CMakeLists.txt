@@ -49,6 +49,10 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/handlers/InputHandlerStub.h
     src/handlers/InputHandlerWin.cpp
     src/handlers/InputHandlerWin.h
+    src/handlers/InputMappingApple.h
+    src/handlers/InputMappingApple.mm
+    src/handlers/InputMappingWin.cpp
+    src/handlers/InputMappingWin.h
 )
 
 ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
@@ -136,10 +140,12 @@ set(CONTROLLER_DIAGNOSTIC_SOURCES
 if(WIN32)
     list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES
         src/handlers/InputHandlerWin.cpp
+        src/handlers/InputMappingWin.cpp
     )
 elseif(APPLE)
     list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES
         src/handlers/InputHandlerApple.mm
+        src/handlers/InputMappingApple.mm
     )
 else()
     list(APPEND CONTROLLER_DIAGNOSTIC_SOURCES

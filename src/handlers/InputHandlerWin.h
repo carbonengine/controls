@@ -4,70 +4,13 @@
 #include <Windows.h>   
 #include <gameinput_v3.h>
 
-#include <array>	
 #include <memory>
 #include <mutex>
 #include <optional>
 #include "../events/IInputEvent.h"
+#include "InputMappingWin.h"
 
 using namespace GameInput::v3;
-
-namespace ButtonHandling
-{
-/**
-* @brief Where a single published button is sampled from.
-*
-* Plain data: resolved once when the device connects, then walked per reading.
-*/
-struct ButtonSource
-{
-	/// @brief The reading view supplying this button.
-	enum class Kind : uint8_t
-	{
-		None, ///< Not present on this device; always reads as unpressed.
-		GamepadMask, ///< Sample the gamepad state's button mask.
-		RawIndex ///< Sample the raw controller button array.
-	};
-
-	Kind kind = Kind::None;
-	GameInputGamepadButtons mask = GameInputGamepadNone; ///< Mask to test when kind is GamepadMask.
-	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
-	uint32_t elementIndex = 0; ///< Published index; only Unknown descriptors are numbered, everything else is 0.
-	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
-};
-
-std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* controllerInfo, const GameInputGamepadInfo* gamepadInfo );
-Events::Button Handle( const ButtonSource& source, const GameInputGamepadState& gamepadState, const bool* rawButtons, uint32_t buttonCount );
-}
-
-namespace AxisHandling
-{
-/**
-* @brief Where a single published axis is sampled from.
-*/
-struct AxisSource
-{
-	/// @brief The reading view supplying this axis.
-	enum class Kind : uint8_t
-	{
-		GamepadField, ///< Read a named GameInputGamepadState field.
-		RawIndex ///< Sample the raw controller axis array.
-	};
-
-	Kind kind = Kind::RawIndex;
-	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
-	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
-};
-
-std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* controllerInfo, const GameInputGamepadInfo* gamepadInfo );
-Events::Axis Handle( const AxisSource& source, const GameInputGamepadState& gamepadState );
-}
-
-namespace SwitchHandling
-{
-std::vector<uint32_t> GetSwitchSources( const GameInputControllerInfo* controllerInfo );
-Events::Switch Handle( uint32_t switchSource, const GameInputGamepadState& gamepadState );
-}
 
 
 /**

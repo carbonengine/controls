@@ -20,10 +20,7 @@ bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 {
 	if( m_attached && state.switches.size() > 0 )
 	{
-		auto it = std::find_if( state.switches.begin(), state.switches.end(), [&]( const Events::Switch& switchState ) {
-			return switchState.descriptor == m_element && switchState.index == m_index;
-		} );
-
+		auto it = state.switches.find( static_cast<uint32_t>( m_element ) + m_index );
 		
 		if( it == state.switches.end() )
 		{
@@ -31,7 +28,7 @@ bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 			return false;
 		}
 
-		auto& switchState = *it;
+		auto& switchState = it->second;
 
 		return !switchState.matched && (switchState.position == m_event || m_event == Events::SwitchPosition::Any);
 	}
@@ -47,9 +44,7 @@ void ControllerSwitchInputEvent::Own( Events::State& state )
 		return;
 	}
 
-	auto it = std::find_if( state.switches.begin(), state.switches.end(), [&]( const Events::Switch& switchState ) {
-		return switchState.descriptor == m_element && switchState.index == m_index;
-	} );
+	auto it = state.switches.find( static_cast<uint32_t>( m_element ) + m_index );
 
 	if( it == state.switches.end() )
 	{
@@ -57,7 +52,7 @@ void ControllerSwitchInputEvent::Own( Events::State& state )
 		return;
 	}
 
-	auto& switchState = *it;
+	auto& switchState = it->second;
 	switchState.matched = true;
 	m_state = switchState.position;
 }

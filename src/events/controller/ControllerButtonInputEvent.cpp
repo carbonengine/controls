@@ -20,9 +20,7 @@ bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 {
 	if( m_attached && state.buttons.size() > 0 )
 	{
-		auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [&]( const Events::Button& button ) {
-			return button.descriptor == m_element && button.index == m_index;
-		} );
+		auto it = state.buttons.find( static_cast< uint32_t >( m_element ) + m_index );
 
 		if( it == state.buttons.end() )
 		{
@@ -30,7 +28,7 @@ bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 			return false;
 		}
 
-		auto button = *it;
+		auto& button = it->second;
 		if( m_previousStateChangeTimestamp == 0 )
 		{
 			m_previousStateChangeTimestamp = state.timestamp;
@@ -90,9 +88,7 @@ void ControllerButtonInputEvent::Own( Events::State& state )
 		CCP_LOGERR( "ControllerButtonInputEvent::Own: Cannot own button state because no input element is attached." );
 		return;
 	}
-	auto it = std::find_if( state.buttons.begin(), state.buttons.end(), [&]( const Events::Button& button ) {
-		return button.descriptor == m_element && button.index == m_index;
-	} );
+	auto it = state.buttons.find( static_cast<uint32_t>( m_element ) + m_index );
 
 	if( it == state.buttons.end() )
 	{
@@ -100,7 +96,7 @@ void ControllerButtonInputEvent::Own( Events::State& state )
 		return;
 	}
 
-	auto& button = *it;
+	auto& button = it->second;
 	button.matched = true;
 }
 

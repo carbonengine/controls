@@ -4,6 +4,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -23,8 +24,10 @@
 
 #ifdef __APPLE__
 #import <Foundation/Foundation.h>
+#include "../src/handlers/InputMappingApple.h"
 #include "../src/handlers/InputHandlerApple.h"
 #elif defined(WIN32)
+#include "../src/handlers/InputMappingWin.h"
 #include "../src/handlers/InputHandlerWin.h"
 #else
 #include "../src/handlers/InputHandlerStub.h"
@@ -187,6 +190,10 @@ struct ButtonLogicalTracker
 	Events::ButtonState displayed = Events::ButtonState::Up;
 };
 
+// Keyed by the same state-map key the handler publishes, so trackers stay correct for
+// devices whose element keys are not a dense 0..N range.
+using ButtonTrackerMap = std::map<uint32_t, ButtonLogicalTracker>;
+
 uint64_t NowMicros()
 {
 	return static_cast<uint64_t>(
@@ -315,37 +322,25 @@ struct RumblePulse
 	uint64_t expireUs = 0;
 };
 
-const char* NameAt( const std::vector<BlueSharedString>& names, size_t index )
+// Canonical, platform-agnostic label for an element; this is what bindings are persisted
+// against. Unknown elements are only distinguishable by their published index.
+std::string ElementLabel( DeviceEnums::InputElementDescriptor descriptor, uint32_t index )
 {
-	if( index < names.size() )
+	std::string label = DeviceEnums::ToKeyString( descriptor );
+	if( descriptor == DeviceEnums::InputElementDescriptor::Unknown )
 	{
-		return names[index].c_str();
+		label += "#" + std::to_string( index );
 	}
-	return "(unnamed)";
-}
-
-// Canonical, platform-agnostic key for an element; this is what bindings are persisted against.
-const char* KeyAt( const std::vector<DeviceEnums::InputElementDescriptor>& elements, size_t index )
-{
-	if( index < elements.size() )
-	{
-		return DeviceEnums::ToKeyString( elements[index] );
-	}
-	return "Unknown";
+	return label;
 }
 
 // The glyph the same element renders as on this device's family. Printed alongside the
 // canonical key so a mis-resolved family is immediately visible.
 const char* GlyphAt(
-	const std::vector<DeviceEnums::InputElementDescriptor>& elements,
-	size_t index,
+	const DeviceEnums::InputElementDescriptor& element,
 	DeviceEnums::DeviceFamily family )
 {
-	if( index < elements.size() )
-	{
-		return DeviceEnums::ToGlyphKeyString( elements[index], family );
-	}
-	return "Unknown";
+	return DeviceEnums::ToGlyphKeyString( element, family );
 }
 
 const char* FamilyName( DeviceEnums::DeviceFamily family )
@@ -389,7 +384,7 @@ std::string DescribeDevice( const DeviceEnums::DeviceIdentifier& id )
 void RenderState(
 	const DeviceEnums::DeviceIdentifier& id,
 	const Events::State& state,
-	const std::vector<ButtonLogicalTracker>& buttonTrackers,
+	const ButtonTrackerMap& buttonTrackers,
 	const RumblePulse ( &pulses )[4] )
 {
 	// Move cursor to top-left and clear from cursor down.
@@ -409,24 +404,44 @@ void RenderState(
 		pulses[3].value );
 
 	std::printf( "Buttons:\n" );
-	for( size_t i = 0; i < state.buttons.size(); ++i )
+	for( const auto& entry : state.buttons )
 	{
-		const Events::ButtonState logical = ( i < buttonTrackers.size() ) ? buttonTrackers[i].displayed : Events::ButtonState::Up;
+		const Events::Button& button = entry.second;
+		Events::ButtonState logical = Events::ButtonState::Up;
+		const auto tracker = buttonTrackers.find( entry.first );
+		if( tracker != buttonTrackers.end() )
+		{
+			logical = tracker->second.displayed;
+		}
 
-		std::printf( "  %2zu %-20s %-18s: %-8s\n", i, KeyAt( id.buttonElements, i ),
-			GlyphAt( id.buttonElements, i, id.family ), ButtonStateName( logical ) );
+		std::printf( "  %5u %-20s %-20s: %-8s\n",
+			entry.first,
+			ElementLabel( button.descriptor, button.index ).c_str(),
+			GlyphAt( button.descriptor, id.family ),
+			ButtonStateName( logical ) );
 	}
 
 	std::printf( "\nAxes:\n" );
-	for( size_t i = 0; i < state.axis.size(); ++i )
+	for( const auto& entry : state.axis )
 	{
-		std::printf( "  %2zu %-20s: %s %+.3f\n", i, KeyAt( id.axisElements, i ), RenderAxisBar( state.axis[i].value ).c_str(), state.axis[i].value );
+		const Events::Axis& axis = entry.second;
+		std::printf( "  %5u %-20s %-20s: %s %+.3f\n",
+			entry.first,
+			ElementLabel( axis.descriptor, axis.index ).c_str(),
+			GlyphAt( axis.descriptor, id.family ),
+			RenderAxisBar( axis.value ).c_str(),
+			axis.value );
 	}
 
 	std::printf( "\nSwitches:\n" );
-	for( size_t i = 0; i < state.switches.size(); ++i )
+	for( const auto& entry : state.switches )
 	{
-		std::printf( "  %2zu %-20s: %s\n", i, KeyAt( id.switchElements, i ), SwitchPositionName( state.switches[i].position ) );
+		const Events::Switch& switchState = entry.second;
+		std::printf( "  %5u %-20s %-20s: %s\n",
+			entry.first,
+			ElementLabel( switchState.descriptor, switchState.index ).c_str(),
+			GlyphAt( switchState.descriptor, id.family ),
+			SwitchPositionName( switchState.position ) );
 	}
 
 	std::fflush( stdout );
@@ -541,12 +556,9 @@ int main( int /*argc*/, char** /*argv*/ )
 	handler->SetDeviceActivation( chosen.deviceID, true );
 
 	Events::State latest;
-	// Initialise sizes so an empty poll still renders a stable table.
-	latest.buttons.resize( chosen.buttonElements.size() );
-	latest.axis.resize( chosen.axisElements.size() );
-	latest.switches.resize( chosen.switchElements.size() );
 
-	std::vector<ButtonLogicalTracker> buttonTrackers( chosen.buttonElements.size() );
+	// Trackers are created lazily as element keys appear in the state stream.
+	ButtonTrackerMap buttonTrackers;
 
 	RumblePulse pulses[4] = {};
 	const uint64_t pulseDurationUs = 500 * 1000;
@@ -599,13 +611,9 @@ int main( int /*argc*/, char** /*argv*/ )
 		rumble.rightTrigger = pulses[3].value;
 		handler->Rumble( chosen.deviceID, rumble );
 
-		if( buttonTrackers.size() < latest.buttons.size() )
+		for( const auto& entry : latest.buttons )
 		{
-			buttonTrackers.resize( latest.buttons.size() );
-		}
-		for( size_t i = 0; i < latest.buttons.size(); ++i )
-		{
-			UpdateButtonLogicalState( buttonTrackers[i], latest.buttons[i].pressed, nowUs );
+			UpdateButtonLogicalState( buttonTrackers[entry.first], entry.second.pressed, nowUs );
 		}
 
 		RenderState( chosen, latest, buttonTrackers, pulses );

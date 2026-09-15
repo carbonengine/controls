@@ -89,9 +89,9 @@ struct Switch
 struct State
 {
 	uint64_t timestamp = 0;            ///< Timestamp in microseconds when this state was captured.
-	std::vector<Button> buttons;       ///< Button states for all buttons on the device.
-	std::vector<Axis> axis;            ///< Axis states for all analog axes on the device.
-	std::vector<Switch> switches;      ///< Switch states for all hat/d-pad switches on the device.
+	std::map<uint32_t, Button> buttons;       ///< Button states for all buttons on the device.
+	std::map<uint32_t, Axis> axis;            ///< Axis states for all analog axes on the device.
+	std::map<uint32_t, Switch> switches;      ///< Switch states for all hat/d-pad switches on the device.
 };
 
 /**
