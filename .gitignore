@@ -34,3 +34,7 @@ CMakeUserPresets.json
 cmake-build*
 /.vs
 /.vscode
+
+### macOS ###
+# macOS Finder metadata
+**/.DS_Store
