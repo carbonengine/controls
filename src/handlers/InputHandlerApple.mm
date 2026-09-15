@@ -95,6 +95,19 @@ bool IsAnalogTriggerButton( GCControllerButtonInput* button )
 	return button.isAnalog ? YES : NO;
 }
 
+// Windows reports L2/R2 as both a digital press and an analog value; this maps the axis
+// descriptor to its button counterpart so Apple can mirror that dual representation.
+DeviceEnums::InputElementDescriptor TriggerButtonElement( DeviceEnums::InputElementDescriptor axisElement )
+{
+	using Element = DeviceEnums::InputElementDescriptor;
+	switch( axisElement )
+	{
+	case Element::LeftTriggerAxis: return Element::LeftTriggerButton;
+	case Element::RightTriggerAxis: return Element::RightTriggerButton;
+	default: return Element::Unknown;
+	}
+}
+
 BlueSharedString SharedStringFromNSString( NSString* string )
 {
 	if( string == nil )
@@ -250,6 +263,14 @@ void CollectProfileElements(
                 {
                     outTriggerAxes.push_back( button );
                     outTriggerAxisElements.push_back( element );
+                }
+                // Same physical trigger also contributes a digital press, matching Windows.
+                const DeviceEnums::InputElementDescriptor buttonElement = TriggerButtonElement( element );
+                if( buttonElement != DeviceEnums::InputElementDescriptor::Unknown &&
+                    std::find( outButtons.begin(), outButtons.end(), button ) == outButtons.end() )
+                {
+                    outButtons.push_back( button );
+                    outButtonElements.push_back( buttonElement );
                 }
             }
             else
@@ -650,17 +671,10 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 			const auto buttonCount = rawSlot->buttons.size();
 			if( buttonCount > 0 )
 			{
-				const auto& buttonElements = rawSlot->identifier.buttonElements;
-				uint32_t unknownCount = 0;
 				state.buttons.resize( buttonCount );
 				for( NSUInteger i = 0; i < buttonCount; ++i )
 				{
 					GCControllerButtonInput* b = rawSlot->buttons[i];
-					const auto descriptor = i < buttonElements.size()
-						? buttonElements[i]
-						: DeviceEnums::InputElementDescriptor::Unknown;
-					state.buttons[i].descriptor = descriptor;
-					state.buttons[i].index = Events::AssignElementIndex( descriptor, unknownCount );
 					state.buttons[i].pressed = b.isPressed ? true : false;
 				}
 			}
