@@ -36,7 +36,6 @@ bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 			m_state = switchState.position;
 			return true;
 		}
-		m_state = Events::SwitchPosition::Center;
 	}
 
 	return false;
@@ -80,7 +79,7 @@ void ControllerSwitchInputEvent::AttachTo( const InputElement* input )
 		default:
 			// everything else is invalid
 			CCP_LOGERR( "ControllerSwitchInputEvent::SetInput: Invalid input element for switch: %s. Ignoring the assignment", DeviceEnums::ToKeyString( element ) );
-			break;
+			return;
 		}
 
 		m_element = element;

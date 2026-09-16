@@ -79,15 +79,16 @@ IRootPtr ControlManager::Activate( BlueSharedString deviceID )
 void ControlManager::Deactivate( BlueSharedString deviceID )
 {
 	auto foundDevice = FindActiveDevice( deviceID );
-	if( foundDevice )
+	if( !foundDevice )
 	{
-		foundDevice->ResetRumble();
-		m_activeDevices.Remove( m_activeDevices.FindKey( foundDevice->GetRawRoot() ) );
-		CCP_LOGNOTICE( "Device %s (ID: %s) is no longer active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID().c_str() );
+		CCP_LOGWARN( "ControlManager::Deactivate called for an inactive device ID '%s'; ignoring", deviceID.c_str() );
+		return;
 	}
-	
-	CCP_LOGNOTICE( "ControlManager::Deactivate called with a device id that is not connected, ignoring" );
+
+	foundDevice->ResetRumble();
+	m_activeDevices.Remove( m_activeDevices.FindKey( foundDevice->GetRawRoot() ) );
 	m_inputHandler->SetDeviceActivation( deviceID, false );
+	CCP_LOGNOTICE( "Device %s (ID: %s) is no longer active", foundDevice->GetName().c_str(), foundDevice->GetDeviceID().c_str() );
 }
 
 void ControlManager::Update()
