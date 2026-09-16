@@ -2,6 +2,7 @@
 #include "InputMappingApple.h"
 
 #include <algorithm>
+#include <unordered_set>
 #include <utility>
 
 namespace
@@ -156,7 +157,7 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 	// An element can be reachable under several keys at once (see GCControllerElement.aliases),
 	// so track which underlying elements have already been published to dedupe by identity. This
 	// is scratch state for construction only - the sources themselves keep a key, not the element.
-	std::vector<GCControllerButtonInput*> seenButtons;
+	std::unordered_set<GCControllerButtonInput*> seenButtons;
 
 	// .buttons is an NSDictionary with undefined enumeration order; iterate a sorted key
 	// list instead so the published order is deterministic.
@@ -170,7 +171,7 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 		{
 			continue;
 		}
-		if( std::any_of( seenButtons.begin(), seenButtons.end(), [button]( GCControllerButtonInput* existing ) { return existing == button; } ) )
+		if( seenButtons.count( button ) > 0 )
 		{
 			continue;
 		}
@@ -182,10 +183,12 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 			descriptor = InputMapping::TriggerButtonElement( descriptor );
 			if( descriptor == DeviceEnums::InputElementDescriptor::Unknown )
 			{
+				// Deliberately not marking `button` seen: if it's reachable under another alias
+				// key that maps to a known descriptor, that alias should still get a chance below.
 				continue;
 			}
 		}
-		seenButtons.push_back( button );
+		seenButtons.insert( button );
 
 		ButtonSource source;
 		source.kind = ButtonSource::Kind::ProfileButton;
@@ -218,11 +221,10 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 			{
 				continue;
 			}
-			if( std::any_of( seenButtons.begin(), seenButtons.end(), [directionButton]( GCControllerButtonInput* existing ) { return existing == directionButton; } ) )
+			if( !seenButtons.insert( directionButton ).second )
 			{
 				continue;
 			}
-			seenButtons.push_back( directionButton );
 
 			ButtonSource source;
 			source.kind = ButtonSource::Kind::DpadDirection;
@@ -287,10 +289,11 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 	}
 
 	GCPhysicalInputProfile* profile = controller.physicalInputProfile;
+	uint32_t unknownCount = 0;
 
 	// Scratch state for construction only, to dedupe aliased elements by identity - see the
 	// equivalent comment in ButtonHandling::GetButtonSources.
-	std::vector<GCControllerAxisInput*> seenAxes;
+	std::unordered_set<GCControllerAxisInput*> seenAxes;
 
 	NSArray<NSString*>* axisKeys = [profile.axes.allKeys sortedArrayUsingSelector:@selector( compare: )];
 	for( NSString* key in axisKeys )
@@ -302,16 +305,16 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 		{
 			continue;
 		}
-		if( std::any_of( seenAxes.begin(), seenAxes.end(), [axis]( GCControllerAxisInput* existing ) { return existing == axis; } ) )
+		if( !seenAxes.insert( axis ).second )
 		{
 			continue;
 		}
-		seenAxes.push_back( axis );
 
 		AxisSource source;
 		source.kind = AxisSource::Kind::ProfileAxis;
 		source.key = key;
 		source.descriptor = InputMapping::ElementForKey( key );
+		source.index = Events::AssignElementIndex( source.descriptor, unknownCount );
 		sources.push_back( source );
 	}
 
@@ -326,30 +329,30 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 			continue;
 		}
 
-		if( std::none_of( seenAxes.begin(), seenAxes.end(), [dpad]( GCControllerAxisInput* existing ) { return existing == dpad.xAxis; } ) )
+		if( seenAxes.insert( dpad.xAxis ).second )
 		{
-			seenAxes.push_back( dpad.xAxis );
 			AxisSource xSource;
 			xSource.kind = AxisSource::Kind::DpadAxis;
 			xSource.key = key;
 			xSource.isXAxis = true;
 			xSource.descriptor = InputMapping::ElementForThumbstickAxis( key, true );
+			xSource.index = Events::AssignElementIndex( xSource.descriptor, unknownCount );
 			sources.push_back( xSource );
 		}
-		if( std::none_of( seenAxes.begin(), seenAxes.end(), [dpad]( GCControllerAxisInput* existing ) { return existing == dpad.yAxis; } ) )
+		if( seenAxes.insert( dpad.yAxis ).second )
 		{
-			seenAxes.push_back( dpad.yAxis );
 			AxisSource ySource;
 			ySource.kind = AxisSource::Kind::DpadAxis;
 			ySource.key = key;
 			ySource.isXAxis = false;
 			ySource.descriptor = InputMapping::ElementForThumbstickAxis( key, false );
+			ySource.index = Events::AssignElementIndex( ySource.descriptor, unknownCount );
 			sources.push_back( ySource );
 		}
 	}
 
 	// Analog trigger buttons are appended last, after the plain and thumbstick axes.
-	std::vector<GCControllerButtonInput*> seenTriggerButtons;
+	std::unordered_set<GCControllerButtonInput*> seenTriggerButtons;
 	NSArray<NSString*>* buttonKeys = [profile.buttons.allKeys sortedArrayUsingSelector:@selector( compare: )];
 	for( NSString* key in buttonKeys )
 	{
@@ -358,22 +361,17 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 		{
 			continue;
 		}
-		if( std::any_of( seenTriggerButtons.begin(), seenTriggerButtons.end(), [button]( GCControllerButtonInput* existing ) { return existing == button; } ) )
+		if( !seenTriggerButtons.insert( button ).second )
 		{
 			continue;
 		}
-		seenTriggerButtons.push_back( button );
 
 		AxisSource source;
 		source.kind = AxisSource::Kind::TriggerButton;
 		source.key = key;
 		source.descriptor = InputMapping::ElementForKey( key );
-		sources.push_back( source );
-	}
-	uint32_t unknownCount = 0;
-	for( auto& source : sources )
-	{
 		source.index = Events::AssignElementIndex( source.descriptor, unknownCount );
+		sources.push_back( source );
 	}
 	return sources;
 }
@@ -453,7 +451,7 @@ std::vector<SwitchSource> GetSwitchSources( GCController* controller )
 	GCPhysicalInputProfile* profile = controller.physicalInputProfile;
 	// Scratch state for construction only, to dedupe aliased elements by identity - see the
 	// equivalent comment in ButtonHandling::GetButtonSources.
-	std::vector<GCControllerDirectionPad*> seenDpads;
+	std::unordered_set<GCControllerDirectionPad*> seenDpads;
 	NSArray<NSString*>* dpadKeys = [profile.dpads.allKeys sortedArrayUsingSelector:@selector( compare: )];
 	for( NSString* key in dpadKeys )
 	{
@@ -464,11 +462,10 @@ std::vector<SwitchSource> GetSwitchSources( GCController* controller )
 		{
 			continue;
 		}
-		if( std::any_of( seenDpads.begin(), seenDpads.end(), [dpad]( GCControllerDirectionPad* existing ) { return existing == dpad; } ) )
+		if( !seenDpads.insert( dpad ).second )
 		{
 			continue;
 		}
-		seenDpads.push_back( dpad );
 
 		SwitchSource source;
 		source.key = key;

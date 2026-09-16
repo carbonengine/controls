@@ -122,6 +122,20 @@ private:
 	 */
 	DeviceSlot* GetDeviceSlot( GCController* controller	);
 
+	/// @brief Finds a still-pendingRemoval slot that looks like the same physical controller reconnecting
+	/// on a different transport (no GCController pointer or persistent hardware ID survives that). Caller
+	/// must hold m_deviceMutex.
+	DeviceSlot* FindRevivedSlotLocked( const DeviceEnums::DeviceIdentifier& identifier );
+
+	/// @brief Installs controller and the resolved element sources onto slot, then brings up haptics if
+	/// slot.identifier (set by the caller beforehand) reports any rumble motors. Shared by the
+	/// transport-swap-reconnect and brand-new-device paths in HandleControllerConnected. Caller must hold
+	/// m_deviceMutex.
+	void AdoptSourcesIntoSlot( DeviceSlot& slot, GCController* controller,
+		std::vector<ButtonHandling::ButtonSource> buttonSources,
+		std::vector<AxisHandling::AxisSource> axisSources,
+		std::vector<SwitchHandling::SwitchSource> switchSources );
+
 	/// @brief Installs the input-queueing depth and valueDidChangeHandler on slot.controller, marks the slot active, and seeds accumulatedStates with a snapshot of the controller's current state so a caller doesn't have to wait for the next physical change to learn where it already is. Shared by SetDeviceActivation(activate=true) and by a transport-swap reconnect that revives a slot which was active before it disconnected. Caller must hold m_deviceMutex.
 	void ActivateSlotHandler( DeviceSlot& slot );
 

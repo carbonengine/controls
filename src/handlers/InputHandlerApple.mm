@@ -6,6 +6,7 @@
 #import <CoreHaptics/CoreHaptics.h>
 
 #include <algorithm>
+#include <array>
 #include <sstream>
 #include <string>
 
@@ -13,47 +14,90 @@
 
 namespace
 {
-// Locality string for a given HapticsChannelIndex; the ordering here MUST match the enum.
-API_AVAILABLE( macos( 11.0 ) )
-GCHapticsLocality LocalityForChannel( int channel )
+// Extracts the UTF-8 message from an NSError, or a placeholder if it has none.
+const char* NSErrorMessage( NSError* error )
 {
-	switch( channel )
-	{
-	case 0: return GCHapticsLocalityLeftHandle;
-	case 1: return GCHapticsLocalityRightHandle;
-	case 2: return GCHapticsLocalityLeftTrigger;
-	case 3: return GCHapticsLocalityRightTrigger;
-	}
-	return GCHapticsLocalityDefault;
+	return error.localizedDescription.UTF8String ? error.localizedDescription.UTF8String : "(no message)";
 }
 
-// Sharpness is fixed per channel: handles feel rumbly (low sharpness), triggers snappy (high sharpness).
-float SharpnessForChannel( int channel )
+/// @brief Per-channel haptics constants, keyed by HapticsChannelIndex (free functions here take a
+/// plain int since that enum is private to InputHandlerApple).
+struct ChannelInfo
 {
-	switch( channel )
-	{
-	case 0:
-	case 1: return 0.3f;
-	case 2:
-	case 3: return 0.7f;
-	}
-	return 0.5f;
+	GCHapticsLocality locality;
+	float sharpness;                                  ///< Handles feel rumbly (low sharpness), triggers snappy (high sharpness).
+	bool DeviceEnums::RumbleCapacity::* capacityFlag; ///< Which RumbleCapacity flag this channel corresponds to.
+};
+
+// The table touches macOS-11-only symbols (GCHapticsLocality*), so - like ClearCapacityForChannel
+// below - this may only be called from behind an `@available`/early-return-guarded caller.
+API_AVAILABLE( macos( 11.0 ) )
+const ChannelInfo& InfoForChannel( int channel )
+{
+	// Ordering here MUST match HapticsChannelIndex.
+	static const std::array<ChannelInfo, 4> kChannels = { {
+		{ GCHapticsLocalityLeftHandle,   0.3f, &DeviceEnums::RumbleCapacity::hasLowFrequencyRumble },
+		{ GCHapticsLocalityRightHandle,  0.3f, &DeviceEnums::RumbleCapacity::hasHighFrequencyRumble },
+		{ GCHapticsLocalityLeftTrigger,  0.7f, &DeviceEnums::RumbleCapacity::hasLeftTriggerRumble },
+		{ GCHapticsLocalityRightTrigger, 0.7f, &DeviceEnums::RumbleCapacity::hasRightTriggerRumble },
+	} };
+	return kChannels[channel];
 }
 
 // Clears the corresponding rumble-capacity flag when a channel's engine or player fails to come up.
+API_AVAILABLE( macos( 11.0 ) )
 void ClearCapacityForChannel( DeviceEnums::RumbleCapacity& capacity, int channel )
 {
-	switch( channel )
-	{
-	case 0: capacity.hasLowFrequencyRumble = false; break;
-	case 1: capacity.hasHighFrequencyRumble = false; break;
-	case 2: capacity.hasLeftTriggerRumble = false; break;
-	case 3: capacity.hasRightTriggerRumble = false; break;
-	}
+	capacity.*( InfoForChannel( channel ).capacityFlag ) = false;
 	if( capacity.rumbleMotorCount > 0 )
 	{
 		capacity.rumbleMotorCount -= 1;
 	}
+}
+
+// Probes GCDeviceHaptics/CoreHaptics support; only reachable once we already know we're on macOS 11+.
+API_AVAILABLE( macos( 11.0 ) )
+DeviceEnums::RumbleCapacity DetectRumbleCapacityAvailable( GCController* controller, const BlueSharedString& deviceName )
+{
+	DeviceEnums::RumbleCapacity capacity;
+
+	GCDeviceHaptics* haptics = controller.haptics;
+	if( haptics == nil )
+	{
+		CCP_LOGNOTICE( "InputHandlerApple: '%s' reports no GCDeviceHaptics support", deviceName.c_str() );
+		return capacity;
+	}
+
+	NSSet<GCHapticsLocality>* localities = haptics.supportedLocalities;
+	NSMutableString* dump = [NSMutableString stringWithString:@""];
+	for( GCHapticsLocality loc in localities )
+	{
+		if( dump.length > 0 )
+		{
+			[dump appendString:@", "];
+		}
+		[dump appendString:loc];
+	}
+	CCP_LOGNOTICE( "InputHandlerApple: '%s' haptics localities: [%s]",
+		deviceName.c_str(), dump.UTF8String ? dump.UTF8String : "" );
+
+	capacity.hasLowFrequencyRumble = [localities containsObject:GCHapticsLocalityLeftHandle];
+	capacity.hasHighFrequencyRumble = [localities containsObject:GCHapticsLocalityRightHandle];
+	capacity.hasLeftTriggerRumble = [localities containsObject:GCHapticsLocalityLeftTrigger];
+	capacity.hasRightTriggerRumble = [localities containsObject:GCHapticsLocalityRightTrigger];
+	capacity.rumbleMotorCount = capacity.hasLowFrequencyRumble + capacity.hasHighFrequencyRumble
+		+ capacity.hasLeftTriggerRumble + capacity.hasRightTriggerRumble;
+	return capacity;
+}
+
+// GCDeviceHaptics + CoreHaptics are 11.0+; leave capacity zeroed on older systems or controllers without haptics.
+DeviceEnums::RumbleCapacity DetectRumbleCapacity( GCController* controller, const BlueSharedString& deviceName )
+{
+	if( @available( macOS 11.0, * ) )
+	{
+		return DetectRumbleCapacityAvailable( controller, deviceName );
+	}
+	return DeviceEnums::RumbleCapacity{};
 }
 
 // Build a DeviceIdentifier for a freshly-connected controller.
@@ -107,44 +151,7 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 		identifier.switchElements.push_back( source.descriptor );
 	}
 
-	identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
-	// GCDeviceHaptics + CoreHaptics are 11.0+; leave capacity zeroed on older systems or controllers without haptics.
-	if( @available( macOS 11.0, * ) )
-	{
-		GCDeviceHaptics* haptics = controller.haptics;
-		if( haptics == nil )
-		{
-			CCP_LOGNOTICE( "InputHandlerApple: '%s' reports no GCDeviceHaptics support",
-				identifier.name.c_str() );
-		}
-		else
-		{
-			NSSet<GCHapticsLocality>* localities = haptics.supportedLocalities;
-			NSMutableString* dump = [NSMutableString stringWithString:@""];
-			for( GCHapticsLocality loc in localities )
-			{
-				if( dump.length > 0 )
-				{
-					[dump appendString:@", "];
-				}
-				[dump appendString:loc];
-			}
-			CCP_LOGNOTICE( "InputHandlerApple: '%s' haptics localities: [%s]",
-				identifier.name.c_str(),
-				dump.UTF8String ? dump.UTF8String : "" );
-
-			const bool hasLow = [localities containsObject:GCHapticsLocalityLeftHandle];
-			const bool hasHigh = [localities containsObject:GCHapticsLocalityRightHandle];
-			const bool hasLeftTrig = [localities containsObject:GCHapticsLocalityLeftTrigger];
-			const bool hasRightTrig = [localities containsObject:GCHapticsLocalityRightTrigger];
-
-			identifier.rumbleCapacity.hasLowFrequencyRumble = hasLow;
-			identifier.rumbleCapacity.hasHighFrequencyRumble = hasHigh;
-			identifier.rumbleCapacity.hasLeftTriggerRumble = hasLeftTrig;
-			identifier.rumbleCapacity.hasRightTriggerRumble = hasRightTrig;
-			identifier.rumbleCapacity.rumbleMotorCount = hasLow + hasHigh + hasLeftTrig + hasRightTrig;
-		}
-	}
+	identifier.rumbleCapacity = DetectRumbleCapacity( controller, identifier.name );
 
 	return identifier;
 }
@@ -181,9 +188,9 @@ InputHandlerApple::~InputHandlerApple()
 				slot->controller.physicalInputProfile.valueDidChangeHandler = nil;
 			}
 			slot->controller = nil;
-            slot->buttonSources.clear();
-            slot->axisSources.clear();
-            slot->switchSources.clear();
+			slot->buttonSources.clear();
+			slot->axisSources.clear();
+			slot->switchSources.clear();
 		}
 		m_deviceSlots.clear();
 	}
@@ -243,6 +250,46 @@ void InputHandlerApple::RegisterForDeviceRemoved( DeviceChangedCallback callback
 	m_deviceRemovedCallback = callback;
 }
 
+InputHandlerApple::DeviceSlot* InputHandlerApple::FindRevivedSlotLocked( const DeviceEnums::DeviceIdentifier& identifier )
+{
+	// A controller reconnecting over a different transport (e.g. a Bluetooth-paired controller
+	// plugged in over USB) is handed to us as a brand-new GCController instance, so the caller's
+	// GCController-pointer check never matches it - the framework exposes no persistent hardware
+	// identifier to correlate the two instances. Best-effort recognize it as the same physical unit
+	// if a slot disconnected very recently (still pendingRemoval - i.e. Update() hasn't
+	// finalized/erased it yet) has the same product category and element layout, so its
+	// identity/deviceID carries over instead of showing up as a second device. This can't be exact
+	// (two identical controllers swapping at the exact same instant would be indistinguishable), and
+	// it never delays a real disconnect: once Update() finalizes a slot it's gone and a later
+	// reconnect is just a new device.
+	auto revived = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
+		[&identifier]( const std::unique_ptr<DeviceSlot>& slot ) {
+			return slot->pendingRemoval
+				&& slot->identifier.productID == identifier.productID
+				&& slot->identifier.buttonElements == identifier.buttonElements
+				&& slot->identifier.axisElements == identifier.axisElements
+				&& slot->identifier.switchElements == identifier.switchElements;
+		} );
+	return revived != m_deviceSlots.end() ? revived->get() : nullptr;
+}
+
+void InputHandlerApple::AdoptSourcesIntoSlot( DeviceSlot& slot, GCController* controller,
+	std::vector<ButtonHandling::ButtonSource> buttonSources,
+	std::vector<AxisHandling::AxisSource> axisSources,
+	std::vector<SwitchHandling::SwitchSource> switchSources )
+{
+	slot.controller = controller;
+	slot.buttonSources = std::move( buttonSources );
+	slot.axisSources = std::move( axisSources );
+	slot.switchSources = std::move( switchSources );
+
+	// Caller must have already set slot.identifier so rumbleCapacity reflects this connection.
+	if( slot.identifier.rumbleCapacity.rumbleMotorCount > 0 )
+	{
+		InitializeHapticsForSlot( slot );
+	}
+}
+
 void InputHandlerApple::HandleControllerConnected( GCController* controller )
 {
 	if( controller == nil )
@@ -276,72 +323,36 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 			( *existing )->pendingRemoval = false;
 			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected", ( *existing )->identifier.name.c_str() );
 		}
+		else if( DeviceSlot* rawSlot = FindRevivedSlotLocked( identifier ) )
+		{
+			rawSlot->pendingRemoval = false;
+
+			// Preserve the original identity so anything upstream keyed on deviceID keeps working.
+			identifier.deviceID = rawSlot->identifier.deviceID;
+			identifier.name = rawSlot->identifier.name;
+			rawSlot->identifier = identifier;
+
+			AdoptSourcesIntoSlot( *rawSlot, controller, std::move( buttonSources ), std::move( axisSources ), std::move( switchSources ) );
+
+			// The old handler died with the old GCController instance; if the caller had this device
+			// active, resume delivering events on the new instance without requiring a re-activation call.
+			if( rawSlot->active )
+			{
+				ActivateSlotHandler( *rawSlot );
+			}
+			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected on a different transport, keeping its identity",
+				rawSlot->identifier.name.c_str() );
+		}
 		else
-        {
-			// A controller reconnecting over a different transport (e.g. a Bluetooth-paired controller
-			// plugged in over USB) is handed to us as a brand-new GCController instance, so the pointer
-			// check above never matches it - the framework exposes no persistent hardware identifier to
-			// correlate the two instances. Best-effort recognize it as the same physical unit if a slot
-			// disconnected very recently (still pendingRemoval - i.e. Update() hasn't finalized/erased it
-			// yet) has the same product category and element layout, so its identity/deviceID carries over
-			// instead of showing up as a second device. This can't be exact (two identical controllers
-			// swapping at the exact same instant would be indistinguishable), and it never delays a real
-			// disconnect: once Update() finalizes a slot it's gone and a later reconnect is just a new device.
-			auto revived = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
-				[&identifier]( const std::unique_ptr<DeviceSlot>& slot ) {
-					return slot->pendingRemoval
-						&& slot->identifier.productID == identifier.productID
-						&& slot->identifier.buttonElements == identifier.buttonElements
-						&& slot->identifier.axisElements == identifier.axisElements
-						&& slot->identifier.switchElements == identifier.switchElements;
-				} );
+		{
+			auto newSlot = std::make_unique<DeviceSlot>();
+			newSlot->identifier = identifier;
+			AdoptSourcesIntoSlot( *newSlot, controller, std::move( buttonSources ), std::move( axisSources ), std::move( switchSources ) );
 
-			if( revived != m_deviceSlots.end() )
-			{
-				DeviceSlot* rawSlot = revived->get();
-				rawSlot->controller = controller;
-				rawSlot->buttonSources = std::move( buttonSources );
-				rawSlot->axisSources = std::move( axisSources );
-				rawSlot->switchSources = std::move( switchSources );
-				rawSlot->pendingRemoval = false;
-
-				// Preserve the original identity so anything upstream keyed on deviceID keeps working.
-				identifier.deviceID = rawSlot->identifier.deviceID;
-				identifier.name = rawSlot->identifier.name;
-				rawSlot->identifier = identifier;
-
-				if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
-				{
-					InitializeHapticsForSlot( *rawSlot );
-				}
-				// The old handler died with the old GCController instance; if the caller had this device
-				// active, resume delivering events on the new instance without requiring a re-activation call.
-				if( rawSlot->active )
-				{
-					ActivateSlotHandler( *rawSlot );
-				}
-				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected on a different transport, keeping its identity",
-					rawSlot->identifier.name.c_str() );
-			}
-			else
-			{
-				auto slot = std::make_unique<DeviceSlot>();
-				slot->controller = controller;
-				slot->buttonSources = std::move( buttonSources );
-				slot->axisSources = std::move( axisSources );
-				slot->switchSources = std::move( switchSources );
-				slot->identifier = identifier;
-
-				DeviceSlot* rawSlot = slot.get();
-				m_deviceSlots.push_back( std::move( slot ) );
-				if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
-				{
-					InitializeHapticsForSlot( *rawSlot );
-				}
-				addedIdentifier = rawSlot->identifier;
-				shouldFireAdded = true;
-				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' connected", rawSlot->identifier.name.c_str() );
-			}
+            addedIdentifier = newSlot->identifier;
+			m_deviceSlots.push_back( std::move( newSlot ) );
+			shouldFireAdded = true;
+			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' connected", addedIdentifier.name.c_str() );
 		}
 	}
 
@@ -603,7 +614,7 @@ void InputHandlerApple::SetBackgroundEventsEnabled( bool enabled )
 	if( enabled )
 	{
 		CCP_LOGNOTICE( "InputHandlerApple: Enabling background event monitoring" );
-        GCController.shouldMonitorBackgroundEvents = YES;
+		GCController.shouldMonitorBackgroundEvents = YES;
 	}
 	else
 	{
@@ -634,24 +645,18 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 	}
 	slot.haptics = haptics;
 
-	const bool wants[ChannelCount] = {
-		slot.identifier.rumbleCapacity.hasLowFrequencyRumble,
-		slot.identifier.rumbleCapacity.hasHighFrequencyRumble,
-		slot.identifier.rumbleCapacity.hasLeftTriggerRumble,
-		slot.identifier.rumbleCapacity.hasRightTriggerRumble,
-	};
-
 	DeviceSlot* rawSlot = &slot;
 	for( int i = 0; i < ChannelCount; ++i )
 	{
-		if( !wants[i] )
+		const ChannelInfo& info = InfoForChannel( i );
+		if( !( slot.identifier.rumbleCapacity.*( info.capacityFlag ) ) )
 		{
 			continue;
 		}
 
 		HapticsChannel& channel = slot.hapticsChannels[i];
 		NSError* err = nil;
-		channel.engine = [haptics createEngineWithLocality:LocalityForChannel( i )];
+		channel.engine = [haptics createEngineWithLocality:info.locality];
 		if( channel.engine == nil )
 		{
 			CCP_LOGWARN( "InputHandlerApple: Failed to create haptics engine for channel %d on device '%s'",
@@ -683,8 +688,7 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 			if( ![rawSlot->hapticsChannels[channelIndex].engine startAndReturnError:&restartErr] )
 			{
 				CCP_LOGWARN( "InputHandlerApple: Failed to restart engine on channel %d: %s",
-					channelIndex,
-					restartErr.localizedDescription.UTF8String ? restartErr.localizedDescription.UTF8String : "(no message)" );
+				channelIndex, NSErrorMessage( restartErr ) );
 				return;
 			}
 			// The previous player belongs to the old engine instance; drop it and force the next Rumble() to rebuild.
@@ -700,8 +704,7 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 		if( ![channel.engine startAndReturnError:&err] )
 		{
 			CCP_LOGWARN( "InputHandlerApple: Failed to start haptics engine on channel %d for device '%s': %s",
-				i, slot.identifier.name.c_str(),
-				err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+				i, slot.identifier.name.c_str(), NSErrorMessage( err ) );
 			channel.engine = nil;
 			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
 			continue;
@@ -758,7 +761,7 @@ void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIn
 	CHHapticEventParameter* intensityParam = [[CHHapticEventParameter alloc]
 		initWithParameterID:CHHapticEventParameterIDHapticIntensity value:clamped];
 	CHHapticEventParameter* sharpnessParam = [[CHHapticEventParameter alloc]
-		initWithParameterID:CHHapticEventParameterIDHapticSharpness value:SharpnessForChannel( channel )];
+		initWithParameterID:CHHapticEventParameterIDHapticSharpness value:InfoForChannel( channel ).sharpness];
 
 	// GCHapticDurationInfinite is the game-controller-safe way to hold a continuous event open until we stop it.
 	CHHapticEvent* event = [[CHHapticEvent alloc]
@@ -771,8 +774,7 @@ void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIn
 	if( pattern == nil )
 	{
 		CCP_LOGWARN( "InputHandlerApple: Failed to build haptics pattern on channel %d: %s",
-			(int)channel,
-			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+			(int)channel, NSErrorMessage( err ) );
 		return;
 	}
 
@@ -781,16 +783,14 @@ void InputHandlerApple::SendChannelIntensity( DeviceSlot& slot, HapticsChannelIn
 	if( player == nil )
 	{
 		CCP_LOGWARN( "InputHandlerApple: Failed to create player on channel %d: %s",
-			(int)channel,
-			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+			(int)channel, NSErrorMessage( err ) );
 		return;
 	}
 
 	if( ![player startAtTime:0 error:&err] )
 	{
 		CCP_LOGWARN( "InputHandlerApple: Failed to start player on channel %d: %s",
-			(int)channel,
-			err.localizedDescription.UTF8String ? err.localizedDescription.UTF8String : "(no message)" );
+			(int)channel, NSErrorMessage( err ) );
 		return;
 	}
 
