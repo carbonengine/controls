@@ -47,11 +47,12 @@ void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 		m_buttons.Append( button );
 	}
 
+	uint32_t unknownAxes = 0;
 	for( uint32_t i = 0; i < identifier.axisElements.size(); ++i )
 	{
 		InputElementPtr axis;
 		axis.CreateInstance();
-		axis->Initialize( identifier.axisElements[i], i );
+		axis->Initialize( identifier.axisElements[i], Events::AssignElementIndex( identifier.axisElements[i], unknownAxes ) );
 		m_axes.Append( axis );
 	}
 

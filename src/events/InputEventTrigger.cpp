@@ -23,7 +23,6 @@ void InputEventTrigger::Process( Events::State& state )
 
 	if( !matches )
 	{
-		m_triggered = false;
 		return;
 	}
 
@@ -42,7 +41,6 @@ void InputEventTrigger::Process( Events::State& state )
 		event->Own( state );
 	}
 
-	m_triggered = true;
 	m_callback.CallVoid( m_events.GetRawRoot() );
 }
 

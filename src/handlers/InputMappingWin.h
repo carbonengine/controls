@@ -123,6 +123,7 @@ struct AxisSource
 
 	Kind kind = Kind::RawIndex;
 	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
+	uint32_t elementIndex = 0; ///< Published index; only Unknown descriptors are numbered, everything else is 0.
 	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
 };
 

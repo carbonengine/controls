@@ -403,7 +403,11 @@ std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* info, con
 	auto totalCount = info->controllerAxisCount;
 	auto startIndex = 0;
 	axisSources.reserve( totalCount );
-	
+
+	// Named axes are identified by descriptor alone; only Unknown axes are numbered,
+	// counted across both views so the sequence matches the published element list.
+	uint32_t unknownCount = 0;
+
 	if( gamepadInfo )
 	{
 		// The gamepad view has a fixed ordering of axes that ReadDeviceState samples by field.
@@ -439,6 +443,7 @@ std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* info, con
 				break;
 			}
 			source.rawIndex = i;
+			source.elementIndex = Events::AssignElementIndex( source.descriptor, unknownCount );
 			axisSources.push_back( source );
 		}
 		startIndex = totalCount - gamepadInfo->extraAxisCount;
@@ -460,6 +465,8 @@ std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* info, con
 			continue;
 		}
 
+		// Assigned after the skip so a dropped duplicate does not consume an index.
+		source.elementIndex = Events::AssignElementIndex( source.descriptor, unknownCount );
 		axisSources.push_back( source );
 	}
 	return axisSources;
@@ -469,7 +476,7 @@ Events::Axis Handle( const AxisSource& source, const GameInputGamepadState& game
 {
 	Events::Axis axis;
 	axis.descriptor = source.descriptor;
-	axis.index = source.rawIndex;
+	axis.index = source.elementIndex;
 	switch( source.kind )
 	{
 	case AxisSource::Kind::GamepadField:

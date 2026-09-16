@@ -409,12 +409,8 @@ void InputHandlerWin::ConfigureDeviceSlot( DeviceSlot& slot, IGameInputDevice* d
 	// --- Axes --------------------------------------------------------------
 	slot.axisSources = AxisHandling::GetAxisSources( controllerInfo, gamepadInfo );
 
-	// if we have a gamepad, then the dpad buttons are handled as buttons, not switches. Otherwise, the dpad is handled as a switch.
-	if( !slot.supportsGamepad )
-	{
-		// --- Switches -----------------------------------------------------------
-		slot.switchSources = SwitchHandling::GetSwitchSources( controllerInfo );
-	}
+	// --- Switches -----------------------------------------------------------
+	slot.switchSources = SwitchHandling::GetSwitchSources( controllerInfo );
 
 	// --- Reading requirements ----------------------------------------------
 	// Decided once here so ReadDeviceState never has to work out which views to
@@ -498,19 +494,22 @@ std::optional<Events::State> InputHandlerWin::ReadDeviceState( IGameInputReading
 	// handle the buttons
 	for( const auto& source : slot.buttonSources )
 	{
-		state.buttons.insert( { static_cast<uint32_t>(source.descriptor) + source.rawIndex, ButtonHandling::Handle( source, gamepadState, rawButtons.get(), buttonCount ) } );
+		// Keyed by elementIndex (published index), matching InputDevice's element identifiers -
+		// rawIndex is only where the bit/array entry is sampled from, not how it is identified.
+		state.buttons.insert( { static_cast<uint32_t>(source.descriptor) + source.elementIndex, ButtonHandling::Handle( source, gamepadState, rawButtons.get(), buttonCount ) } );
 	}
 
 	// handle the axes
 	for( const auto& source : slot.axisSources )
 	{
-		state.axis.insert( { static_cast<uint32_t>(source.descriptor) + source.rawIndex, AxisHandling::Handle( source, gamepadState, rawAxes.get(), axisCount ) } );
+		state.axis.insert( { static_cast<uint32_t>(source.descriptor) + source.elementIndex, AxisHandling::Handle( source, gamepadState, rawAxes.get(), axisCount ) } );
 	}
 
 	// handle the switches
 	for( const auto& sourceIndex : slot.switchSources )
 	{
-		state.switches.insert( { sourceIndex, SwitchHandling::Handle( sourceIndex, rawSwitches.get(), switchCount ) } );
+		// Matches the DPad descriptor lookup key ControllerSwitchInputEvent computes.
+		state.switches.insert( { static_cast<uint32_t>( DeviceEnums::InputElementDescriptor::DPad ) + sourceIndex, SwitchHandling::Handle( sourceIndex, rawSwitches.get(), switchCount ) } );
 	}
 
 	return state;

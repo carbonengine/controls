@@ -13,12 +13,17 @@
 
 #include <array>
 
+#include "InputMappingApple.h"
+
 /**
  * @brief Apple Game Controller framework implementation of IInputHandler.
  *
  * Uses GCController for device discovery and the physicalInputProfile
  * `valueDidChangeHandler` for state accumulation. Device state snapshots
  * are pushed into a per-slot vector by the handler and consumed on Update().
+ * All GameController callbacks are routed through m_handlerQueue instead of
+ * the default main queue, so delivery doesn't depend on the host app pumping
+ * the main run loop.
  *
  * Rumble is delivered through GCDeviceHaptics + CoreHaptics: one persistent
  * looping advanced pattern player is created per supported locality on
@@ -81,10 +86,9 @@ private:
 	struct DeviceSlot
 	{
 		__strong GCController* controller = nil;                              ///< Owned reference to the underlying GCController.
-		std::vector<GCControllerButtonInput*> buttons {};            ///< Ordered digital buttons (analog triggers excluded).
-		std::vector<GCControllerAxisInput*> axes {};                 ///< Ordered analog axes.
-		std::vector<GCControllerButtonInput*> triggerAxes {};        ///< Analog trigger buttons appended after `axes` in the axis dimension.
-		std::vector<GCControllerDirectionPad*> switches {};             ///< Ordered d-pad / hat switches.
+		std::vector<ButtonHandling::ButtonSource> buttonSources {};   ///< How to sample each published button.
+		std::vector<AxisHandling::AxisSource> axisSources {};        ///< How to sample each published axis.
+		std::vector<SwitchHandling::SwitchSource> switchSources {};  ///< How to sample each published switch.
 		DeviceEnums::DeviceIdentifier identifier{};    ///< Cached device metadata.
 		std::vector<Events::State> accumulatedStates; ///< States accumulated by the value-change handler.
 		bool pendingRemoval = false;                   ///< True when a disconnect notification has fired but the slot hasn't been finalized.
@@ -131,6 +135,12 @@ private:
 
 	__strong id m_connectObserver = nil;                           ///< NSNotificationCenter observer token for connect events.
 	__strong id m_disconnectObserver = nil;                        ///< NSNotificationCenter observer token for disconnect events.
+
+	// GCController delivers connect/disconnect notifications and physicalInputProfile value changes on
+	// controller.handlerQueue, which defaults to the main queue; a host app whose main loop doesn't pump
+	// the run loop/main queue would then never receive them. Routing everything through our own serial
+	// queue makes delivery independent of the host app's run loop.
+	__strong dispatch_queue_t m_handlerQueue = nil;                ///< Serial queue GameController callbacks are delivered on.
 
 	std::atomic<uint64_t> m_deviceCounter{ 0 };                    ///< Monotonic counter used to disambiguate identical controller names.
 	bool m_initialized = false;                                    ///< Whether Initialize() has completed successfully.

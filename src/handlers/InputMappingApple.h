@@ -1,139 +1,86 @@
 #pragma once
 #ifdef __APPLE__
 #include "IInputHandler.h"
-
-#include <atomic>
-#include <memory>
-#include <mutex>
-#include <vector>
+#include "../events/IInputEvent.h"
 
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
-#import <CoreHaptics/CoreHaptics.h>
 
-#include <array>
+#include <string>
+#include <vector>
 
-/**
- * @brief Apple Game Controller framework implementation of IInputHandler.
- *
- * Uses GCController for device discovery and the physicalInputProfile
- * `valueDidChangeHandler` for state accumulation. Device state snapshots
- * are pushed into a per-slot vector by the handler and consumed on Update().
- *
- * Rumble is delivered through GCDeviceHaptics + CoreHaptics: one persistent
- * looping advanced pattern player is created per supported locality on
- * connect, and each Rumble() call updates that channel's intensity via a
- * dynamic-parameter send.
- */
-class InputHandlerApple : public IInputHandler
+namespace InputMapping
 {
-public:
-	InputHandlerApple();
-	~InputHandlerApple();
+// Apple's GCInput* dictionary keys are stable API constants, unlike localizedName which is
+// user-locale display text. Fold them to the abstract slot the control occupies; the glyph
+// flavour is a display concern, so the result matches what the Windows handler produces.
+DeviceEnums::InputElementDescriptor ElementForKey( NSString* key );
 
-	/** @copydoc IInputHandler::Initialize() */
-	bool Initialize() override;
+// Thumbstick child axes are reached through their parent d-pad element, so their identity
+// depends on which parent they came from and which component they are.
+DeviceEnums::InputElementDescriptor ElementForThumbstickAxis( NSString* parentKey, bool isXAxis );
 
-	/** @copydoc IInputHandler::RegisterForDeviceAdded() */
-	void RegisterForDeviceAdded( DeviceChangedCallback callback ) override;
+// Windows reports L2/R2 as both a digital press and an analog value; this maps the axis
+// descriptor to its button counterpart so Apple can mirror that dual representation.
+DeviceEnums::InputElementDescriptor TriggerButtonElement( DeviceEnums::InputElementDescriptor axisElement );
 
-	/** @copydoc IInputHandler::RegisterForDeviceRemoved() */
-	void RegisterForDeviceRemoved( DeviceChangedCallback callback ) override;
+// Family is resolved from the hardware's product category rather than from the element keys,
+// which Apple normalizes to Xbox-style names for every controller.
+DeviceEnums::DeviceFamily GetDeviceFamily( GCController* controller );
 
-	/** @copydoc IInputHandler::SetDeviceActivation() */
-	void SetDeviceActivation( BlueSharedString deviceId, bool activate ) override;
+// Sanitize a value so it can appear in a device ID string (strip spaces / punctuation).
+std::string SanitizeForDeviceID( NSString* input );
+}
 
-	/** @copydoc IInputHandler::Update() */
-	std::vector<Events::State> Update( BlueSharedString deviceId ) override;
-
-	/** @copydoc IInputHandler::Rumble() */
-	void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) override;
-
-	/** @copydoc IInputHandler::SetBackgroundEventsEnabled() */
-	void SetBackgroundEventsEnabled( bool enabled ) override;
-
-private:
-	/// @brief Ordinal index of a rumble channel; matches the four fields of Events::Rumble.
-	enum HapticsChannelIndex
-	{
-		LowFrequency = 0,
-		HighFrequency,
-		LeftTrigger,
-		RightTrigger,
-		ChannelCount
-	};
-
-	/// @brief Per-locality CoreHaptics state: the engine, the currently-playing basic pattern player (rebuilt on every intensity change), and the last intensity we sent.
-	struct HapticsChannel
-	{
-		__strong CHHapticEngine* engine = nil;
-		__strong id<CHHapticPatternPlayer> player = nil;
-		float lastIntensity = 0.0f;
-		bool supported = false;
-	};
-
-	/**
-	 * @brief Per-device bookkeeping slot.
-	 *
-	 * Slots are heap-allocated (unique_ptr) so raw pointers captured by
-	 * Obj-C blocks remain valid even when the containing vector reallocates.
-	 */
-	struct DeviceSlot
-	{
-		__strong GCController* controller = nil;                              ///< Owned reference to the underlying GCController.
-		std::vector<GCControllerButtonInput*> buttons {};            ///< Ordered digital buttons (analog triggers excluded).
-		std::vector<GCControllerAxisInput*> axes {};                 ///< Ordered analog axes.
-		std::vector<GCControllerButtonInput*> triggerAxes {};        ///< Analog trigger buttons appended after `axes` in the axis dimension.
-		std::vector<GCControllerDirectionPad*> switches {};             ///< Ordered d-pad / hat switches.
-		DeviceEnums::DeviceIdentifier identifier{};    ///< Cached device metadata.
-		std::vector<Events::State> accumulatedStates; ///< States accumulated by the value-change handler.
-		bool pendingRemoval = false;                   ///< True when a disconnect notification has fired but the slot hasn't been finalized.
-		bool active = false;                            ///< True when the value-change handler is installed.
-		__strong GCDeviceHaptics* haptics = nil;                        ///< Non-nil when the controller exposes any rumble locality (macOS 11+).
-		std::array<HapticsChannel, ChannelCount> hapticsChannels{};     ///< Per-channel engines/players/state, indexed by HapticsChannelIndex.
-	};
-
-	/**
-	 * @brief Handles a GCController connection notification.
-	 */
-	void HandleControllerConnected(	GCController* controller );
-
-	/**
-	 * @brief Handles a GCController disconnection notification.
-	 */
-	void HandleControllerDisconnected( GCController* controller );
-
-	/**
-	 * @brief Finds a device slot by device ID string.
-	 */
-	DeviceSlot* GetDeviceSlot( BlueSharedString deviceId );
-
-	/**
-	 * @brief Finds a device slot by GCController pointer.
-	 */
-	DeviceSlot* GetDeviceSlot( GCController* controller	);
-
-	/// @brief Brings up per-locality CoreHaptics engines and looping players; downgrades slot->identifier.rumbleCapacity on any per-channel failure.
-	void InitializeHapticsForSlot( DeviceSlot& slot );
-
-	/// @brief Stops and releases every haptics engine/player attached to the slot; safe to call on a partially-initialized or empty slot.
-	void ShutdownHapticsForSlot( DeviceSlot& slot );
-
-	/// @brief Stops the channel's current player and (if intensity > 0) creates a fresh basic player carrying the new intensity. Basic CHHapticPatternPlayer has no in-place intensity update, so we rebuild.
-	void SendChannelIntensity( DeviceSlot& slot, HapticsChannelIndex channel, float intensity );
-
-	mutable std::mutex m_deviceMutex;                              ///< Protects m_deviceSlots.
-	mutable std::mutex m_readingMutex;                             ///< Protects per-slot accumulated readings.
-	std::vector<std::unique_ptr<DeviceSlot>> m_deviceSlots;        ///< All recognized devices.
-
-	DeviceChangedCallback m_deviceAddedCallback = nullptr;         ///< Callback invoked when a device connects.
-	DeviceChangedCallback m_deviceRemovedCallback = nullptr;       ///< Callback invoked when a device disconnects.
-
-	__strong id m_connectObserver = nil;                           ///< NSNotificationCenter observer token for connect events.
-	__strong id m_disconnectObserver = nil;                        ///< NSNotificationCenter observer token for disconnect events.
-
-	std::atomic<uint64_t> m_deviceCounter{ 0 };                    ///< Monotonic counter used to disambiguate identical controller names.
-	bool m_initialized = false;                                    ///< Whether Initialize() has completed successfully.
+namespace ButtonHandling
+{
+/**
+* @brief Where a single published button is sampled from.
+*
+* Plain data: resolved once when the device connects, then walked per reading.
+*/
+struct ButtonSource
+{
+	__strong GCControllerButtonInput* button = nil; ///< The digital button element this source samples.
+	uint32_t elementIndex = 0; ///< Published index; only Unknown descriptors are numbered, everything else is 0.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
 };
+
+std::vector<ButtonSource> GetButtonSources( GCController* controller );
+Events::Button Handle( const ButtonSource& source );
+}
+
+namespace AxisHandling
+{
+/**
+* @brief Where a single published axis is sampled from.
+*/
+struct AxisSource
+{
+	__strong GCControllerAxisInput* axis = nil;           ///< Non-nil for a plain analog axis or thumbstick component.
+	__strong GCControllerButtonInput* triggerButton = nil; ///< Non-nil for an analog trigger button sampled as an axis.
+	uint32_t index = 0; ///< Published index; position within the device's axis list.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
+};
+
+std::vector<AxisSource> GetAxisSources( GCController* controller );
+Events::Axis Handle( const AxisSource& source );
+}
+
+namespace SwitchHandling
+{
+/**
+* @brief Where a single published switch is sampled from.
+*/
+struct SwitchSource
+{
+	__strong GCControllerDirectionPad* dpad = nil;
+	uint32_t index = 0; ///< Published index; position within the device's switch list.
+	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::DPad;
+};
+
+std::vector<SwitchSource> GetSwitchSources( GCController* controller );
+Events::Switch Handle( const SwitchSource& source );
+}
 
 #endif // __APPLE__

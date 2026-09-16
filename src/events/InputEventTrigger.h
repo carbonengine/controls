@@ -49,7 +49,6 @@ private:
 	BlueScriptCallback m_callback;  ///< Script callback invoked when all events match.
 	PIInputEventVector m_events;    ///< Collection of input event conditions.
 	bool m_repeat{ false };         ///< Whether the callback fires for every matching state instead of only the first one.
-	bool m_triggered{ false };      ///< Whether the callback has fired for the currently matching combination of events.
 };
 
 TYPEDEF_BLUECLASS( InputEventTrigger );

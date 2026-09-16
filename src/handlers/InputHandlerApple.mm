@@ -56,292 +56,13 @@ void ClearCapacityForChannel( DeviceEnums::RumbleCapacity& capacity, int channel
 	}
 }
 
-// Sanitize a value so it can appear in a device ID string (strip spaces / punctuation).
-std::string SanitizeForDeviceID( NSString* input )
-{
-	if( input == nil )
-	{
-		return std::string();
-	}
-	std::string result;
-	result.reserve( [input length] );
-	const char* utf8 = [input UTF8String];
-	if( utf8 == nullptr )
-	{
-		return result;
-	}
-	for( const char* c = utf8; *c != '\0'; ++c )
-	{
-		const unsigned char uc = static_cast<unsigned char>( *c );
-		if( ( uc >= 'A' && uc <= 'Z' ) || ( uc >= 'a' && uc <= 'z' ) || ( uc >= '0' && uc <= '9' ) )
-		{
-			result.push_back( static_cast<char>( uc ) );
-		}
-		else if( uc == '-' || uc == '_' )
-		{
-			result.push_back( static_cast<char>( uc ) );
-		}
-	}
-	return result;
-}
-
-// A button is treated as an analog trigger if it exposes an analog value.
-bool IsAnalogTriggerButton( GCControllerButtonInput* button )
-{
-	if( button == nil )
-	{
-		return false;
-	}
-	return button.isAnalog ? YES : NO;
-}
-
-// Windows reports L2/R2 as both a digital press and an analog value; this maps the axis
-// descriptor to its button counterpart so Apple can mirror that dual representation.
-DeviceEnums::InputElementDescriptor TriggerButtonElement( DeviceEnums::InputElementDescriptor axisElement )
-{
-	using Element = DeviceEnums::InputElementDescriptor;
-	switch( axisElement )
-	{
-	case Element::LeftTriggerAxis: return Element::LeftTriggerButton;
-	case Element::RightTriggerAxis: return Element::RightTriggerButton;
-	default: return Element::Unknown;
-	}
-}
-
-BlueSharedString SharedStringFromNSString( NSString* string )
-{
-	if( string == nil )
-	{
-		return BlueSharedString();
-	}
-
-	const char* utf8 = [string UTF8String];
-	return utf8 == nullptr ? BlueSharedString() : BlueSharedString( utf8 );
-}
-
-// Apple's GCInput* dictionary keys are stable API constants, unlike localizedName which is
-// user-locale display text. Fold them to the abstract slot the control occupies; the glyph
-// flavour is a display concern, so the result matches what the Windows handler produces.
-DeviceEnums::InputElementDescriptor ElementForKey( NSString* key )
-{
-	using Element = DeviceEnums::InputElementDescriptor;
-
-	if( key == nil )
-	{
-		return Element::Unknown;
-	}
-
-	if( [key isEqualToString:GCInputButtonA] ) return Element::FaceSouth;
-	if( [key isEqualToString:GCInputButtonB] ) return Element::FaceEast;
-	if( [key isEqualToString:GCInputButtonX] ) return Element::FaceWest;
-	if( [key isEqualToString:GCInputButtonY] ) return Element::FaceNorth;
-
-	if( [key isEqualToString:GCInputLeftShoulder] ) return Element::LeftShoulder;
-	if( [key isEqualToString:GCInputRightShoulder] ) return Element::RightShoulder;
-	if( [key isEqualToString:GCInputLeftThumbstickButton] ) return Element::LeftStickButton;
-	if( [key isEqualToString:GCInputRightThumbstickButton] ) return Element::RightStickButton;
-
-	if( [key isEqualToString:GCInputButtonMenu] ) return Element::Start;
-	if( [key isEqualToString:GCInputButtonOptions] ) return Element::Select;
-	if( [key isEqualToString:GCInputButtonHome] ) return Element::Guide;
-
-	if( [key isEqualToString:GCInputDirectionPad] ) return Element::DPad;
-
-	// Triggers are analog, so they live in the axis dimension.
-	if( [key isEqualToString:GCInputLeftTrigger] ) return Element::LeftTriggerAxis;
-	if( [key isEqualToString:GCInputRightTrigger] ) return Element::RightTriggerAxis;
-
-	if( [key isEqualToString:GCInputXboxPaddleOne] ) return Element::PaddleLeft1;
-	if( [key isEqualToString:GCInputXboxPaddleTwo] ) return Element::PaddleLeft2;
-	if( [key isEqualToString:GCInputXboxPaddleThree] ) return Element::PaddleRight1;
-	if( [key isEqualToString:GCInputXboxPaddleFour] ) return Element::PaddleRight2;
-
-	return Element::Unknown;
-}
-
-// Thumbstick child axes are reached through their parent d-pad element, so their identity
-// depends on which parent they came from and which component they are.
-DeviceEnums::InputElementDescriptor ElementForThumbstickAxis( NSString* parentKey, bool isXAxis )
-{
-	using Element = DeviceEnums::InputElementDescriptor;
-
-	if( parentKey == nil )
-	{
-		return Element::Unknown;
-	}
-	if( [parentKey isEqualToString:GCInputLeftThumbstick] )
-	{
-		return isXAxis ? Element::LeftStickX : Element::LeftStickY;
-	}
-	if( [parentKey isEqualToString:GCInputRightThumbstick] )
-	{
-		return isXAxis ? Element::RightStickX : Element::RightStickY;
-	}
-	return Element::Unknown;
-}
-
-// Family is resolved from the hardware's product category rather than from the element keys,
-// which Apple normalizes to Xbox-style names for every controller.
-DeviceEnums::DeviceFamily FamilyForController( GCController* controller )
-{
-	NSString* category = controller.productCategory;
-	if( category == nil )
-	{
-		return DeviceEnums::DeviceFamily::Generic;
-	}
-
-	if( [category containsString:@"DualSense"] ||
-		[category containsString:@"DualShock"] ||
-		[category containsString:@"PlayStation"] )
-	{
-		return DeviceEnums::DeviceFamily::PlayStation;
-	}
-	if( [category containsString:@"Xbox"] )
-	{
-		return DeviceEnums::DeviceFamily::Xbox;
-	}
-	if( [category containsString:@"Switch"] ||
-		[category containsString:@"Joy-Con"] ||
-		[category containsString:@"Nintendo"] )
-	{
-		return DeviceEnums::DeviceFamily::Nintendo;
-	}
-	return DeviceEnums::DeviceFamily::Generic;
-}
-
-Events::SwitchPosition MapDpadPosition( GCControllerDirectionPad* dpad ){
-	if( dpad == nil )
-	{
-		return Events::SwitchPosition::Center;
-	}
-
-    const bool up = dpad.up.isPressed;
-    const bool down = dpad.down.isPressed;
-    const bool right = dpad.right.isPressed;
-	const bool left = dpad.left.isPressed;
-
-	if( up && right ) return Events::SwitchPosition::UpRight;
-	if( up && left ) return Events::SwitchPosition::UpLeft;
-	if( down && right ) return Events::SwitchPosition::DownRight;
-	if( down && left ) return Events::SwitchPosition::DownLeft;
-	if( up ) return Events::SwitchPosition::Up;
-	if( down ) return Events::SwitchPosition::Down;
-	if( right ) return Events::SwitchPosition::Right;
-	if( left ) return Events::SwitchPosition::Left;
-	return Events::SwitchPosition::Center;
-}
-
-// Build the ordered element arrays from a controller's physicalInputProfile.
-void CollectProfileElements(
-	GCController* controller,
-	std::vector<GCControllerButtonInput*>& outButtons,
-	std::vector<GCControllerAxisInput*>& outAxes,
-	std::vector<GCControllerButtonInput*>& outTriggerAxes,
-	std::vector<GCControllerDirectionPad*>&outSwitches,
-	std::vector<DeviceEnums::InputElementDescriptor>& outButtonElements,
-	std::vector<DeviceEnums::InputElementDescriptor>& outAxisElements,
-	std::vector<DeviceEnums::InputElementDescriptor>& outTriggerAxisElements,
-	std::vector<DeviceEnums::InputElementDescriptor>& outSwitchElements )
-{
-    GCPhysicalInputProfile* profile = controller.physicalInputProfile;
-
-    // .allButtons/.allAxes/.allDpads are NSSets with undefined enumeration order. Instead iterate the
-    // .buttons/.axes/.dpads dictionaries by sorted key so the resulting element order is deterministic.
-    // An element can be reachable under several keys at once (see GCControllerElement.aliases), so we
-    // also dedupe by identity, keeping only the earliest (alphabetically smallest) key for each element.
-    NSArray<NSString*>* buttonKeys = [profile.buttons.allKeys sortedArrayUsingSelector:@selector( compare: )];
-    for( NSString* key in buttonKeys )
-    {
-        GCControllerButtonInput* button = profile.buttons[key];
-        // we don't want buttons that are part of a collection, like a dpad group
-        if( button.collection == nil )
-        {
-            const DeviceEnums::InputElementDescriptor element = ElementForKey( key );
-            if( IsAnalogTriggerButton( button ) )
-            {
-                if( std::find( outTriggerAxes.begin(), outTriggerAxes.end(), button ) == outTriggerAxes.end() )
-                {
-                    outTriggerAxes.push_back( button );
-                    outTriggerAxisElements.push_back( element );
-                }
-                // Same physical trigger also contributes a digital press, matching Windows.
-                const DeviceEnums::InputElementDescriptor buttonElement = TriggerButtonElement( element );
-                if( buttonElement != DeviceEnums::InputElementDescriptor::Unknown &&
-                    std::find( outButtons.begin(), outButtons.end(), button ) == outButtons.end() )
-                {
-                    outButtons.push_back( button );
-                    outButtonElements.push_back( buttonElement );
-                }
-            }
-            else
-            {
-                if( std::find( outButtons.begin(), outButtons.end(), button ) == outButtons.end() )
-                {
-                    outButtons.push_back( button );
-                    outButtonElements.push_back( element );
-                }
-            }
-        }
-    }
-
-    NSArray<NSString*>* axisKeys = [profile.axes.allKeys sortedArrayUsingSelector:@selector( compare: )];
-    for( NSString* key in axisKeys )
-    {
-        GCControllerAxisInput* axis = profile.axes[key];
-        // Skip axes that belong to a collection (e.g. dpad X/Y components) â€” the parent
-        // element is handled in the dpad pass below, which decides whether it becomes
-        // a switch or contributes its child axes here.
-        if( axis.collection == nil && std::find( outAxes.begin(), outAxes.end(), axis ) == outAxes.end() )
-        {
-            outAxes.push_back( axis );
-            outAxisElements.push_back( ElementForKey( key ) );
-        }
-    }
-
-    NSArray<NSString*>* dpadKeys = [profile.dpads.allKeys sortedArrayUsingSelector:@selector( compare: )];
-    for( NSString* key in dpadKeys )
-    {
-        GCControllerDirectionPad* dpad = profile.dpads[key];
-        if( std::find( outSwitches.begin(), outSwitches.end(), dpad ) != outSwitches.end() )
-        {
-            continue;
-        }
-        // Apple models thumbsticks and touchpads as direction pads too. Those report analog child
-        // axes, whereas a real d-pad is digital. Expose the analog ones as a pair of axes and keep
-        // only digital d-pads in the switch dimension.
-        if( dpad.xAxis != nil && dpad.yAxis != nil && dpad.xAxis.isAnalog )
-        {
-            if( std::find( outAxes.begin(), outAxes.end(), dpad.xAxis ) == outAxes.end() )
-            {
-                outAxes.push_back( dpad.xAxis );
-                outAxisElements.push_back( ElementForThumbstickAxis( key, true ) );
-            }
-            if( std::find( outAxes.begin(), outAxes.end(), dpad.yAxis ) == outAxes.end() )
-            {
-                outAxes.push_back( dpad.yAxis );
-                outAxisElements.push_back( ElementForThumbstickAxis( key, false ) );
-            }
-        }
-        else
-        {
-            outSwitches.push_back( dpad );
-            outSwitchElements.push_back( DeviceEnums::InputElementDescriptor::DPad );
-        }
-    }
-}
-
 // Build a DeviceIdentifier for a freshly-connected controller.
 DeviceEnums::DeviceIdentifier BuildIdentifier(
 	GCController* controller,
 	uint64_t counter,
-	const std::vector<GCControllerButtonInput*>& buttons,
-	const std::vector<GCControllerAxisInput*>& axes,
-	const std::vector<GCControllerButtonInput*>& triggerAxes,
-	const std::vector<GCControllerDirectionPad*>& dpads,
-	const std::vector<DeviceEnums::InputElementDescriptor>& buttonElements,
-	const std::vector<DeviceEnums::InputElementDescriptor>& axisElements,
-	const std::vector<DeviceEnums::InputElementDescriptor>& triggerAxisElements,
-	const std::vector<DeviceEnums::InputElementDescriptor>& switchElements )
+	const std::vector<ButtonHandling::ButtonSource>& buttonSources,
+	const std::vector<AxisHandling::AxisSource>& axisSources,
+	const std::vector<SwitchHandling::SwitchSource>& switchSources )
 {
 	DeviceEnums::DeviceIdentifier identifier;
 
@@ -355,8 +76,8 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 	}
 	identifier.name = BlueSharedString( [displayName UTF8String] );
 
-	const std::string vendorSan = SanitizeForDeviceID( vendorName );
-	const std::string productSan = SanitizeForDeviceID( productCategory );
+	const std::string vendorSan = InputMapping::SanitizeForDeviceID( vendorName );
+	const std::string productSan = InputMapping::SanitizeForDeviceID( productCategory );
 	std::ostringstream idStream;
 	idStream << ( vendorSan.empty() ? "Controller" : vendorSan );
 	if( !productSan.empty() )
@@ -371,49 +92,19 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 		identifier.productID = BlueSharedString( [productCategory UTF8String] );
 	}
 
-	identifier.family = FamilyForController( controller );
+	identifier.family = InputMapping::GetDeviceFamily( controller );
 
-	// The canonical element enum is resolved from the stable GCInput key so it matches
-	// other platforms.
-	auto appendElement = [](
-		size_t index,
-		const std::vector<DeviceEnums::InputElementDescriptor>& source,
-		std::vector<DeviceEnums::InputElementDescriptor>& elements )
+	for( const auto& source : buttonSources )
 	{
-		elements.push_back( index < source.size() ? source[index] : DeviceEnums::InputElementDescriptor::Unknown );
-	};
-
-	for( size_t i = 0; i < buttons.size(); ++i )
-	{
-		if( buttons[i] )
-		{
-			appendElement( i, buttonElements, identifier.buttonElements );
-		}
+		identifier.buttonElements.push_back( source.descriptor );
 	}
-
-	// The axis dimension is `axes` followed by `triggerAxes`; the enum vector must span
-	// both in that same order so it stays index-aligned with the reported state.
-	for( size_t i = 0; i < axes.size(); ++i )
+	for( const auto& source : axisSources )
 	{
-		if( axes[i] )
-		{
-			appendElement( i, axisElements, identifier.axisElements );
-		}
+		identifier.axisElements.push_back( source.descriptor );
 	}
-	for( size_t i = 0; i < triggerAxes.size(); ++i )
+	for( const auto& source : switchSources )
 	{
-		if( triggerAxes[i] )
-		{
-			appendElement( i, triggerAxisElements, identifier.axisElements );
-		}
-	}
-
-	for( size_t i = 0; i < dpads.size(); ++i )
-	{
-		if( dpads[i] )
-		{
-			appendElement( i, switchElements, identifier.switchElements );
-		}
+		identifier.switchElements.push_back( source.descriptor );
 	}
 
 	identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
@@ -490,13 +181,14 @@ InputHandlerApple::~InputHandlerApple()
 				slot->controller.physicalInputProfile.valueDidChangeHandler = nil;
 			}
 			slot->controller = nil;
-            slot->buttons.clear();
-            slot->axes.clear();
-            slot->triggerAxes.clear();
-            slot->switches.clear();
+            slot->buttonSources.clear();
+            slot->axisSources.clear();
+            slot->switchSources.clear();
 		}
 		m_deviceSlots.clear();
 	}
+
+	m_handlerQueue = nil;
 
 	CCP_LOGNOTICE( "InputHandlerApple: Shut down" );
 }
@@ -510,9 +202,13 @@ bool InputHandlerApple::Initialize()
 
 	NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
 
+	m_handlerQueue = dispatch_queue_create( "com.ccp.carbon-controls.InputHandlerApple", DISPATCH_QUEUE_SERIAL );
+	NSOperationQueue* callbackQueue = [[NSOperationQueue alloc] init];
+	callbackQueue.underlyingQueue = m_handlerQueue;
+
 	m_connectObserver = [center addObserverForName:GCControllerDidConnectNotification
 											object:nil
-											 queue:[NSOperationQueue mainQueue]
+											 queue:callbackQueue
 										usingBlock:^( NSNotification* note ) {
 		GCController* controller = (GCController*)note.object;
 		this->HandleControllerConnected( controller );
@@ -520,7 +216,7 @@ bool InputHandlerApple::Initialize()
 
 	m_disconnectObserver = [center addObserverForName:GCControllerDidDisconnectNotification
 											   object:nil
-												queue:[NSOperationQueue mainQueue]
+												queue:callbackQueue
 										   usingBlock:^( NSNotification* note ) {
 		GCController* controller = (GCController*)note.object;
 		this->HandleControllerDisconnected( controller );
@@ -554,21 +250,16 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 		return;
 	}
 
-    std::vector<GCControllerButtonInput*> buttons = {};
-    std::vector<GCControllerAxisInput*> axes = {};
-    std::vector<GCControllerButtonInput*> triggerAxes = {};
-	std::vector<GCControllerDirectionPad*> switches = {};
-	std::vector<DeviceEnums::InputElementDescriptor> buttonElements = {};
-	std::vector<DeviceEnums::InputElementDescriptor> axisElements = {};
-	std::vector<DeviceEnums::InputElementDescriptor> triggerAxisElements = {};
-	std::vector<DeviceEnums::InputElementDescriptor> switchElements = {};
-	CollectProfileElements( controller, buttons, axes, triggerAxes, switches,
-		buttonElements, axisElements, triggerAxisElements, switchElements );
+	// Redirect this controller's own callbacks (physicalInputProfile.valueDidChangeHandler, etc.) off the
+	// main queue too, so activation doesn't silently depend on the host app pumping the main run loop.
+	controller.handlerQueue = m_handlerQueue;
+
+	auto buttonSources = ButtonHandling::GetButtonSources( controller );
+	auto axisSources = AxisHandling::GetAxisSources( controller );
+	auto switchSources = SwitchHandling::GetSwitchSources( controller );
 
 	const uint64_t counter = m_deviceCounter.fetch_add( 1 );
-	DeviceEnums::DeviceIdentifier identifier = BuildIdentifier(
-		controller, counter, buttons, axes, triggerAxes, switches,
-		buttonElements, axisElements, triggerAxisElements, switchElements );
+	DeviceEnums::DeviceIdentifier identifier = BuildIdentifier( controller, counter, buttonSources, axisSources, switchSources );
 
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
@@ -586,10 +277,9 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
         {
 			auto slot = std::make_unique<DeviceSlot>();
 			slot->controller = controller;
-			slot->buttons = buttons;
-			slot->axes = axes;
-			slot->triggerAxes = triggerAxes;
-			slot->switches = switches;
+			slot->buttonSources = std::move( buttonSources );
+			slot->axisSources = std::move( axisSources );
+			slot->switchSources = std::move( switchSources );
 			slot->identifier = identifier;
             
 			DeviceSlot* rawSlot = slot.get();
@@ -668,42 +358,19 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 			Events::State state = {};
 			state.timestamp = Events::GetTimestamp();
 
-			const auto buttonCount = rawSlot->buttons.size();
-			if( buttonCount > 0 )
+			// Mirrors InputHandlerWin::ReadDeviceState: sources were resolved once on connect,
+			// so each notification only walks the precomputed extraction plan.
+			for( const auto& source : rawSlot->buttonSources )
 			{
-				state.buttons.resize( buttonCount );
-				for( NSUInteger i = 0; i < buttonCount; ++i )
-				{
-					GCControllerButtonInput* b = rawSlot->buttons[i];
-					state.buttons[i].pressed = b.isPressed ? true : false;
-				}
+				state.buttons.insert( { static_cast<uint32_t>( source.descriptor ) + source.elementIndex, ButtonHandling::Handle( source ) } );
 			}
-
-			const auto axisCount = rawSlot->axes.size();
-			const auto triggerCount = rawSlot->triggerAxes.size();
-			if( axisCount + triggerCount > 0 )
+			for( const auto& source : rawSlot->axisSources )
 			{
-				state.axis.resize( axisCount + triggerCount );
-				for( NSUInteger i = 0; i < axisCount; ++i )
-				{
-					GCControllerAxisInput* a = rawSlot->axes[i];
-					state.axis[i].value = a.value;
-				}
-				for( NSUInteger i = 0; i < triggerCount; ++i )
-				{
-					GCControllerButtonInput* t = rawSlot->triggerAxes[i];
-					state.axis[axisCount + i].value = t.value;
-				}
+				state.axis.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, AxisHandling::Handle( source ) } );
 			}
-
-			const NSUInteger switchCount = rawSlot->switches.size();
-			if( switchCount > 0 )
+			for( const auto& source : rawSlot->switchSources )
 			{
-				state.switches.resize( switchCount );
-				for( NSUInteger i = 0; i < switchCount; ++i )
-				{
-					state.switches[i].position = MapDpadPosition( rawSlot->switches[i] );
-				}
+				state.switches.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, SwitchHandling::Handle( source ) } );
 			}
 
 			std::unique_lock<std::mutex> lock( this->m_readingMutex );

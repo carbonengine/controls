@@ -6,18 +6,19 @@ ControllerSwitchInputEvent::ControllerSwitchInputEvent( IRoot* lockobj )
 
 bool ControllerSwitchInputEvent::Match( const Events::State& state )
 {
-	m_previouslyMatched = m_matched;
+	m_previousState = m_state;
 	m_matched = Evaluate( state );
 	return m_matched;
 }
 
 bool ControllerSwitchInputEvent::JustMatched()
 {
-	return m_matched && !m_previouslyMatched;
+	return m_matched && m_previousState != m_state;
 }
 
 bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 {
+	
 	if( m_attached && state.switches.size() > 0 )
 	{
 		auto it = state.switches.find( static_cast<uint32_t>( m_element ) + m_index );
@@ -30,7 +31,12 @@ bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 
 		auto& switchState = it->second;
 
-		return !switchState.matched && (switchState.position == m_event || m_event == Events::SwitchPosition::Any);
+		if( !switchState.matched && (switchState.position == m_event || m_event == Events::SwitchPosition::Any) )
+		{
+			m_state = switchState.position;
+			return true;
+		}
+		m_state = Events::SwitchPosition::Center;
 	}
 
 	return false;
@@ -54,7 +60,6 @@ void ControllerSwitchInputEvent::Own( Events::State& state )
 
 	auto& switchState = it->second;
 	switchState.matched = true;
-	m_state = switchState.position;
 }
 
 void ControllerSwitchInputEvent::AttachTo( const InputElement* input )
@@ -71,12 +76,10 @@ void ControllerSwitchInputEvent::AttachTo( const InputElement* input )
 		switch( element )
 		{
 		case DeviceEnums::InputElementDescriptor::DPad:
-		case DeviceEnums::InputElementDescriptor::Unknown:
-			// invalid input element for switch
-			CCP_LOGERR( "ControllerSwitchInputEvent::SetInput: Invalid input element for switch: %s. Ignoring the assignment", DeviceEnums::ToKeyString( element ) );
-			return;
+			break;
 		default:
-			// everything else is valid
+			// everything else is invalid
+			CCP_LOGERR( "ControllerSwitchInputEvent::SetInput: Invalid input element for switch: %s. Ignoring the assignment", DeviceEnums::ToKeyString( element ) );
 			break;
 		}
 

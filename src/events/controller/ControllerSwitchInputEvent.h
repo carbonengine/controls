@@ -38,13 +38,13 @@ private:
 	bool Evaluate( const Events::State& state );
 
 	bool m_matched{ false };           ///< Result of the most recent evaluation.
-	bool m_previouslyMatched{ false }; ///< Result of the evaluation before the most recent one.
 
 	DeviceEnums::InputElementDescriptor m_element{ DeviceEnums::InputElementDescriptor::Unknown }; ///< Input element to monitor for switch position changes.
 	uint32_t m_index{ 0 }; ///< Index of the input element in the device's element array.
 	bool m_attached{ false }; ///< Whether the input element has been attached to a physical input.
 	Events::SwitchPosition m_event{ Events::SwitchPosition::Any };    ///< Target switch position to match.
-	Events::SwitchPosition m_state{ Events::SwitchPosition::Center }; ///< Last matched switch position.
+	Events::SwitchPosition m_state{ Events::SwitchPosition::Center }; ///< Currently matched switch position.HandleControllerConnected
+	Events::SwitchPosition m_previousState{ Events::SwitchPosition::Center }; ///< Last matched switch position.HandleControllerConnected
 };
 
 TYPEDEF_BLUECLASS( ControllerSwitchInputEvent );
