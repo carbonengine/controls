@@ -92,7 +92,7 @@ private:
 		DeviceEnums::DeviceIdentifier identifier{};    ///< Cached device metadata.
 		std::vector<Events::State> accumulatedStates; ///< States accumulated by the value-change handler.
 		bool pendingRemoval = false;                   ///< True when a disconnect notification has fired but the slot hasn't been finalized.
-		bool active = false;                            ///< True when the value-change handler is installed.
+		bool active = false;                            ///< True when the caller wants the value-change handler installed; survives a transport-swap reconnect so input resumes without the caller having to reactivate.
 		__strong GCDeviceHaptics* haptics = nil;                        ///< Non-nil when the controller exposes any rumble locality (macOS 11+).
 		std::array<HapticsChannel, ChannelCount> hapticsChannels{};     ///< Per-channel engines/players/state, indexed by HapticsChannelIndex.
 	};
@@ -109,13 +109,24 @@ private:
 
 	/**
 	 * @brief Finds a device slot by device ID string.
+	 *
+	 * The caller must already hold m_deviceMutex, and must keep holding it for as long as it
+	 * goes on using the returned pointer: Update() erases (and frees) a slot under that same
+	 * lock once its disconnect is finalized, so a pointer obtained and then used after unlocking
+	 * can be dangling by the time it's dereferenced.
 	 */
-	DeviceSlot* GetDeviceSlot( BlueSharedString deviceId );
+	DeviceSlot* FindDeviceSlotLocked( BlueSharedString deviceId );
 
 	/**
 	 * @brief Finds a device slot by GCController pointer.
 	 */
 	DeviceSlot* GetDeviceSlot( GCController* controller	);
+
+	/// @brief Installs the input-queueing depth and valueDidChangeHandler on slot.controller, marks the slot active, and seeds accumulatedStates with a snapshot of the controller's current state so a caller doesn't have to wait for the next physical change to learn where it already is. Shared by SetDeviceActivation(activate=true) and by a transport-swap reconnect that revives a slot which was active before it disconnected. Caller must hold m_deviceMutex.
+	void ActivateSlotHandler( DeviceSlot& slot );
+
+	/// @brief Reads every source's current value into one state snapshot. Shared by ActivateSlotHandler's initial read and the live valueDidChangeHandler.
+	static Events::State SampleSlotState( const DeviceSlot& slot );
 
 	/// @brief Brings up per-locality CoreHaptics engines and looping players; downgrades slot->identifier.rumbleCapacity on any per-channel failure.
 	void InitializeHapticsForSlot( DeviceSlot& slot );

@@ -261,6 +261,9 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 	const uint64_t counter = m_deviceCounter.fetch_add( 1 );
 	DeviceEnums::DeviceIdentifier identifier = BuildIdentifier( controller, counter, buttonSources, axisSources, switchSources );
 
+	bool shouldFireAdded = false;
+	DeviceEnums::DeviceIdentifier addedIdentifier;
+
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
 		auto existing = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
@@ -271,31 +274,80 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 		if( existing != m_deviceSlots.end() )
 		{
 			( *existing )->pendingRemoval = false;
-			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected", identifier.name.c_str() );
+			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected", ( *existing )->identifier.name.c_str() );
 		}
 		else
         {
-			auto slot = std::make_unique<DeviceSlot>();
-			slot->controller = controller;
-			slot->buttonSources = std::move( buttonSources );
-			slot->axisSources = std::move( axisSources );
-			slot->switchSources = std::move( switchSources );
-			slot->identifier = identifier;
-            
-			DeviceSlot* rawSlot = slot.get();
-			m_deviceSlots.push_back( std::move( slot ) );
-			if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
+			// A controller reconnecting over a different transport (e.g. a Bluetooth-paired controller
+			// plugged in over USB) is handed to us as a brand-new GCController instance, so the pointer
+			// check above never matches it - the framework exposes no persistent hardware identifier to
+			// correlate the two instances. Best-effort recognize it as the same physical unit if a slot
+			// disconnected very recently (still pendingRemoval - i.e. Update() hasn't finalized/erased it
+			// yet) has the same product category and element layout, so its identity/deviceID carries over
+			// instead of showing up as a second device. This can't be exact (two identical controllers
+			// swapping at the exact same instant would be indistinguishable), and it never delays a real
+			// disconnect: once Update() finalizes a slot it's gone and a later reconnect is just a new device.
+			auto revived = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
+				[&identifier]( const std::unique_ptr<DeviceSlot>& slot ) {
+					return slot->pendingRemoval
+						&& slot->identifier.productID == identifier.productID
+						&& slot->identifier.buttonElements == identifier.buttonElements
+						&& slot->identifier.axisElements == identifier.axisElements
+						&& slot->identifier.switchElements == identifier.switchElements;
+				} );
+
+			if( revived != m_deviceSlots.end() )
 			{
-				InitializeHapticsForSlot( *rawSlot );
+				DeviceSlot* rawSlot = revived->get();
+				rawSlot->controller = controller;
+				rawSlot->buttonSources = std::move( buttonSources );
+				rawSlot->axisSources = std::move( axisSources );
+				rawSlot->switchSources = std::move( switchSources );
+				rawSlot->pendingRemoval = false;
+
+				// Preserve the original identity so anything upstream keyed on deviceID keeps working.
+				identifier.deviceID = rawSlot->identifier.deviceID;
+				identifier.name = rawSlot->identifier.name;
+				rawSlot->identifier = identifier;
+
+				if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
+				{
+					InitializeHapticsForSlot( *rawSlot );
+				}
+				// The old handler died with the old GCController instance; if the caller had this device
+				// active, resume delivering events on the new instance without requiring a re-activation call.
+				if( rawSlot->active )
+				{
+					ActivateSlotHandler( *rawSlot );
+				}
+				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected on a different transport, keeping its identity",
+					rawSlot->identifier.name.c_str() );
 			}
-			identifier = rawSlot->identifier;
-			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' connected", identifier.name.c_str() );
+			else
+			{
+				auto slot = std::make_unique<DeviceSlot>();
+				slot->controller = controller;
+				slot->buttonSources = std::move( buttonSources );
+				slot->axisSources = std::move( axisSources );
+				slot->switchSources = std::move( switchSources );
+				slot->identifier = identifier;
+
+				DeviceSlot* rawSlot = slot.get();
+				m_deviceSlots.push_back( std::move( slot ) );
+				if( rawSlot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
+				{
+					InitializeHapticsForSlot( *rawSlot );
+				}
+				addedIdentifier = rawSlot->identifier;
+				shouldFireAdded = true;
+				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' connected", rawSlot->identifier.name.c_str() );
+			}
 		}
 	}
 
-	if( m_deviceAddedCallback )
+	if( shouldFireAdded && m_deviceAddedCallback )
 	{
-		m_deviceAddedCallback( identifier );
+		m_deviceAddedCallback( addedIdentifier );
 	}
 }
 
@@ -306,35 +358,43 @@ void InputHandlerApple::HandleControllerDisconnected( GCController* controller )
 		return;
 	}
 
-	DeviceEnums::DeviceIdentifier removedIdentifier;
-	bool found = false;
+	// The removed callback isn't fired here: Update() fires it only once a disconnect is actually
+	// finalized (see below), so a matching reconnect (HandleControllerConnected re-adopting this slot)
+	// never produces a spurious removed+added pair for what's really the same physical controller.
+	std::unique_lock<std::mutex> lock( m_deviceMutex );
+	for( auto& slot : m_deviceSlots )
 	{
-		std::unique_lock<std::mutex> lock( m_deviceMutex );
-		for( auto& slot : m_deviceSlots )
+		if( slot->controller == controller )
 		{
-			if( slot->controller == controller )
-			{
-				ShutdownHapticsForSlot( *slot );
-				slot->pendingRemoval = true;
-				slot->active = false;
-				slot->controller.physicalInputProfile.valueDidChangeHandler = nil;
-				removedIdentifier = slot->identifier;
-				found = true;
-				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' disconnected", slot->identifier.name.c_str() );
-				break;
-			}
+			ShutdownHapticsForSlot( *slot );
+			slot->pendingRemoval = true;
+			// Deliberately not resetting `active` here: it records whether the caller wants events
+			// flowing, and a transport-swap reconnect (HandleControllerConnected) needs it to decide
+			// whether to reinstall the handler on the new GCController instance. A real disconnect just
+			// erases the whole slot in Update(), so there's nothing to leave in a stale state.
+			slot->controller.physicalInputProfile.valueDidChangeHandler = nil;
+			// Release these now, while the profile they came from is still around to release cleanly -
+			// a matching reconnect rebuilds fresh ones for the new GCController instance, and otherwise
+			// they'd sit untouched until the slot is destroyed, releasing stale element references into
+			// a controller that's already torn down.
+			slot->buttonSources.clear();
+			slot->axisSources.clear();
+			slot->switchSources.clear();
+			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' disconnected", slot->identifier.name.c_str() );
+			break;
 		}
-	}
-
-	if( found && m_deviceRemovedCallback )
-	{
-		m_deviceRemovedCallback( removedIdentifier );
 	}
 }
 
 void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool activate )
 {
-	auto* slot = GetDeviceSlot( deviceId );
+	// slot->active, slot->controller's valueDidChangeHandler and the input queue depth are also
+	// written from HandleControllerConnected/HandleControllerDisconnected on m_handlerQueue, so
+	// every touch of those fields here must happen under m_deviceMutex - otherwise this (game)
+	// thread and the GameController notification thread can race on the same GCController
+	// property/slot field with no ordering guarantee.
+	std::unique_lock<std::mutex> lock( m_deviceMutex );
+	auto* slot = FindDeviceSlotLocked( deviceId );
 	if( slot == nullptr )
 	{
 		CCP_LOGERR( "InputHandlerApple: Could not find device with ID '%s' to set activation to %d",
@@ -344,39 +404,7 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 
 	if( activate )
 	{
-		// nextInputState only returns queued snapshots when the queue is > 1 (default 1 = no buffering).
-		id<GCDevicePhysicalInput> physicalInput = slot->controller.input;
-		if( physicalInput != nil )
-		{
-			physicalInput.inputStateQueueDepth = 20;
-		}
-
-		DeviceSlot* rawSlot = slot;
-		slot->controller.physicalInputProfile.valueDidChangeHandler = ^( GCPhysicalInputProfile* profile, GCControllerElement* element ) {
-			(void)profile;
-			(void)element;
-			Events::State state = {};
-			state.timestamp = Events::GetTimestamp();
-
-			// Mirrors InputHandlerWin::ReadDeviceState: sources were resolved once on connect,
-			// so each notification only walks the precomputed extraction plan.
-			for( const auto& source : rawSlot->buttonSources )
-			{
-				state.buttons.insert( { static_cast<uint32_t>( source.descriptor ) + source.elementIndex, ButtonHandling::Handle( source ) } );
-			}
-			for( const auto& source : rawSlot->axisSources )
-			{
-				state.axis.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, AxisHandling::Handle( source ) } );
-			}
-			for( const auto& source : rawSlot->switchSources )
-			{
-				state.switches.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, SwitchHandling::Handle( source ) } );
-			}
-
-			std::unique_lock<std::mutex> lock( this->m_readingMutex );
-			rawSlot->accumulatedStates.push_back( std::move( state ) );
-		};
-		slot->active = true;
+		ActivateSlotHandler( *slot );
 	}
 	else
 	{
@@ -390,10 +418,71 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 			}
 		}
 		slot->active = false;
+
+		// SendChannelIntensity takes m_deviceMutex itself (it has to stay unlocked while it makes
+		// blocking CoreHaptics calls), so it can't be called while this scope still holds it.
+		DeviceSlot* rawSlot = slot;
+		lock.unlock();
 		for( int i = 0; i < ChannelCount; ++i )
 		{
-			SendChannelIntensity( *slot, static_cast<HapticsChannelIndex>( i ), 0.0f );
+			SendChannelIntensity( *rawSlot, static_cast<HapticsChannelIndex>( i ), 0.0f );
 		}
+	}
+}
+
+Events::State InputHandlerApple::SampleSlotState( const DeviceSlot& slot )
+{
+	Events::State state = {};
+	state.timestamp = Events::GetTimestamp();
+
+	// Sources hold a dictionary key rather than a live element (see ButtonHandling::ButtonSource),
+	// so each sample re-resolves elements from the controller's current profile.
+	GCPhysicalInputProfile* profile = slot.controller != nil ? slot.controller.physicalInputProfile : nil;
+
+	// Mirrors InputHandlerWin::ReadDeviceState: sources were resolved once on connect,
+	// so each sample only walks the precomputed extraction plan.
+	for( const auto& source : slot.buttonSources )
+	{
+		state.buttons.insert( { static_cast<uint32_t>( source.descriptor ) + source.elementIndex, ButtonHandling::Handle( source, profile ) } );
+	}
+	for( const auto& source : slot.axisSources )
+	{
+		state.axis.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, AxisHandling::Handle( source, profile ) } );
+	}
+	for( const auto& source : slot.switchSources )
+	{
+		state.switches.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, SwitchHandling::Handle( source, profile ) } );
+	}
+	return state;
+}
+
+void InputHandlerApple::ActivateSlotHandler( DeviceSlot& slot )
+{
+	// nextInputState only returns queued snapshots when the queue is > 1 (default 1 = no buffering).
+	id<GCDevicePhysicalInput> physicalInput = slot.controller.input;
+	if( physicalInput != nil )
+	{
+		physicalInput.inputStateQueueDepth = 20;
+	}
+
+	DeviceSlot* rawSlot = &slot;
+	slot.controller.physicalInputProfile.valueDidChangeHandler = ^( GCPhysicalInputProfile* profile, GCControllerElement* element ) {
+		(void)profile;
+		(void)element;
+		Events::State state = SampleSlotState( *rawSlot );
+
+		std::unique_lock<std::mutex> lock( this->m_readingMutex );
+		rawSlot->accumulatedStates.push_back( std::move( state ) );
+	};
+	slot.active = true;
+
+	// The handler above only fires on the next physical change, so a caller that activates a
+	// device and immediately calls Update() (or activates one with a button already held) would
+	// otherwise see nothing until the player touches the controller again. Seed one snapshot of
+	// the current state right away.
+	{
+		std::unique_lock<std::mutex> lock( this->m_readingMutex );
+		slot.accumulatedStates.push_back( SampleSlotState( slot ) );
 	}
 }
 
@@ -404,7 +493,10 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 		return {};
 	}
 
-	// Finalize any pending removals discovered since the last Update().
+	// Finalize any pending removals discovered since the last Update(). A slot only reaches here if no
+	// matching reconnect re-adopted it (HandleControllerConnected clears pendingRemoval on adoption), so
+	// this is a real disconnect and the removed callback fires exactly once, right here.
+	std::vector<DeviceEnums::DeviceIdentifier> removedDevices;
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
 		for( auto it = m_deviceSlots.begin(); it != m_deviceSlots.end(); )
@@ -412,12 +504,18 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 			if( ( *it )->pendingRemoval )
 			{
 				CCP_LOGNOTICE( "InputHandlerApple: Device '%s' final removal", ( *it )->identifier.name.c_str() );
+				removedDevices.push_back( ( *it )->identifier );
 				ShutdownHapticsForSlot( **it );
 				if( ( *it )->controller != nil )
 				{
 					( *it )->controller.physicalInputProfile.valueDidChangeHandler = nil;
 					( *it )->controller = nil;
 				}
+				// Already cleared in HandleControllerDisconnected; cleared again defensively in case a
+				// slot ever reaches finalization without going through that path.
+				( *it )->buttonSources.clear();
+				( *it )->axisSources.clear();
+				( *it )->switchSources.clear();
 				it = m_deviceSlots.erase( it );
 			}
 			else
@@ -427,23 +525,42 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 		}
 	}
 
-	std::vector<Events::State> statesForDevice;
-	auto* slot = GetDeviceSlot( deviceId );
-	if( slot == nullptr )
+	if( m_deviceRemovedCallback )
 	{
-		return statesForDevice;
+		for( auto& removedIdentifier : removedDevices )
+		{
+			m_deviceRemovedCallback( removedIdentifier );
+		}
 	}
-    
-	std::swap( statesForDevice, slot->accumulatedStates );
+
+	std::vector<Events::State> statesForDevice;
+	{
+		std::unique_lock<std::mutex> deviceLock( m_deviceMutex );
+		auto* slot = FindDeviceSlotLocked( deviceId );
+		if( slot == nullptr )
+		{
+			return statesForDevice;
+		}
+
+		// accumulatedStates is also pushed to from the valueDidChangeHandler block on
+		// m_handlerQueue (guarded there by m_readingMutex) - swapping it out here without the
+		// same lock is a data race on the vector's internals between this thread and that one.
+		std::unique_lock<std::mutex> readingLock( m_readingMutex );
+		std::swap( statesForDevice, slot->accumulatedStates );
+	}
 	return statesForDevice;
 }
 
 void InputHandlerApple::Rumble( BlueSharedString deviceId, Events::Rumble rumble )
 {
-	auto* slot = GetDeviceSlot( deviceId );
-	if( slot == nullptr || slot->haptics == nil )
+	DeviceSlot* slot = nullptr;
 	{
-		return;
+		std::unique_lock<std::mutex> lock( m_deviceMutex );
+		slot = FindDeviceSlotLocked( deviceId );
+		if( slot == nullptr || slot->haptics == nil )
+		{
+			return;
+		}
 	}
 
 	const float requested[ChannelCount] = {
@@ -453,18 +570,20 @@ void InputHandlerApple::Rumble( BlueSharedString deviceId, Events::Rumble rumble
 		rumble.rightTrigger,
 	};
 
+	// Released m_deviceMutex above: SendChannelIntensity takes it itself and must stay unlocked
+	// while it makes blocking CoreHaptics calls. Safe to keep using the raw slot pointer here -
+	// Update() is the only thing that erases slots, and it runs on this same calling thread.
 	for( int i = 0; i < ChannelCount; ++i )
 	{
 		SendChannelIntensity( *slot, static_cast<HapticsChannelIndex>( i ), requested[i] );
 	}
 }
 
-InputHandlerApple::DeviceSlot* InputHandlerApple::GetDeviceSlot( BlueSharedString deviceId )
+InputHandlerApple::DeviceSlot* InputHandlerApple::FindDeviceSlotLocked( BlueSharedString deviceId )
 {
-	std::unique_lock<std::mutex> lock( m_deviceMutex );
 	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
 		[deviceId]( const std::unique_ptr<DeviceSlot>& slot ) {
-			return slot->controller != nil && slot->identifier.deviceID == deviceId;
+			return slot->controller != nil && !slot->pendingRemoval && slot->identifier.deviceID == deviceId;
 		} );
 	return it != m_deviceSlots.end() ? it->get() : nullptr;
 }

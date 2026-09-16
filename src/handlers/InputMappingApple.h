@@ -37,50 +37,82 @@ namespace ButtonHandling
 /**
 * @brief Where a single published button is sampled from.
 *
-* Plain data: resolved once when the device connects, then walked per reading.
+* Plain data: resolved once when the device connects, then walked per reading. Mirrors
+* InputHandlerWin's ButtonSource - rather than holding the live GCControllerButtonInput (which
+* is only valid for as long as the GCController instance that vended it is alive), this stores
+* the dictionary key needed to re-fetch it from a GCPhysicalInputProfile on every sample. The
+* keys involved (GCInputButtonA, etc.) are framework-owned constants, not per-controller state.
 */
 struct ButtonSource
 {
-	__strong GCControllerButtonInput* button = nil; ///< The digital button element this source samples.
+	/// @brief Which profile dictionary - and, for a dpad, which component - supplies this button.
+	enum class Kind : uint8_t
+	{
+		None,          ///< Not present on this device; always reads as unpressed.
+		ProfileButton, ///< Sample profile.buttons[key].isPressed.
+		DpadDirection  ///< Sample profile.dpads[key].<direction>.isPressed.
+	};
+
+	/// @brief Which digital component of a dpad to sample; only meaningful when kind is DpadDirection.
+	enum class DpadDirection : uint8_t { Up, Down, Left, Right };
+
+	Kind kind = Kind::None;
+	__strong NSString* key = nil; ///< Key into profile.buttons or profile.dpads identifying this element.
+	DpadDirection direction = DpadDirection::Up; ///< Component to sample when kind is DpadDirection.
 	uint32_t elementIndex = 0; ///< Published index; only Unknown descriptors are numbered, everything else is 0.
 	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
 };
 
 std::vector<ButtonSource> GetButtonSources( GCController* controller );
-Events::Button Handle( const ButtonSource& source );
+Events::Button Handle( const ButtonSource& source, GCPhysicalInputProfile* profile );
 }
 
 namespace AxisHandling
 {
 /**
 * @brief Where a single published axis is sampled from.
+*
+* Stores a dictionary key rather than the live GCControllerAxisInput/GCControllerButtonInput,
+* for the same reason as ButtonHandling::ButtonSource above.
 */
 struct AxisSource
 {
-	__strong GCControllerAxisInput* axis = nil;           ///< Non-nil for a plain analog axis or thumbstick component.
-	__strong GCControllerButtonInput* triggerButton = nil; ///< Non-nil for an analog trigger button sampled as an axis.
+	/// @brief Which profile dictionary - and, for a dpad, which component - supplies this axis.
+	enum class Kind : uint8_t
+	{
+		ProfileAxis,   ///< Sample profile.axes[key].value.
+		DpadAxis,      ///< Sample profile.dpads[key].xAxis/yAxis.value, per isXAxis.
+		TriggerButton  ///< Sample profile.buttons[key].value (an analog trigger read as an axis).
+	};
+
+	Kind kind = Kind::ProfileAxis;
+	__strong NSString* key = nil; ///< Key into profile.axes, profile.dpads or profile.buttons identifying this element.
+	bool isXAxis = true; ///< Which dpad component to sample when kind is DpadAxis.
 	uint32_t index = 0; ///< Published index; position within the device's axis list.
 	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
 };
 
 std::vector<AxisSource> GetAxisSources( GCController* controller );
-Events::Axis Handle( const AxisSource& source );
+Events::Axis Handle( const AxisSource& source, GCPhysicalInputProfile* profile );
 }
 
 namespace SwitchHandling
 {
 /**
 * @brief Where a single published switch is sampled from.
+*
+* Stores the dpad's dictionary key rather than the live GCControllerDirectionPad, for the same
+* reason as ButtonHandling::ButtonSource above.
 */
 struct SwitchSource
 {
-	__strong GCControllerDirectionPad* dpad = nil;
+	__strong NSString* key = nil; ///< Key into profile.dpads identifying this element.
 	uint32_t index = 0; ///< Published index; position within the device's switch list.
 	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::DPad;
 };
 
 std::vector<SwitchSource> GetSwitchSources( GCController* controller );
-Events::Switch Handle( const SwitchSource& source );
+Events::Switch Handle( const SwitchSource& source, GCPhysicalInputProfile* profile );
 }
 
 #endif // __APPLE__

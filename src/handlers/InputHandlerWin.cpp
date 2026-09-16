@@ -552,7 +552,7 @@ InputHandlerWin::DeviceSlot* InputHandlerWin::GetDeviceSlot( CComPtr<IGameInputD
 	std::unique_lock<std::shared_mutex> lock( m_deviceMutex );
 
 	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(), [device]( const std::unique_ptr<DeviceSlot>& slot ) {
-		return slot->device == device;
+		return slot->device == device && !slot->pendingRemoval;
 	} );
 	if( it != m_deviceSlots.end() )
 	{
