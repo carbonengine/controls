@@ -9,11 +9,11 @@
     },
     {
       "name": "carbon-blue",
-      "version>=": "6.0.0"
+      "version>=": "6.2.0"
     },
     {
       "name": "carbon-blueexposure",
-      "version>=": "2.1.1"
+      "version>=": "2.2.0"
     },
     {
       "name": "gameinput",
@@ -21,14 +21,10 @@
       "platform": "windows"
     }
   ],
-  "overrides": [
-    {
-      "name": "protobuf",
-      "version-string": "3.6.0.1"
-    },
+  "overrides": [  
     {
       "name": "openssl",
-      "version": "1.1.1k#8"
+      "version": "3.5.0#1"
     }
   ]
 }
