@@ -59,8 +59,7 @@ struct ButtonSource
 	Kind kind = Kind::None;
 	__strong NSString* key = nil; ///< Key into profile.buttons or profile.dpads identifying this element.
 	DpadDirection direction = DpadDirection::Up; ///< Component to sample when kind is DpadDirection.
-	uint32_t elementIndex = 0; ///< Published index; only Unknown descriptors are numbered, everything else is 0.
-	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
+	DeviceEnums::ElementKey element {}; ///< Identity this button is published under.
 };
 
 std::vector<ButtonSource> GetButtonSources( GCController* controller );
@@ -88,8 +87,7 @@ struct AxisSource
 	Kind kind = Kind::ProfileAxis;
 	__strong NSString* key = nil; ///< Key into profile.axes, profile.dpads or profile.buttons identifying this element.
 	bool isXAxis = true; ///< Which dpad component to sample when kind is DpadAxis.
-	uint32_t index = 0; ///< Published index; position within the device's axis list.
-	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
+	DeviceEnums::ElementKey element {}; ///< Identity this axis is published under.
 };
 
 std::vector<AxisSource> GetAxisSources( GCController* controller );
@@ -107,8 +105,7 @@ namespace SwitchHandling
 struct SwitchSource
 {
 	__strong NSString* key = nil; ///< Key into profile.dpads identifying this element.
-	uint32_t index = 0; ///< Published index; position within the device's switch list.
-	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::DPad;
+	DeviceEnums::ElementKey element {}; ///< Identity this switch is published under.
 };
 
 std::vector<SwitchSource> GetSwitchSources( GCController* controller );

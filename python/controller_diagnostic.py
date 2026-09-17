@@ -30,7 +30,8 @@ AXIS_REPORT_INTERVAL = 0.1
 
 
 def describe(device):
-    return "{4} (id={1}, vendor={2}, product={3}, family={1})".format(
+    print(device.family)
+    return "{0} (id={1}, vendor={2}, product={3}, family={4})".format(
         device.name, device.deviceID, device.vendorID,
         device.productID, cc.DeviceFamily.GetNameFromValue(device.family)
     )

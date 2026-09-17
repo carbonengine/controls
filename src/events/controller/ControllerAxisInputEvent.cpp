@@ -2,7 +2,7 @@
 
 namespace{
 
-Events::Axis* GetAxisState( Events::State& state, Events::ElementKey key )
+Events::Axis* GetAxisState( Events::State& state, DeviceEnums::ElementKey key )
 {
     auto it = state.axis.find( key );
     if( it != state.axis.end() )
@@ -13,7 +13,7 @@ Events::Axis* GetAxisState( Events::State& state, Events::ElementKey key )
     return nullptr;
 }
 
-const Events::Axis* GetAxisState( const Events::State& state, Events::ElementKey key )
+const Events::Axis* GetAxisState( const Events::State& state, DeviceEnums::ElementKey key )
 {
     auto it = state.axis.find( key );
     if( it != state.axis.end() )
@@ -49,9 +49,11 @@ bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
 			}
 			if( !m_initialized )
 			{
-				m_delta = axis->value - m_value;
-				m_value = axis->value;
+				// There is nothing to compare the first reading against, so adopt it as the baseline.
 				m_initialized = true;
+				m_value = axis->value;
+				m_delta = 0.0f;
+				return false;
 			}
 			if( std::abs( axis->value - m_value ) < Events::AXIS_THRESHOLD )
 			{

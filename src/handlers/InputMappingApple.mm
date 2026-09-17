@@ -193,8 +193,7 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 		ButtonSource source;
 		source.kind = ButtonSource::Kind::ProfileButton;
 		source.key = key;
-		source.descriptor = descriptor;
-		source.elementIndex = Events::AssignElementIndex( descriptor, unknownCount );
+		source.element = DeviceEnums::MakeElementKey( descriptor, unknownCount );
 		sources.push_back( source );
 	}
 
@@ -230,8 +229,7 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 			source.kind = ButtonSource::Kind::DpadDirection;
 			source.key = key;
 			source.direction = direction;
-			source.descriptor = descriptor;
-			source.elementIndex = Events::AssignElementIndex( source.descriptor, unknownCount );
+			source.element = DeviceEnums::MakeElementKey( descriptor, unknownCount );
 			sources.push_back( source );
 		}
 	}
@@ -311,8 +309,7 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 		AxisSource source;
 		source.kind = AxisSource::Kind::ProfileAxis;
 		source.key = key;
-		source.descriptor = InputMapping::ElementForKey( key );
-		source.index = Events::AssignElementIndex( source.descriptor, unknownCount );
+		source.element = DeviceEnums::MakeElementKey( InputMapping::ElementForKey( key ), unknownCount );
 		sources.push_back( source );
 	}
 
@@ -333,8 +330,7 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 			xSource.kind = AxisSource::Kind::DpadAxis;
 			xSource.key = key;
 			xSource.isXAxis = true;
-			xSource.descriptor = InputMapping::ElementForThumbstickAxis( key, true );
-			xSource.index = Events::AssignElementIndex( xSource.descriptor, unknownCount );
+			xSource.element = DeviceEnums::MakeElementKey( InputMapping::ElementForThumbstickAxis( key, true ), unknownCount );
 			sources.push_back( xSource );
 		}
 		if( seenAxes.insert( dpad.yAxis ).second )
@@ -343,8 +339,7 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 			ySource.kind = AxisSource::Kind::DpadAxis;
 			ySource.key = key;
 			ySource.isXAxis = false;
-			ySource.descriptor = InputMapping::ElementForThumbstickAxis( key, false );
-			ySource.index = Events::AssignElementIndex( ySource.descriptor, unknownCount );
+			ySource.element = DeviceEnums::MakeElementKey( InputMapping::ElementForThumbstickAxis( key, false ), unknownCount );
 			sources.push_back( ySource );
 		}
 	}
@@ -367,8 +362,7 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 		AxisSource source;
 		source.kind = AxisSource::Kind::TriggerButton;
 		source.key = key;
-		source.descriptor = InputMapping::ElementForKey( key );
-		source.index = Events::AssignElementIndex( source.descriptor, unknownCount );
+		source.element = DeviceEnums::MakeElementKey( InputMapping::ElementForKey( key ), unknownCount );
 		sources.push_back( source );
 	}
 	return sources;
@@ -465,7 +459,8 @@ std::vector<SwitchSource> GetSwitchSources( GCController* controller )
 
 		SwitchSource source;
 		source.key = key;
-		source.index = static_cast<uint32_t>( sources.size() );
+		// Every switch is a d-pad, so the ordinal is what tells them apart.
+		source.element = { DeviceEnums::InputElementDescriptor::DPad, static_cast<uint32_t>( sources.size() ) };
 		sources.push_back( source );
 	}
 	return sources;

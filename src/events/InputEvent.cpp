@@ -21,13 +21,14 @@ void InputEvent::AttachTo( const InputElement* input )
 		return;
 	}
 
-	const auto element = input->GetElement();
-	if( !AcceptsElement( element ) )
+	auto key = input->GetKey();
+
+	if( !AcceptsElement( key.descriptor ) )
 	{
 		return;
 	}
 
-	m_key = { element, input->GetIndex() };
+	m_key = key;
 	m_attached = true;
 }
 

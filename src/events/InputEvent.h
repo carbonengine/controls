@@ -58,7 +58,7 @@ protected:
 	/// @brief Whether this event type can monitor @p element; logs the reason when it cannot.
 	virtual bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const;
 
-	Events::ElementKey m_key{}; ///< Identifies the device element this event monitors.
+	DeviceEnums::ElementKey m_key{}; ///< Identifies the device element this event monitors.
 	bool m_attached{ false };   ///< Whether an input element has been attached to a physical input.
 	bool m_matched{ false };    ///< Result of the most recent evaluation.
 };

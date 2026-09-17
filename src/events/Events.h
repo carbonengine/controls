@@ -9,10 +9,12 @@
 namespace Events
 {
 /// @brief Threshold below which axis value changes are ignored.
-const float AXIS_THRESHOLD = 0.01f;
+constexpr float AXIS_THRESHOLD = 0.01f;
 
 /// @brief The time in microseconds after which a button state changes from Pressed to Held.
-static uint64_t g_holdTimeInMicroSeconds = 300 * 1000;
+/// One definition for the whole module: `static` here would give every translation unit its
+/// own copy, so ControlManager::SetHoldTimeInMs would never reach the event matchers.
+extern uint64_t g_holdTimeInMicroSeconds;
 
 /**
  * @brief Represents the logical state of a button.
@@ -51,23 +53,6 @@ enum class SwitchPosition : uint32_t
 };
 
 /**
- * @brief Identifies one published element on a device.
- *
- * Descriptor alone identifies a named element; @c index only disambiguates Unknown
- * elements, which are numbered in publication order by AssignElementIndex().
- */
-struct ElementKey
-{
-	DeviceEnums::InputElementDescriptor descriptor = DeviceEnums::InputElementDescriptor::Unknown;
-	uint32_t index = 0;
-};
-
-inline bool operator<( const ElementKey& lhs, const ElementKey& rhs )
-{
-	return lhs.descriptor != rhs.descriptor ? lhs.descriptor < rhs.descriptor : lhs.index < rhs.index;
-}
-
-/**
  * @brief Snapshot of a single button's raw hardware state.
  */
 struct Button
@@ -100,9 +85,9 @@ struct Switch
 struct State
 {
 	uint64_t timestamp = 0;            ///< Timestamp in microseconds when this state was captured.
-	std::map<ElementKey, Button> buttons;     ///< Button states for all buttons on the device.
-	std::map<ElementKey, Axis> axis;          ///< Axis states for all analog axes on the device.
-	std::map<ElementKey, Switch> switches;    ///< Switch states for all hat/d-pad switches on the device.
+	std::map<DeviceEnums::ElementKey, Button> buttons;  ///< Button states for all buttons on the device.
+	std::map<DeviceEnums::ElementKey, Axis> axis;       ///< Axis states for all analog axes on the device.
+	std::map<DeviceEnums::ElementKey, Switch> switches; ///< Switch states for all hat/d-pad switches on the device.
 };
 
 /**
@@ -123,25 +108,6 @@ struct Rumble
 	 */
 	bool empty() const;
 };
-
-/**
- * @brief Assigns the disambiguating index for an input element.
- *
- * Named elements are uniquely identified by their descriptor alone, so they always
- * get index 0. Only Unknown elements need an index to tell them apart; they are
- * numbered from 0 in publication order via @p unknownCounter.
- *
- * Must be used by both the DeviceIdentifier element list and the per-reading state
- * snapshot so the two agree on what index means.
- *
- * @param descriptor The element's descriptor.
- * @param unknownCounter Running count of Unknown elements published so far; incremented when used.
- * @return The index to publish for this element.
- */
-inline uint32_t AssignElementIndex( DeviceEnums::InputElementDescriptor descriptor, uint32_t& unknownCounter )
-{
-    return descriptor == DeviceEnums::InputElementDescriptor::Unknown ? unknownCounter++ : 0;
-}
 
 /**
  * @brief Returns the current timestamp in microseconds.

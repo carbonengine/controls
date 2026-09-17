@@ -140,15 +140,15 @@ DeviceEnums::DeviceIdentifier BuildIdentifier(
 
 	for( const auto& source : buttonSources )
 	{
-		identifier.buttonElements.push_back( source.descriptor );
+		identifier.buttonElements.push_back( source.element );
 	}
 	for( const auto& source : axisSources )
 	{
-		identifier.axisElements.push_back( source.descriptor );
+		identifier.axisElements.push_back( source.element );
 	}
 	for( const auto& source : switchSources )
 	{
-		identifier.switchElements.push_back( source.descriptor );
+		identifier.switchElements.push_back( source.element );
 	}
 
 	identifier.rumbleCapacity = DetectRumbleCapacity( controller, identifier.name );
@@ -194,7 +194,6 @@ InputHandlerApple::~InputHandlerApple()
 		}
 		m_deviceSlots.clear();
 	}
-
 	m_handlerQueue = nil;
 
 	CCP_LOGNOTICE( "InputHandlerApple: Shut down" );
@@ -250,7 +249,7 @@ void InputHandlerApple::RegisterForDeviceRemoved( DeviceChangedCallback callback
 	m_deviceRemovedCallback = callback;
 }
 
-InputHandlerApple::DeviceSlot* InputHandlerApple::FindRevivedSlotLocked( const DeviceEnums::DeviceIdentifier& identifier )
+std::shared_ptr<InputHandlerApple::DeviceSlot> InputHandlerApple::FindRevivedSlotLocked( const DeviceEnums::DeviceIdentifier& identifier )
 {
 	// A controller reconnecting over a different transport (e.g. a Bluetooth-paired controller
 	// plugged in over USB) is handed to us as a brand-new GCController instance, so the caller's
@@ -263,28 +262,28 @@ InputHandlerApple::DeviceSlot* InputHandlerApple::FindRevivedSlotLocked( const D
 	// it never delays a real disconnect: once Update() finalizes a slot it's gone and a later
 	// reconnect is just a new device.
 	auto revived = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
-		[&identifier]( const std::unique_ptr<DeviceSlot>& slot ) {
+		[&identifier]( const std::shared_ptr<DeviceSlot>& slot ) {
 			return slot->pendingRemoval
 				&& slot->identifier.productID == identifier.productID
 				&& slot->identifier.buttonElements == identifier.buttonElements
 				&& slot->identifier.axisElements == identifier.axisElements
 				&& slot->identifier.switchElements == identifier.switchElements;
 		} );
-	return revived != m_deviceSlots.end() ? revived->get() : nullptr;
+	return revived != m_deviceSlots.end() ? *revived : nullptr;
 }
 
-void InputHandlerApple::AdoptSourcesIntoSlot( DeviceSlot& slot, GCController* controller,
+void InputHandlerApple::AdoptSourcesIntoSlot( const std::shared_ptr<DeviceSlot>& slot, GCController* controller,
 	std::vector<ButtonHandling::ButtonSource> buttonSources,
 	std::vector<AxisHandling::AxisSource> axisSources,
 	std::vector<SwitchHandling::SwitchSource> switchSources )
 {
-	slot.controller = controller;
-	slot.buttonSources = std::move( buttonSources );
-	slot.axisSources = std::move( axisSources );
-	slot.switchSources = std::move( switchSources );
+	slot->controller = controller;
+	slot->buttonSources = std::move( buttonSources );
+	slot->axisSources = std::move( axisSources );
+	slot->switchSources = std::move( switchSources );
 
-	// Caller must have already set slot.identifier so rumbleCapacity reflects this connection.
-	if( slot.identifier.rumbleCapacity.rumbleMotorCount > 0 )
+	// Caller must have already set slot->identifier so rumbleCapacity reflects this connection.
+	if( slot->identifier.rumbleCapacity.rumbleMotorCount > 0 )
 	{
 		InitializeHapticsForSlot( slot );
 	}
@@ -314,7 +313,7 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
 		auto existing = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
-			[controller]( const std::unique_ptr<DeviceSlot>& slot ) {
+			[controller]( const std::shared_ptr<DeviceSlot>& slot ) {
 				return slot->controller == controller;
 			} );
 
@@ -323,33 +322,33 @@ void InputHandlerApple::HandleControllerConnected( GCController* controller )
 			( *existing )->pendingRemoval = false;
 			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected", ( *existing )->identifier.name.c_str() );
 		}
-		else if( DeviceSlot* rawSlot = FindRevivedSlotLocked( identifier ) )
+		else if( auto revived = FindRevivedSlotLocked( identifier ) )
 		{
-			rawSlot->pendingRemoval = false;
+			revived->pendingRemoval = false;
 
 			// Preserve the original identity so anything upstream keyed on deviceID keeps working.
-			identifier.deviceID = rawSlot->identifier.deviceID;
-			identifier.name = rawSlot->identifier.name;
-			rawSlot->identifier = identifier;
+			identifier.deviceID = revived->identifier.deviceID;
+			identifier.name = revived->identifier.name;
+			revived->identifier = identifier;
 
-			AdoptSourcesIntoSlot( *rawSlot, controller, std::move( buttonSources ), std::move( axisSources ), std::move( switchSources ) );
+			AdoptSourcesIntoSlot( revived, controller, std::move( buttonSources ), std::move( axisSources ), std::move( switchSources ) );
 
 			// The old handler died with the old GCController instance; if the caller had this device
 			// active, resume delivering events on the new instance without requiring a re-activation call.
-			if( rawSlot->active )
+			if( revived->active )
 			{
-				ActivateSlotHandler( *rawSlot );
+				ActivateSlotHandler( revived );
 			}
 			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' reconnected on a different transport, keeping its identity",
-				rawSlot->identifier.name.c_str() );
+				revived->identifier.name.c_str() );
 		}
 		else
 		{
-			auto newSlot = std::make_unique<DeviceSlot>();
+			auto newSlot = std::make_shared<DeviceSlot>();
 			newSlot->identifier = identifier;
-			AdoptSourcesIntoSlot( *newSlot, controller, std::move( buttonSources ), std::move( axisSources ), std::move( switchSources ) );
+			AdoptSourcesIntoSlot( newSlot, controller, std::move( buttonSources ), std::move( axisSources ), std::move( switchSources ) );
 
-            addedIdentifier = newSlot->identifier;
+			addedIdentifier = newSlot->identifier;
 			m_deviceSlots.push_back( std::move( newSlot ) );
 			shouldFireAdded = true;
 			CCP_LOGNOTICE( "InputHandlerApple: Device '%s' connected", addedIdentifier.name.c_str() );
@@ -405,7 +404,7 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 	// thread and the GameController notification thread can race on the same GCController
 	// property/slot field with no ordering guarantee.
 	std::unique_lock<std::mutex> lock( m_deviceMutex );
-	auto* slot = FindDeviceSlotLocked( deviceId );
+	auto slot = FindDeviceSlotLocked( deviceId );
 	if( slot == nullptr )
 	{
 		CCP_LOGERR( "InputHandlerApple: Could not find device with ID '%s' to set activation to %d",
@@ -415,7 +414,7 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 
 	if( activate )
 	{
-		ActivateSlotHandler( *slot );
+		ActivateSlotHandler( slot );
 	}
 	else
 	{
@@ -431,12 +430,12 @@ void InputHandlerApple::SetDeviceActivation( BlueSharedString deviceId, bool act
 		slot->active = false;
 
 		// SendChannelIntensity takes m_deviceMutex itself (it has to stay unlocked while it makes
-		// blocking CoreHaptics calls), so it can't be called while this scope still holds it.
-		DeviceSlot* rawSlot = slot;
+		// blocking CoreHaptics calls), so it can't be called while this scope still holds it. The
+		// shared owner keeps the slot alive across the unlock.
 		lock.unlock();
 		for( int i = 0; i < ChannelCount; ++i )
 		{
-			SendChannelIntensity( *rawSlot, static_cast<HapticsChannelIndex>( i ), 0.0f );
+			SendChannelIntensity( *slot, static_cast<HapticsChannelIndex>( i ), 0.0f );
 		}
 	}
 }
@@ -454,38 +453,44 @@ Events::State InputHandlerApple::SampleSlotState( const DeviceSlot& slot )
 	// so each sample only walks the precomputed extraction plan.
 	for( const auto& source : slot.buttonSources )
 	{
-		state.buttons.insert( { { source.descriptor, source.elementIndex }, ButtonHandling::Handle( source, profile ) } );
+		state.buttons.insert( { source.element, ButtonHandling::Handle( source, profile ) } );
 	}
 	for( const auto& source : slot.axisSources )
 	{
-		state.axis.insert( { { source.descriptor, source.index }, AxisHandling::Handle( source, profile ) } );
+		state.axis.insert( { source.element, AxisHandling::Handle( source, profile ) } );
 	}
 	for( const auto& source : slot.switchSources )
 	{
-		state.switches.insert( { { source.descriptor, source.index }, SwitchHandling::Handle( source, profile ) } );
+		state.switches.insert( { source.element, SwitchHandling::Handle( source, profile ) } );
 	}
 	return state;
 }
 
-void InputHandlerApple::ActivateSlotHandler( DeviceSlot& slot )
+void InputHandlerApple::ActivateSlotHandler( const std::shared_ptr<DeviceSlot>& slot )
 {
 	// nextInputState only returns queued snapshots when the queue is > 1 (default 1 = no buffering).
-	id<GCDevicePhysicalInput> physicalInput = slot.controller.input;
+	id<GCDevicePhysicalInput> physicalInput = slot->controller.input;
 	if( physicalInput != nil )
 	{
 		physicalInput.inputStateQueueDepth = 20;
 	}
 
-	DeviceSlot* rawSlot = &slot;
-	slot.controller.physicalInputProfile.valueDidChangeHandler = ^( GCPhysicalInputProfile* profile, GCControllerElement* element ) {
+	// Weak so the block does not keep the slot alive after Update() finalizes its disconnect.
+	std::weak_ptr<DeviceSlot> weakSlot = slot;
+	slot->controller.physicalInputProfile.valueDidChangeHandler = ^( GCPhysicalInputProfile* profile, GCControllerElement* element ) {
 		(void)profile;
 		(void)element;
-		Events::State state = SampleSlotState( *rawSlot );
+		auto liveSlot = weakSlot.lock();
+		if( !liveSlot )
+		{
+			return;
+		}
+		Events::State state = SampleSlotState( *liveSlot );
 
 		std::unique_lock<std::mutex> lock( this->m_readingMutex );
-		rawSlot->accumulatedStates.push_back( std::move( state ) );
+		liveSlot->accumulatedStates.push_back( std::move( state ) );
 	};
-	slot.active = true;
+	slot->active = true;
 
 	// The handler above only fires on the next physical change, so a caller that activates a
 	// device and immediately calls Update() (or activates one with a button already held) would
@@ -493,7 +498,7 @@ void InputHandlerApple::ActivateSlotHandler( DeviceSlot& slot )
 	// the current state right away.
 	{
 		std::unique_lock<std::mutex> lock( this->m_readingMutex );
-		slot.accumulatedStates.push_back( SampleSlotState( slot ) );
+		slot->accumulatedStates.push_back( SampleSlotState( *slot ) );
 	}
 }
 
@@ -547,7 +552,7 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 	std::vector<Events::State> statesForDevice;
 	{
 		std::unique_lock<std::mutex> deviceLock( m_deviceMutex );
-		auto* slot = FindDeviceSlotLocked( deviceId );
+		auto slot = FindDeviceSlotLocked( deviceId );
 		if( slot == nullptr )
 		{
 			return statesForDevice;
@@ -564,7 +569,7 @@ std::vector<Events::State> InputHandlerApple::Update( BlueSharedString deviceId 
 
 void InputHandlerApple::Rumble( BlueSharedString deviceId, Events::Rumble rumble )
 {
-	DeviceSlot* slot = nullptr;
+	std::shared_ptr<DeviceSlot> slot;
 	{
 		std::unique_lock<std::mutex> lock( m_deviceMutex );
 		slot = FindDeviceSlotLocked( deviceId );
@@ -582,31 +587,20 @@ void InputHandlerApple::Rumble( BlueSharedString deviceId, Events::Rumble rumble
 	};
 
 	// Released m_deviceMutex above: SendChannelIntensity takes it itself and must stay unlocked
-	// while it makes blocking CoreHaptics calls. Safe to keep using the raw slot pointer here -
-	// Update() is the only thing that erases slots, and it runs on this same calling thread.
+	// while it makes blocking CoreHaptics calls. The shared owner keeps the slot alive meanwhile.
 	for( int i = 0; i < ChannelCount; ++i )
 	{
 		SendChannelIntensity( *slot, static_cast<HapticsChannelIndex>( i ), requested[i] );
 	}
 }
 
-InputHandlerApple::DeviceSlot* InputHandlerApple::FindDeviceSlotLocked( BlueSharedString deviceId )
+std::shared_ptr<InputHandlerApple::DeviceSlot> InputHandlerApple::FindDeviceSlotLocked( BlueSharedString deviceId )
 {
 	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
-		[deviceId]( const std::unique_ptr<DeviceSlot>& slot ) {
+		[deviceId]( const std::shared_ptr<DeviceSlot>& slot ) {
 			return slot->controller != nil && !slot->pendingRemoval && slot->identifier.deviceID == deviceId;
 		} );
-	return it != m_deviceSlots.end() ? it->get() : nullptr;
-}
-
-InputHandlerApple::DeviceSlot* InputHandlerApple::GetDeviceSlot( GCController* controller )
-{
-	std::unique_lock<std::mutex> lock( m_deviceMutex );
-	auto it = std::find_if( m_deviceSlots.begin(), m_deviceSlots.end(),
-		[controller]( const std::unique_ptr<DeviceSlot>& slot ) {
-			return slot->controller == controller;
-		} );
-	return it != m_deviceSlots.end() ? it->get() : nullptr;
+	return it != m_deviceSlots.end() ? *it : nullptr;
 }
 
 void InputHandlerApple::SetBackgroundEventsEnabled( bool enabled )
@@ -623,45 +617,47 @@ void InputHandlerApple::SetBackgroundEventsEnabled( bool enabled )
 	}
 }
 
-void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
+void InputHandlerApple::InitializeHapticsForSlot( const std::shared_ptr<DeviceSlot>& slot )
 {
 	if( !( @available( macOS 11.0, * ) ) )
 	{
-		slot.identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+		slot->identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
 		return;
 	}
 
-	if( slot.controller == nil )
+	if( slot->controller == nil )
 	{
-		slot.identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+		slot->identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
 		return;
 	}
 
-	GCDeviceHaptics* haptics = slot.controller.haptics;
+	GCDeviceHaptics* haptics = slot->controller.haptics;
 	if( haptics == nil )
 	{
-		slot.identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
+		slot->identifier.rumbleCapacity = DeviceEnums::RumbleCapacity{};
 		return;
 	}
-	slot.haptics = haptics;
+	slot->haptics = haptics;
 
-	DeviceSlot* rawSlot = &slot;
+	// Weak so an engine callback outliving the slot simply finds nothing instead of having to
+	// re-scan the device list to prove the slot is still there.
+	std::weak_ptr<DeviceSlot> weakSlot = slot;
 	for( int i = 0; i < ChannelCount; ++i )
 	{
 		const ChannelInfo& info = InfoForChannel( i );
-		if( !( slot.identifier.rumbleCapacity.*( info.capacityFlag ) ) )
+		if( !( slot->identifier.rumbleCapacity.*( info.capacityFlag ) ) )
 		{
 			continue;
 		}
 
-		HapticsChannel& channel = slot.hapticsChannels[i];
+		HapticsChannel& channel = slot->hapticsChannels[i];
 		NSError* err = nil;
 		channel.engine = [haptics createEngineWithLocality:info.locality];
 		if( channel.engine == nil )
 		{
 			CCP_LOGWARN( "InputHandlerApple: Failed to create haptics engine for channel %d on device '%s'",
-				i, slot.identifier.name.c_str() );
-			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
+				i, slot->identifier.name.c_str() );
+			ClearCapacityForChannel( slot->identifier.rumbleCapacity, i );
 			continue;
 		}
 
@@ -670,30 +666,22 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 		const int channelIndex = i;
 		channel.engine.resetHandler = ^{
 			CCP_LOGWARN( "InputHandlerApple: Haptics engine reset on channel %d, restarting", channelIndex );
-			std::unique_lock<std::mutex> lock( this->m_deviceMutex );
-			bool slotAlive = false;
-			for( auto& s : m_deviceSlots )
-			{
-				if( s.get() == rawSlot )
-				{
-					slotAlive = true;
-					break;
-				}
-			}
-			if( !slotAlive )
+			auto liveSlot = weakSlot.lock();
+			if( !liveSlot )
 			{
 				return;
 			}
+			std::unique_lock<std::mutex> lock( this->m_deviceMutex );
 			NSError* restartErr = nil;
-			if( ![rawSlot->hapticsChannels[channelIndex].engine startAndReturnError:&restartErr] )
+			if( ![liveSlot->hapticsChannels[channelIndex].engine startAndReturnError:&restartErr] )
 			{
 				CCP_LOGWARN( "InputHandlerApple: Failed to restart engine on channel %d: %s",
 				channelIndex, NSErrorMessage( restartErr ) );
 				return;
 			}
 			// The previous player belongs to the old engine instance; drop it and force the next Rumble() to rebuild.
-			rawSlot->hapticsChannels[channelIndex].player = nil;
-			rawSlot->hapticsChannels[channelIndex].lastIntensity = -1.0f;
+			liveSlot->hapticsChannels[channelIndex].player = nil;
+			liveSlot->hapticsChannels[channelIndex].lastIntensity = -1.0f;
 		};
 
 		channel.engine.stoppedHandler = ^( CHHapticEngineStoppedReason reason ) {
@@ -704,18 +692,18 @@ void InputHandlerApple::InitializeHapticsForSlot( DeviceSlot& slot )
 		if( ![channel.engine startAndReturnError:&err] )
 		{
 			CCP_LOGWARN( "InputHandlerApple: Failed to start haptics engine on channel %d for device '%s': %s",
-				i, slot.identifier.name.c_str(), NSErrorMessage( err ) );
+				i, slot->identifier.name.c_str(), NSErrorMessage( err ) );
 			channel.engine = nil;
-			ClearCapacityForChannel( slot.identifier.rumbleCapacity, i );
+			ClearCapacityForChannel( slot->identifier.rumbleCapacity, i );
 			continue;
 		}
 
 		channel.supported = true;
 	}
 
-	if( slot.identifier.rumbleCapacity.rumbleMotorCount == 0 )
+	if( slot->identifier.rumbleCapacity.rumbleMotorCount == 0 )
 	{
-		slot.haptics = nil;
+		slot->haptics = nil;
 	}
 }
 

@@ -36,32 +36,36 @@ void InputDevice::OnListModified(
 
 void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
-	m_deviceIdentifier = identifier;
+	m_deviceIdentifier = std::move( identifier );
 
-	uint32_t unknownButtons = 0;
-	for( uint32_t i = 0; i < identifier.buttonElements.size(); ++i )
+	auto appendElements = []( const std::vector<DeviceEnums::ElementKey>& keys, PInputElementVector& target ) {
+		for( const auto& key : keys )
+		{
+			InputElementPtr element;
+			element.CreateInstance();
+			element->Initialize( key );
+			target.Append( element );
+		}
+	};
+
+	appendElements( m_deviceIdentifier.buttonElements, m_buttons );
+	appendElements( m_deviceIdentifier.axisElements, m_axes );
+	appendElements( m_deviceIdentifier.switchElements, m_switches );
+
+	// Seeded neutral so events evaluated before the first hardware reading arrives still find
+	// an entry for their element instead of reporting a missing state.
+	m_currentState.timestamp = Events::GetTimestamp();
+	for( const auto& key : m_deviceIdentifier.buttonElements )
 	{
-		InputElementPtr button;
-		button.CreateInstance();
-		button->Initialize( identifier.buttonElements[i], Events::AssignElementIndex( identifier.buttonElements[i], unknownButtons ) );
-		m_buttons.Append( button );
+		m_currentState.buttons.emplace( key, Events::Button{} );
 	}
-
-	uint32_t unknownAxes = 0;
-	for( uint32_t i = 0; i < identifier.axisElements.size(); ++i )
+	for( const auto& key : m_deviceIdentifier.axisElements )
 	{
-		InputElementPtr axis;
-		axis.CreateInstance();
-		axis->Initialize( identifier.axisElements[i], Events::AssignElementIndex( identifier.axisElements[i], unknownAxes ) );
-		m_axes.Append( axis );
+		m_currentState.axis.emplace( key, Events::Axis{} );
 	}
-
-	for( uint32_t i = 0; i < identifier.switchElements.size(); ++i )
+	for( const auto& key : m_deviceIdentifier.switchElements )
 	{
-		InputElementPtr switchElement;
-		switchElement.CreateInstance();
-		switchElement->Initialize( identifier.switchElements[i], i );
-		m_switches.Append( switchElement );
+		m_currentState.switches.emplace( key, Events::Switch{} );
 	}
 }
 

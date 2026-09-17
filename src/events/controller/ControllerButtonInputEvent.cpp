@@ -2,7 +2,7 @@
 
 namespace{
 
-Events::Button* GetButtonState( Events::State& state, Events::ElementKey key )
+Events::Button* GetButtonState( Events::State& state, DeviceEnums::ElementKey key )
 {
     auto it = state.buttons.find( key );
     if( it != state.buttons.end() )
@@ -13,7 +13,7 @@ Events::Button* GetButtonState( Events::State& state, Events::ElementKey key )
     return nullptr;
 }
 
-const Events::Button* GetButtonState( const Events::State& state, Events::ElementKey key )
+const Events::Button* GetButtonState( const Events::State& state, DeviceEnums::ElementKey key )
 {
     auto it = state.buttons.find( key );
     if( it != state.buttons.end() )
@@ -91,11 +91,6 @@ bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 		if( button->matched )
 		{
 			return false;
-		}
-
-		if( matched )
-		{
-			m_currentState = m_event;
 		}
 
 		return matched;

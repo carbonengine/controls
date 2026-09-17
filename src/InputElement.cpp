@@ -4,18 +4,12 @@ InputElement::InputElement( IRoot* lockobj )
 {
 }
 
-void InputElement::Initialize( DeviceEnums::InputElementDescriptor element, uint32_t index )
+void InputElement::Initialize( const DeviceEnums::ElementKey& key )
 {
-	m_element = element;
-	m_index = index;
+	m_key = key;
 }
 
-DeviceEnums::InputElementDescriptor InputElement::GetElement() const
+const DeviceEnums::ElementKey& InputElement::GetKey() const
 {
-	return m_element;
-}
-
-uint32_t InputElement::GetIndex() const
-{
-	return m_index;
+	return m_key;
 }

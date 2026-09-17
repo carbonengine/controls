@@ -10,8 +10,6 @@
 #include "../events/Events.h"
 #include "InputMappingWin.h"
 
-using namespace GameInput::v3;
-
 
 /**
  * @brief Windows implementation of IInputHandler using the GameInput API.
@@ -49,21 +47,16 @@ public:
 private:
 
 	/**
-	 * @brief Per-device bookkeeping slot.
+	 * @brief The fixed recipe for turning one GameInput reading into an Events::State.
+	 *
+	 * Resolved once per connection and immutable thereafter, so the reading callback can walk
+	 * it without a lock while a reconnect builds a replacement alongside it.
 	 */
-	struct DeviceSlot
+	struct ExtractionPlan
 	{
-		CComPtr<IGameInputDevice> device = nullptr;   ///< COM pointer to the GameInput device.
-		bool pendingRemoval = false;                   ///< True when a disconnect event has been received but not yet processed.
-		DeviceEnums::DeviceIdentifier identifier{};    ///< Device metadata.
-		std::vector<Events::State> accumulatedStates{}; ///< States accumulated from reading callbacks, consumed by Update().
-		GameInputCallbackToken readCallbackToken = 0;  ///< Token for the registered reading callback.
-		bool supportsGamepad = false;                  ///< True when the device exposes a gamepad view, whose axis values are already correctly signed.
-
-	
-		std::vector<ButtonHandling::ButtonSource> buttonSources{}; ///< How to sample each published button.
-		std::vector<AxisHandling::AxisSource> axisSources{};     ///< How to sample each published axis.
-		std::vector<uint32_t> switchSources{};     ///< Raw controller switch index for each published switch.
+		std::vector<ButtonHandling::ButtonSource> buttonSources; ///< How to sample each published button.
+		std::vector<AxisHandling::AxisSource> axisSources;       ///< How to sample each published axis.
+		std::vector<SwitchHandling::SwitchSource> switchSources; ///< How to sample each published switch.
 
 		bool needsGamepadState = false; ///< True when any source reads the gamepad view.
 		bool needsRawButtons = false;   ///< True when any source reads the raw button array.
@@ -71,96 +64,102 @@ private:
 		bool needsRawSwitches = false;  ///< True when any source reads the raw switch array.
 	};
 
+	/**
+	 * @brief Per-device bookkeeping slot.
+	 */
+	struct DeviceSlot
+	{
+		CComPtr<GameInputV3::IGameInputDevice> device = nullptr; ///< COM pointer to the GameInput device.
+		bool pendingRemoval = false;                   ///< True when a disconnect event has been received but not yet processed.
+		DeviceEnums::DeviceIdentifier identifier{};    ///< Device metadata.
+		std::vector<Events::State> accumulatedStates{}; ///< States accumulated from reading callbacks, consumed by Update().
+		GameInputV3::GameInputCallbackToken readCallbackToken = 0; ///< Token for the registered reading callback.
+		std::shared_ptr<const ExtractionPlan> plan = std::make_shared<const ExtractionPlan>(); ///< Replaced wholesale on (re)connect.
+	};
+
 
 	/**
 	 * @brief Finds a device slot by device ID string.
+	 *
+	 * Returns a shared owner so callers may keep using the slot after the lock is released.
+	 *
 	 * @param deviceID The unique device identifier.
-	 * @return Pointer to the matching DeviceSlot, or nullptr if not found.
+	 * @return The matching DeviceSlot, or nullptr if not found.
 	 */
-	DeviceSlot* GetDeviceSlot( BlueSharedString deviceID );
+	std::shared_ptr<DeviceSlot> GetDeviceSlot( BlueSharedString deviceID );
 
 	/**
 	 * @brief Finds a device slot by GameInput device pointer.
 	 * @param device The GameInput device COM pointer.
-	 * @return Pointer to the matching DeviceSlot, or nullptr if not found.
+	 * @return The matching DeviceSlot, or nullptr if not found.
 	 */
-	DeviceSlot* GetDeviceSlot( CComPtr<IGameInputDevice> device );
+	std::shared_ptr<DeviceSlot> GetDeviceSlot( CComPtr<GameInputV3::IGameInputDevice> device );
 
-	/**
-	 * @brief Shuts down GameInput and releases all resources.
-	 */
-	void ShutdownGameInput();
+	/// @brief Lookup by device ID for callers that already hold m_deviceMutex.
+	std::shared_ptr<DeviceSlot> FindSlotLocked( BlueSharedString deviceID );
 
 	/**
 	 * @brief Reads the current hardware state from a single GameInput reading.
 	 *
-	 * Walks the slot's precomputed extraction plan; no layout decisions are made
-	 * here, so the cost per reading is proportional to the published element count.
+	 * Walks the plan resolved on connect; no layout decisions are made here, so the cost per
+	 * reading is proportional to the published element count.
 	 *
 	 * @param reading The GameInput reading to process.
-	 * @param slot The device slot the reading belongs to, supplying the resolved
-	 * extraction plan.
+	 * @param plan The extraction plan the reading's device was configured with.
 	 * @return An Events::State snapshot populated from the reading, or std::nullopt when
 	 * the reading could not be decoded and no snapshot should be published.
 	 */
-	std::optional<Events::State> ReadDeviceState( IGameInputReading* reading, const DeviceSlot& slot );
+	static std::optional<Events::State> ReadDeviceState( GameInputV3::IGameInputReading* reading, const ExtractionPlan& plan );
 
 	/**
 	 * @brief Static callback invoked by GameInput when a device connects or disconnects.
 	 */
 	static void CALLBACK OnDeviceStatusChanged(
-		_In_ GameInputCallbackToken callbackToken,
+		_In_ GameInputV3::GameInputCallbackToken callbackToken,
 		_In_ void* context,
-		_In_ IGameInputDevice* device,
+		_In_ GameInputV3::IGameInputDevice* device,
 		_In_ uint64_t timestamp,
-		_In_ GameInputDeviceStatus currentStatus,
-		_In_ GameInputDeviceStatus previousStatus ) noexcept;
+		_In_ GameInputV3::GameInputDeviceStatus currentStatus,
+		_In_ GameInputV3::GameInputDeviceStatus previousStatus ) noexcept;
 
 	/**
 	 * @brief Static callback invoked by GameInput when a new reading is available.
 	 */
 	static void CALLBACK OnDeviceRead(
-		_In_ GameInputCallbackToken callbackToken,
+		_In_ GameInputV3::GameInputCallbackToken callbackToken,
 		_In_ void* context,
-		_In_ IGameInputReading* reading ) noexcept;
+		_In_ GameInputV3::IGameInputReading* reading ) noexcept;
 
 	/**
 	 * @brief Builds a DeviceIdentifier from a GameInput device.
 	 * @param device The GameInput device to query.
 	 * @return A populated DeviceIdentifier.
 	 */
-	static DeviceEnums::DeviceIdentifier GetIdentifier( IGameInputDevice* device );
+	static DeviceEnums::DeviceIdentifier GetIdentifier( GameInputV3::IGameInputDevice* device );
 
 	/**
-	 * @brief Reports whether a device exposes a GameInput gamepad view.
-	 * @param device The GameInput device to query.
-	 * @return true when GameInputKindGamepad is supported.
-	 */
-	static bool SupportsGamepad( IGameInputDevice* device );
-
-	/**
-	 * @brief Resolves the device's fixed extraction plan and publishes matching identifiers.
+	 * @brief Resolves a device's extraction plan and rewrites @p identifier to the element keys it publishes.
 	 *
-	 * Builds slot.buttonPlan, slot.axisPlan and slot.switchPlan from the device's
-	 * layout information, normalizes a button-reported DPad into a single switch,
-	 * and rewrites the identifier element lists so they stay index-aligned with
-	 * the states ReadDeviceState() will emit. Called once per device connection.
+	 * Pure: touches no slot state, so the caller can build the replacement plan off-lock and
+	 * install it in one assignment. A reconnect therefore never exposes a half-rebuilt plan
+	 * to the reading callback.
 	 *
-	 * @param slot The slot to configure; its identifier must already be populated.
 	 * @param device The GameInput device, may be null.
+	 * @param identifier Identifier whose element key lists are replaced.
+	 * @return The immutable plan for this connection.
 	 */
-	static void ConfigureDeviceSlot( DeviceSlot& slot, IGameInputDevice* device );
+	static std::shared_ptr<const ExtractionPlan> ResolvePlan( GameInputV3::IGameInputDevice* device, DeviceEnums::DeviceIdentifier& identifier );
 
-	mutable std::shared_mutex m_deviceMutex;  ///< Protects m_deviceSlots.
-	mutable std::shared_mutex m_readingMutex; ///< Protects per-device accumulated readings.
+	mutable std::mutex m_deviceMutex;  ///< Protects m_deviceSlots and the mutable fields of every slot.
+	mutable std::mutex m_readingMutex; ///< Protects per-device accumulated readings.
 
-	GameInputCallbackToken m_deviceCallbackToken = 0; ///< Token for the device status callback.
+	GameInputV3::GameInputCallbackToken m_deviceCallbackToken = 0; ///< Token for the device status callback.
 
-	CComPtr<IGameInput> m_gameInput = nullptr;     ///< The GameInput interface.
-	// Held by pointer so a slot's address stays valid when the list grows. The reading
+	CComPtr<GameInputV3::IGameInput> m_gameInput = nullptr;     ///< The GameInput interface.
+	// Shared ownership so a slot stays alive for as long as anyone is using it: the reading
 	// callback resolves a slot on the GameInput thread and writes into it after releasing
-	// m_deviceMutex, so a reallocating vector of values would leave it writing to freed memory.
-	std::vector<std::unique_ptr<DeviceSlot>> m_deviceSlots = {};     ///< All recognized devices.
+	// m_deviceMutex.
+	std::vector<std::shared_ptr<DeviceSlot>> m_deviceSlots = {};     ///< All recognized devices.
 
 	DeviceChangedCallback m_deviceAddedCallback = nullptr;   ///< Callback for device connection events.
 	DeviceChangedCallback m_deviceRemovedCallback = nullptr; ///< Callback for device disconnection events.
@@ -169,8 +168,8 @@ private:
 	bool m_devicesRemoved = false; ///< Flag indicating pending device removals.
 
 	/// @brief Supported GameInput device kinds.
-	static const GameInputKind SUPPORTED_INPUTS = static_cast<GameInputKind>(
-	GameInputKindGamepad |
-	GameInputKindController );
+	static const GameInputV3::GameInputKind SUPPORTED_INPUTS = static_cast<GameInputV3::GameInputKind>(
+	GameInputV3::GameInputKindGamepad |
+	GameInputV3::GameInputKindController );
 };
 #endif

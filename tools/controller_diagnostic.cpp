@@ -192,7 +192,7 @@ struct ButtonLogicalTracker
 
 // Keyed by the same state-map key the handler publishes, so trackers stay correct for
 // devices whose element keys are not a dense 0..N range.
-using ButtonTrackerMap = std::map<Events::ElementKey, ButtonLogicalTracker>;
+using ButtonTrackerMap = std::map<DeviceEnums::ElementKey, ButtonLogicalTracker>;
 
 uint64_t NowMicros()
 {

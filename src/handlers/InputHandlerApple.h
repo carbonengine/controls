@@ -80,8 +80,8 @@ private:
 	/**
 	 * @brief Per-device bookkeeping slot.
 	 *
-	 * Slots are heap-allocated (unique_ptr) so raw pointers captured by
-	 * Obj-C blocks remain valid even when the containing vector reallocates.
+	 * Slots are shared-owned so a caller that resolves one under m_deviceMutex, and the Obj-C
+	 * blocks that observe one, both keep it alive independently of Update() erasing it.
 	 */
 	struct DeviceSlot
 	{
@@ -110,40 +110,33 @@ private:
 	/**
 	 * @brief Finds a device slot by device ID string.
 	 *
-	 * The caller must already hold m_deviceMutex, and must keep holding it for as long as it
-	 * goes on using the returned pointer: Update() erases (and frees) a slot under that same
-	 * lock once its disconnect is finalized, so a pointer obtained and then used after unlocking
-	 * can be dangling by the time it's dereferenced.
+	 * The caller must hold m_deviceMutex for the lookup itself, but the returned owner keeps
+	 * the slot alive afterwards, so it stays valid even if Update() erases it from the list.
 	 */
-	DeviceSlot* FindDeviceSlotLocked( BlueSharedString deviceId );
-
-	/**
-	 * @brief Finds a device slot by GCController pointer.
-	 */
-	DeviceSlot* GetDeviceSlot( GCController* controller	);
+	std::shared_ptr<DeviceSlot> FindDeviceSlotLocked( BlueSharedString deviceId );
 
 	/// @brief Finds a still-pendingRemoval slot that looks like the same physical controller reconnecting
 	/// on a different transport (no GCController pointer or persistent hardware ID survives that). Caller
 	/// must hold m_deviceMutex.
-	DeviceSlot* FindRevivedSlotLocked( const DeviceEnums::DeviceIdentifier& identifier );
+	std::shared_ptr<DeviceSlot> FindRevivedSlotLocked( const DeviceEnums::DeviceIdentifier& identifier );
 
 	/// @brief Installs controller and the resolved element sources onto slot, then brings up haptics if
 	/// slot.identifier (set by the caller beforehand) reports any rumble motors. Shared by the
 	/// transport-swap-reconnect and brand-new-device paths in HandleControllerConnected. Caller must hold
 	/// m_deviceMutex.
-	void AdoptSourcesIntoSlot( DeviceSlot& slot, GCController* controller,
+	void AdoptSourcesIntoSlot( const std::shared_ptr<DeviceSlot>& slot, GCController* controller,
 		std::vector<ButtonHandling::ButtonSource> buttonSources,
 		std::vector<AxisHandling::AxisSource> axisSources,
 		std::vector<SwitchHandling::SwitchSource> switchSources );
 
 	/// @brief Installs the input-queueing depth and valueDidChangeHandler on slot.controller, marks the slot active, and seeds accumulatedStates with a snapshot of the controller's current state so a caller doesn't have to wait for the next physical change to learn where it already is. Shared by SetDeviceActivation(activate=true) and by a transport-swap reconnect that revives a slot which was active before it disconnected. Caller must hold m_deviceMutex.
-	void ActivateSlotHandler( DeviceSlot& slot );
+	void ActivateSlotHandler( const std::shared_ptr<DeviceSlot>& slot );
 
 	/// @brief Reads every source's current value into one state snapshot. Shared by ActivateSlotHandler's initial read and the live valueDidChangeHandler.
 	static Events::State SampleSlotState( const DeviceSlot& slot );
 
 	/// @brief Brings up per-locality CoreHaptics engines and looping players; downgrades slot->identifier.rumbleCapacity on any per-channel failure.
-	void InitializeHapticsForSlot( DeviceSlot& slot );
+	void InitializeHapticsForSlot( const std::shared_ptr<DeviceSlot>& slot );
 
 	/// @brief Stops and releases every haptics engine/player attached to the slot; safe to call on a partially-initialized or empty slot.
 	void ShutdownHapticsForSlot( DeviceSlot& slot );
@@ -153,7 +146,7 @@ private:
 
 	mutable std::mutex m_deviceMutex;                              ///< Protects m_deviceSlots.
 	mutable std::mutex m_readingMutex;                             ///< Protects per-slot accumulated readings.
-	std::vector<std::unique_ptr<DeviceSlot>> m_deviceSlots;        ///< All recognized devices.
+	std::vector<std::shared_ptr<DeviceSlot>> m_deviceSlots;        ///< All recognized devices.
 
 	DeviceChangedCallback m_deviceAddedCallback = nullptr;         ///< Callback invoked when a device connects.
 	DeviceChangedCallback m_deviceRemovedCallback = nullptr;       ///< Callback invoked when a device disconnects.

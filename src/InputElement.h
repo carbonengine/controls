@@ -10,14 +10,12 @@ BLUE_CLASS( InputElement ) : public IRoot
 public:
 	EXPOSE_TO_BLUE();
 	InputElement( IRoot* lockobj = nullptr );
-	void Initialize( DeviceEnums::InputElementDescriptor element, uint32_t index );
+	void Initialize( const DeviceEnums::ElementKey& key );
 
-	DeviceEnums::InputElementDescriptor GetElement() const;
-	uint32_t GetIndex() const;
+	const DeviceEnums::ElementKey& GetKey() const;
 
 private:
-	DeviceEnums::InputElementDescriptor m_element{ DeviceEnums::InputElementDescriptor::Unknown }; ///< Canonical element identifier for this element.
-	uint32_t m_index{ 0 }; ///< Index of this element in the device's element array.
+	DeviceEnums::ElementKey m_key{}; ///< Identity this element was published under by the handler.
 };
 TYPEDEF_BLUECLASS( InputElement );
 BLUE_DECLARE_VECTOR( InputElement );

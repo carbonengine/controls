@@ -3,6 +3,8 @@
 
 namespace Events
 {
+uint64_t g_holdTimeInMicroSeconds = 300 * 1000;
+
 bool Rumble::empty() const
 {
 	return lowFrequency == 0.0f && highFrequency == 0.0f && leftTrigger == 0.0f && rightTrigger == 0.0f;

@@ -38,8 +38,6 @@ private:
 
 	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
 	bool m_previouslyPressed = false;          ///< Whether the button was pressed on the previous update.
-	Events::ButtonState m_currentState = Events::ButtonState::Up; ///< Current button state based on press/release transitions.
-	Events::ButtonState m_previousState = Events::ButtonState::Up; ///< Previous button state based on press/release transitions.
 	uint64_t m_previousStateChangeTimestamp = 0; ///< Timestamp of the last press/release transition.
 };
 

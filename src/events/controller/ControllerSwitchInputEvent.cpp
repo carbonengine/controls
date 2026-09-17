@@ -2,7 +2,7 @@
 
 namespace {
 
-Events::Switch* GetSwitchState( Events::State& state, Events::ElementKey key)
+Events::Switch* GetSwitchState( Events::State& state, DeviceEnums::ElementKey key)
 {
     auto it = state.switches.find( key );
     if( it != state.switches.end() )
@@ -14,7 +14,7 @@ Events::Switch* GetSwitchState( Events::State& state, Events::ElementKey key)
 }
 
 
-const Events::Switch* GetSwitchState( const Events::State& state, Events::ElementKey key )
+const Events::Switch* GetSwitchState( const Events::State& state, DeviceEnums::ElementKey key )
 {
     auto it = state.switches.find( key );
     if( it != state.switches.end() )

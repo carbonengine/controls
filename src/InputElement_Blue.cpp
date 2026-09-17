@@ -104,7 +104,7 @@ const Be::ClassInfo* InputElement::ExposeToBlue()
 {
 	EXPOSURE_BEGIN( InputElement, "Input Element" )
 		MAP_INTERFACE( InputElement )
-		MAP_ATTRIBUTE_WITH_CHOOSER( "element", m_element, "The canonical element identifier for this input element", Be::READ | Be::ENUM, InputElementDescriptorChooser )
-		MAP_ATTRIBUTE( "index", m_index, "The index of this input element in the device's element array", Be::READ )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "element", m_key.descriptor, "The canonical element identifier for this input element", Be::READ | Be::ENUM, InputElementDescriptorChooser )
+		MAP_ATTRIBUTE( "index", m_key.index, "Disambiguates elements that share a descriptor", Be::READ )
 	EXPOSURE_END()
 }

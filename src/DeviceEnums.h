@@ -16,7 +16,7 @@ namespace DeviceEnums
  * category on macOS) rather than from whatever label the OS reports, so the
  * same physical controller resolves to the same family on every platform.
  */
-enum class DeviceFamily : uint8_t
+enum class DeviceFamily : uint32_t
 {
     Unknown = 0,
     Generic,
@@ -149,6 +149,44 @@ const char* ToKeyString( InputElementDescriptor element );
 const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily family );
 
 /**
+ * @brief Identifies one published element on a device.
+ *
+ * The descriptor alone identifies a named element. @c index disambiguates elements that
+ * would otherwise share a descriptor: Unknown elements, and the d-pad switches of a device
+ * that exposes more than one.
+ *
+ * A handler resolves the key once when a device connects and publishes it in
+ * DeviceIdentifier, so consumers read the same identity the state snapshots are keyed by
+ * instead of re-deriving it from the descriptor list.
+ */
+struct ElementKey
+{
+	InputElementDescriptor descriptor = InputElementDescriptor::Unknown;
+	uint32_t index = 0;
+};
+
+inline bool operator<( const ElementKey& lhs, const ElementKey& rhs )
+{
+	return lhs.descriptor != rhs.descriptor ? lhs.descriptor < rhs.descriptor : lhs.index < rhs.index;
+}
+
+inline bool operator==( const ElementKey& lhs, const ElementKey& rhs )
+{
+	return lhs.descriptor == rhs.descriptor && lhs.index == rhs.index;
+}
+
+/**
+ * @brief Builds the key for the next button or axis a handler publishes.
+ *
+ * Named elements are identified by their descriptor alone and always get index 0. Unknown
+ * elements are numbered from 0 in publication order via @p unknownCounter.
+ */
+inline ElementKey MakeElementKey( InputElementDescriptor descriptor, uint32_t& unknownCounter )
+{
+	return { descriptor, descriptor == InputElementDescriptor::Unknown ? unknownCounter++ : 0 };
+}
+
+/**
  * @brief Describes the rumble/vibration capabilities of an input device.
  */
 struct RumbleCapacity
@@ -158,19 +196,6 @@ struct RumbleCapacity
 	bool hasLeftTriggerRumble = false;   ///< Whether the left trigger supports rumble.
 	bool hasRightTriggerRumble = false;  ///< Whether the right trigger supports rumble.
 	uint32_t rumbleMotorCount = 0;       ///< Number of rumble motors available on the device.
-
-	RumbleCapacity() = default;
-
-	/**
-	 * @brief Copy constructor.
-	 * @param other The RumbleCapacity to copy from.
-	 */
-	RumbleCapacity( const RumbleCapacity& other ) :
-		hasLowFrequencyRumble( other.hasLowFrequencyRumble ),
-		hasHighFrequencyRumble( other.hasHighFrequencyRumble ),
-		hasLeftTriggerRumble( other.hasLeftTriggerRumble ),
-		hasRightTriggerRumble( other.hasRightTriggerRumble ),
-		rumbleMotorCount( other.rumbleMotorCount ) {};
 };
 
 /**
@@ -190,32 +215,14 @@ struct DeviceIdentifier
 	/// does not depend on it.
 	DeviceFamily family = DeviceFamily::Unknown;
 
-	/// Canonical button identifiers; InputElement::Unknown marks an unmapped button.
-	std::vector<InputElementDescriptor> buttonElements;
-	/// Canonical axis identifiers; InputElement::Unknown marks an unmapped axis.
-	std::vector<InputElementDescriptor> axisElements;
-	/// Canonical switch identifiers; InputElement::Unknown marks an unmapped switch.
-	std::vector<InputElementDescriptor> switchElements;
+	/// Published button keys, in the order the handler emits them into Events::State.
+	std::vector<ElementKey> buttonElements;
+	/// Published axis keys, in the order the handler emits them into Events::State.
+	std::vector<ElementKey> axisElements;
+	/// Published switch keys, in the order the handler emits them into Events::State.
+	std::vector<ElementKey> switchElements;
 
 	RumbleCapacity rumbleCapacity {}; ///< Rumble capabilities of the device.
-
-	DeviceIdentifier() = default;
-
-	/**
-	 * @brief Copy constructor.
-	 * @param other The DeviceIdentifier to copy from.
-	 */
-	DeviceIdentifier( const DeviceIdentifier& other ) :
-		name( other.name ),
-		deviceID( other.deviceID ),
-		vendorID( other.vendorID ),
-		productID( other.productID ),
-		family( other.family ),
-		buttonElements( other.buttonElements ),
-		axisElements( other.axisElements ),
-		switchElements( other.switchElements ),
-		rumbleCapacity( other.rumbleCapacity )
-	{};
 };
 
 }
