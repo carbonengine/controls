@@ -12,7 +12,6 @@ BLUE_CLASS( ControllerSwitchInputEvent ) :
 	public InputEvent
 {
 public:
-
 	EXPOSE_TO_BLUE();
 
 	ControllerSwitchInputEvent( IRoot* lockobj = nullptr );
@@ -33,7 +32,7 @@ private:
 	/** @copydoc InputEvent::AcceptsElement() */
 	bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const override;
 
-	Events::SwitchPosition m_event{ Events::SwitchPosition::Any };    ///< Target switch position to match.
+	Events::SwitchPosition m_event{ Events::SwitchPosition::Any }; ///< Target switch position to match.
 	Events::SwitchPosition m_state{ Events::SwitchPosition::Center }; ///< Currently matched switch position.
 	Events::SwitchPosition m_previousState{ Events::SwitchPosition::Center }; ///< Last matched switch position.
 };

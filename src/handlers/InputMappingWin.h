@@ -1,10 +1,10 @@
 #pragma once
 #ifdef WIN32
 #include "IInputHandler.h"
-#include <Windows.h>   
+#include <Windows.h>
 #include <gameinput_v3.h>
 
-#include <array>	
+#include <array>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -52,7 +52,7 @@ struct ButtonSource
 	Kind kind = Kind::None;
 	GameInputV3::GameInputGamepadButtons mask = GameInputV3::GameInputGamepadNone; ///< Mask to test when kind is GamepadMask.
 	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
-	DeviceEnums::ElementKey key {}; ///< Identity this button is published under.
+	DeviceEnums::ElementKey key{}; ///< Identity this button is published under.
 };
 
 std::vector<ButtonSource> GetButtonSources( const GameInputV3::GameInputControllerInfo* controllerInfo, const GameInputV3::GameInputGamepadInfo* gamepadInfo );
@@ -76,7 +76,7 @@ struct AxisSource
 	Kind kind = Kind::RawIndex;
 	float GameInputV3::GameInputGamepadState::* gamepadField = nullptr; ///< Member to read when kind is GamepadField.
 	uint32_t rawIndex = 0; ///< Raw controller index when kind is RawIndex.
-	DeviceEnums::ElementKey key {}; ///< Identity this axis is published under.
+	DeviceEnums::ElementKey key{}; ///< Identity this axis is published under.
 };
 
 std::vector<AxisSource> GetAxisSources( const GameInputV3::GameInputControllerInfo* controllerInfo, const GameInputV3::GameInputGamepadInfo* gamepadInfo );
@@ -91,7 +91,7 @@ namespace SwitchHandling
 struct SwitchSource
 {
 	uint32_t rawIndex = 0; ///< Raw controller switch index.
-	DeviceEnums::ElementKey key {}; ///< Identity this switch is published under.
+	DeviceEnums::ElementKey key{}; ///< Identity this switch is published under.
 };
 
 std::vector<SwitchSource> GetSwitchSources( const GameInputV3::GameInputControllerInfo* controllerInfo );

@@ -107,15 +107,15 @@ private:
 	 */
 	InputDevicePtr FindActiveDevice( BlueSharedString deviceID ) const;
 
-	PInputDeviceVector m_devices;                     ///< All known (connected) devices.
-	std::unique_ptr<IInputHandler> m_inputHandler;    ///< Platform-specific input handler.
-	PInputDeviceVector m_activeDevices;                ///< Devices currently being polled.
-	BlueScriptCallback m_activeDeviceLostCallback;    ///< Callback when an active device disconnects.
-	BlueScriptCallback m_deviceAddedCallback;         ///< Callback when a new device is connected.
-	BlueScriptCallback m_deviceRemovedCallback;       ///< Callback when an inactive device disconnects.
-	std::mutex m_deviceChangedMutex;                  ///< Protects the add/remove queues.
+	PInputDeviceVector m_devices; ///< All known (connected) devices.
+	std::unique_ptr<IInputHandler> m_inputHandler; ///< Platform-specific input handler.
+	PInputDeviceVector m_activeDevices; ///< Devices currently being polled.
+	BlueScriptCallback m_activeDeviceLostCallback; ///< Callback when an active device disconnects.
+	BlueScriptCallback m_deviceAddedCallback; ///< Callback when a new device is connected.
+	BlueScriptCallback m_deviceRemovedCallback; ///< Callback when an inactive device disconnects.
+	std::mutex m_deviceChangedMutex; ///< Protects the add/remove queues.
 
-	std::vector<DeviceEnums::DeviceIdentifier> m_addedDevices;   ///< Queued device-added events.
+	std::vector<DeviceEnums::DeviceIdentifier> m_addedDevices; ///< Queued device-added events.
 	std::vector<DeviceEnums::DeviceIdentifier> m_removedDevices; ///< Queued device-removed events.
 
 	bool m_initialDevicesProcessed = false; ///< Whether the initial device enumeration has been processed.

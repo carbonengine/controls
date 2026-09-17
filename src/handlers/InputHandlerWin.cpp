@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <iterator>
-#include <Windows.h> 
+#include <Windows.h>
 #include <gameinput_v3.h>
 
 #include "../ControlManager.h"

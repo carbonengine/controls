@@ -59,8 +59,8 @@ protected:
 	virtual bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const;
 
 	DeviceEnums::ElementKey m_key{}; ///< Identifies the device element this event monitors.
-	bool m_attached{ false };   ///< Whether an input element has been attached to a physical input.
-	bool m_matched{ false };    ///< Result of the most recent evaluation.
+	bool m_attached{ false }; ///< Whether an input element has been attached to a physical input.
+	bool m_matched{ false }; ///< Result of the most recent evaluation.
 };
 
 TYPEDEF_BLUECLASS( InputEvent );

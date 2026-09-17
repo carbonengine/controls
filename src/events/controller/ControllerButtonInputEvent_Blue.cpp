@@ -22,7 +22,6 @@ const Be::ClassInfo* ControllerButtonInputEvent::ExposeToBlue()
 	EXPOSURE_BEGIN( ControllerButtonInputEvent, "Controller button input event" )
 		MAP_INTERFACE( ControllerButtonInputEvent )
 
-
 		MAP_ATTRIBUTE( "previouslyPressed", m_previouslyPressed, "Whether the button was pressed on the previous update", Be::READ )
 		MAP_ATTRIBUTE( "previousStateChangeTimestamp", m_previousStateChangeTimestamp, "Timestamp of the last state transition", Be::READ )
 

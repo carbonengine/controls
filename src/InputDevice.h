@@ -70,11 +70,11 @@ public:
 	 * @return The device name.
 	 */
 	BlueSharedString GetName() const;
-	
+
 	BlueSharedString GetButtonName( uint32_t index ) const;
 	BlueSharedString GetAxisName( uint32_t index ) const;
 	BlueSharedString GetSwitchName( uint32_t index ) const;
-	
+
 	/**
 	* @brief Gets the current intensity of the high frequency rumble motor.
 	*/
@@ -107,7 +107,7 @@ public:
 	* Ensures that the value gets sent to the input handler on the next Update() call.
 	*/
 	void SetLeftTriggerRumble( float value );
-	
+
 	/**
 	* @brief Gets the current intensity of the right trigger rumble motor.
 	*/
@@ -132,15 +132,15 @@ private:
 	 */
 	void UpdateState( const Events::State& state );
 
-	DeviceEnums::DeviceIdentifier m_deviceIdentifier {}; ///< Device metadata.
-	PRawDeviceIdPartStructureList m_rawDeviceId;          ///< Raw device ID parts exposed to script.
+	DeviceEnums::DeviceIdentifier m_deviceIdentifier{}; ///< Device metadata.
+	PRawDeviceIdPartStructureList m_rawDeviceId; ///< Raw device ID parts exposed to script.
 
-	PInputEventTriggerVector m_triggers;                  ///< Event triggers attached to this device.
-	std::vector<InputEventTrigger*> m_sortedTriggers;     ///< Triggers sorted by event count (descending).
-	Events::State m_currentState;                         ///< Latest device state.
-	bool m_triggersDirty = false;                          ///< Whether the sorted trigger cache needs rebuilding.
+	PInputEventTriggerVector m_triggers; ///< Event triggers attached to this device.
+	std::vector<InputEventTrigger*> m_sortedTriggers; ///< Triggers sorted by event count (descending).
+	Events::State m_currentState; ///< Latest device state.
+	bool m_triggersDirty = false; ///< Whether the sorted trigger cache needs rebuilding.
 
-	Events::Rumble m_rumble{};   ///< Current rumble motor intensities.
+	Events::Rumble m_rumble{}; ///< Current rumble motor intensities.
 	bool m_updateRumble = false; ///< Whether rumble values have changed since last Update().
 	PInputElementVector m_buttons;
 	PInputElementVector m_axes;

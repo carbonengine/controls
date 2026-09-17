@@ -33,7 +33,7 @@ private:
 	bool m_initialized = false; ///< Whether the initial axis value has been captured.
 
 	float m_value = 0.0f; ///< Last known axis value.
-	float m_delta = 0.0f;       ///< Change since last update.
+	float m_delta = 0.0f; ///< Change since last update.
 };
 
 TYPEDEF_BLUECLASS( ControllerAxisInputEvent );

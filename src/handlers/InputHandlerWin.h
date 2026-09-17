@@ -1,7 +1,7 @@
 #pragma once
 #ifdef WIN32
 #include "IInputHandler.h"
-#include <Windows.h>   
+#include <Windows.h>
 #include <gameinput_v3.h>
 
 #include <memory>
@@ -44,8 +44,8 @@ public:
 
 	/** @copydoc IInputHandler::SetBackgroundEventsEnabled() */
 	void SetBackgroundEventsEnabled( bool enabled ) override;
-private:
 
+private:
 	/**
 	 * @brief The fixed recipe for turning one GameInput reading into an Events::State.
 	 *
@@ -55,13 +55,13 @@ private:
 	struct ExtractionPlan
 	{
 		std::vector<ButtonHandling::ButtonSource> buttonSources; ///< How to sample each published button.
-		std::vector<AxisHandling::AxisSource> axisSources;       ///< How to sample each published axis.
+		std::vector<AxisHandling::AxisSource> axisSources; ///< How to sample each published axis.
 		std::vector<SwitchHandling::SwitchSource> switchSources; ///< How to sample each published switch.
 
 		bool needsGamepadState = false; ///< True when any source reads the gamepad view.
-		bool needsRawButtons = false;   ///< True when any source reads the raw button array.
-		bool needsRawAxes = false;      ///< True when any source reads the raw axis array.
-		bool needsRawSwitches = false;  ///< True when any source reads the raw switch array.
+		bool needsRawButtons = false; ///< True when any source reads the raw button array.
+		bool needsRawAxes = false; ///< True when any source reads the raw axis array.
+		bool needsRawSwitches = false; ///< True when any source reads the raw switch array.
 	};
 
 	/**
@@ -70,8 +70,8 @@ private:
 	struct DeviceSlot
 	{
 		CComPtr<GameInputV3::IGameInputDevice> device = nullptr; ///< COM pointer to the GameInput device.
-		bool pendingRemoval = false;                   ///< True when a disconnect event has been received but not yet processed.
-		DeviceEnums::DeviceIdentifier identifier{};    ///< Device metadata.
+		bool pendingRemoval = false; ///< True when a disconnect event has been received but not yet processed.
+		DeviceEnums::DeviceIdentifier identifier{}; ///< Device metadata.
 		std::vector<Events::State> accumulatedStates{}; ///< States accumulated from reading callbacks, consumed by Update().
 		GameInputV3::GameInputCallbackToken readCallbackToken = 0; ///< Token for the registered reading callback.
 		std::shared_ptr<const ExtractionPlan> plan = std::make_shared<const ExtractionPlan>(); ///< Replaced wholesale on (re)connect.
@@ -150,26 +150,26 @@ private:
 	 */
 	static std::shared_ptr<const ExtractionPlan> ResolvePlan( GameInputV3::IGameInputDevice* device, DeviceEnums::DeviceIdentifier& identifier );
 
-	mutable std::mutex m_deviceMutex;  ///< Protects m_deviceSlots and the mutable fields of every slot.
+	mutable std::mutex m_deviceMutex; ///< Protects m_deviceSlots and the mutable fields of every slot.
 	mutable std::mutex m_readingMutex; ///< Protects per-device accumulated readings.
 
 	GameInputV3::GameInputCallbackToken m_deviceCallbackToken = 0; ///< Token for the device status callback.
 
-	CComPtr<GameInputV3::IGameInput> m_gameInput = nullptr;     ///< The GameInput interface.
+	CComPtr<GameInputV3::IGameInput> m_gameInput = nullptr; ///< The GameInput interface.
 	// Shared ownership so a slot stays alive for as long as anyone is using it: the reading
 	// callback resolves a slot on the GameInput thread and writes into it after releasing
 	// m_deviceMutex.
-	std::vector<std::shared_ptr<DeviceSlot>> m_deviceSlots = {};     ///< All recognized devices.
+	std::vector<std::shared_ptr<DeviceSlot>> m_deviceSlots = {}; ///< All recognized devices.
 
-	DeviceChangedCallback m_deviceAddedCallback = nullptr;   ///< Callback for device connection events.
+	DeviceChangedCallback m_deviceAddedCallback = nullptr; ///< Callback for device connection events.
 	DeviceChangedCallback m_deviceRemovedCallback = nullptr; ///< Callback for device disconnection events.
 
-	bool m_initialized = false;   ///< Whether Initialize() has completed successfully.
+	bool m_initialized = false; ///< Whether Initialize() has completed successfully.
 	bool m_devicesRemoved = false; ///< Flag indicating pending device removals.
 
 	/// @brief Supported GameInput device kinds.
 	static const GameInputV3::GameInputKind SUPPORTED_INPUTS = static_cast<GameInputV3::GameInputKind>(
-	GameInputV3::GameInputKindGamepad |
-	GameInputV3::GameInputKindController );
+		GameInputV3::GameInputKindGamepad |
+		GameInputV3::GameInputKindController );
 };
 #endif

@@ -211,32 +211,40 @@ const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily famil
 	{
 	// Nintendo swaps both face pairs relative to the Xbox letter layout.
 	case InputElementDescriptor::FaceSouth:
-		if( playstation ) return "FaceButtonCross";
+		if( playstation )
+			return "FaceButtonCross";
 		return nintendo ? "FaceButtonB" : "FaceButtonA";
 	case InputElementDescriptor::FaceEast:
-		if( playstation ) return "FaceButtonCircle";
+		if( playstation )
+			return "FaceButtonCircle";
 		return nintendo ? "FaceButtonA" : "FaceButtonB";
 	case InputElementDescriptor::FaceWest:
-		if( playstation ) return "FaceButtonSquare";
+		if( playstation )
+			return "FaceButtonSquare";
 		return nintendo ? "FaceButtonY" : "FaceButtonX";
 	case InputElementDescriptor::FaceNorth:
-		if( playstation ) return "FaceButtonTriangle";
+		if( playstation )
+			return "FaceButtonTriangle";
 		return nintendo ? "FaceButtonX" : "FaceButtonY";
 
 	// Switch pads print L/ZL/R/ZR on the shoulders and leave the stick buttons unmarked.
 	case InputElementDescriptor::LeftShoulder:
-		if( playstation ) return "L1";
+		if( playstation )
+			return "L1";
 		return nintendo ? "L" : "LB";
 	case InputElementDescriptor::LeftTriggerButton:
-		if( playstation ) return "L2";
+		if( playstation )
+			return "L2";
 		return nintendo ? "ZL" : "LT";
 	case InputElementDescriptor::LeftStickButton:
 		return playstation ? "L3" : "LSB";
 	case InputElementDescriptor::RightShoulder:
-		if( playstation ) return "R1";
+		if( playstation )
+			return "R1";
 		return nintendo ? "R" : "RB";
 	case InputElementDescriptor::RightTriggerButton:
-		if( playstation ) return "R2";
+		if( playstation )
+			return "R2";
 		return nintendo ? "ZR" : "RT";
 	case InputElementDescriptor::RightStickButton:
 		return playstation ? "R3" : "RSB";

@@ -15,7 +15,7 @@ void InputEventTrigger::Process( Events::State& state )
 	bool matches = true;
 	bool justMatched = false;
 	// need to check all events, even if one fails, to properly update their internal state (e.g. for held events)
-	for( auto &event: m_events )
+	for( auto& event : m_events )
 	{
 		matches &= event->Match( state );
 		justMatched |= event->JustMatched();

@@ -26,7 +26,7 @@
 #import <Foundation/Foundation.h>
 #include "../src/handlers/InputMappingApple.h"
 #include "../src/handlers/InputHandlerApple.h"
-#elif defined(WIN32)
+#elif defined( WIN32 )
 #include "../src/handlers/InputMappingWin.h"
 #include "../src/handlers/InputHandlerWin.h"
 #else
@@ -66,11 +66,11 @@ void OnDeviceAdded( DeviceEnums::DeviceIdentifier& identifier )
 	if( !g_quietDeviceLog.load() )
 	{
 		std::printf( "[+] Device connected: %s (id=%s, buttons=%zu, axes=%zu, switches=%zu)\n",
-			identifier.name.c_str(),
-			identifier.deviceID.c_str(),
-			identifier.buttonElements.size(),
-			identifier.axisElements.size(),
-			identifier.switchElements.size() );
+					 identifier.name.c_str(),
+					 identifier.deviceID.c_str(),
+					 identifier.buttonElements.size(),
+					 identifier.axisElements.size(),
+					 identifier.switchElements.size() );
 		std::fflush( stdout );
 	}
 }
@@ -115,7 +115,7 @@ std::unique_ptr<IInputHandler> MakeInputHandler()
 {
 #ifdef __APPLE__
 	return std::unique_ptr<IInputHandler>( new InputHandlerApple() );
-#elif defined(WIN32)
+#elif defined( WIN32 )
 	return std::unique_ptr<IInputHandler>( new InputHandlerWin() );
 #else
 	return std::unique_ptr<IInputHandler>( new InputHandlerStub() );
@@ -127,8 +127,10 @@ std::string RenderAxisBar( float value )
 	const int width = 20;
 	const int half = width / 2;
 	int filled = static_cast<int>( value * half );
-	if( filled > half ) filled = half;
-	if( filled < -half ) filled = -half;
+	if( filled > half )
+		filled = half;
+	if( filled < -half )
+		filled = -half;
 
 	std::string bar;
 	bar.reserve( width + 2 );
@@ -156,16 +158,26 @@ const char* SwitchPositionName( Events::SwitchPosition p )
 {
 	switch( p )
 	{
-	case Events::SwitchPosition::Center: return "Center";
-	case Events::SwitchPosition::Up: return "Up";
-	case Events::SwitchPosition::UpRight: return "UpRight";
-	case Events::SwitchPosition::Right: return "Right";
-	case Events::SwitchPosition::DownRight: return "DownRight";
-	case Events::SwitchPosition::Down: return "Down";
-	case Events::SwitchPosition::DownLeft: return "DownLeft";
-	case Events::SwitchPosition::Left: return "Left";
-	case Events::SwitchPosition::UpLeft: return "UpLeft";
-	case Events::SwitchPosition::Any: return "Any";
+	case Events::SwitchPosition::Center:
+		return "Center";
+	case Events::SwitchPosition::Up:
+		return "Up";
+	case Events::SwitchPosition::UpRight:
+		return "UpRight";
+	case Events::SwitchPosition::Right:
+		return "Right";
+	case Events::SwitchPosition::DownRight:
+		return "DownRight";
+	case Events::SwitchPosition::Down:
+		return "Down";
+	case Events::SwitchPosition::DownLeft:
+		return "DownLeft";
+	case Events::SwitchPosition::Left:
+		return "Left";
+	case Events::SwitchPosition::UpLeft:
+		return "UpLeft";
+	case Events::SwitchPosition::Any:
+		return "Any";
 	}
 	return "?";
 }
@@ -174,9 +186,12 @@ const char* ButtonStateName( Events::ButtonState s )
 {
 	switch( s )
 	{
-	case Events::ButtonState::Down: return "x";
-	case Events::ButtonState::Held: return "X";
-	default: return "";
+	case Events::ButtonState::Down:
+		return "x";
+	case Events::ButtonState::Held:
+		return "X";
+	default:
+		return "";
 	}
 }
 
@@ -286,7 +301,9 @@ struct RawStdinGuard
 #else
 struct RawStdinGuard
 {
-	void Enter() {}
+	void Enter()
+	{
+	}
 	int TryRead()
 	{
 		if( _kbhit() )
@@ -391,17 +408,19 @@ void RenderState(
 	std::printf( "\x1b[H\x1b[J" );
 	std::printf( "Controller Diagnostic - %s (id=%s)\n", DescribeDevice( id ).c_str(), id.deviceID.c_str() );
 	std::printf( "buttons=%zu axes=%zu switches=%zu   (Ctrl+C to quit)\n",
-		state.buttons.size(), state.axis.size(), state.switches.size() );
+				 state.buttons.size(),
+				 state.axis.size(),
+				 state.switches.size() );
 	std::printf( "Rumble motors=%u: [1]low=%s%.2f [2]high=%s%.2f [3]lTrig=%s%.2f [4]rTrig=%s%.2f\n\n",
-		id.rumbleCapacity.rumbleMotorCount,
-		id.rumbleCapacity.hasLowFrequencyRumble ? "" : "(unsupported)",
-		pulses[0].value,
-		id.rumbleCapacity.hasHighFrequencyRumble ? "" : "(unsupported)",
-		pulses[1].value,
-		id.rumbleCapacity.hasLeftTriggerRumble ? "" : "(unsupported)",
-		pulses[2].value,
-		id.rumbleCapacity.hasRightTriggerRumble ? "" : "(unsupported)",
-		pulses[3].value );
+				 id.rumbleCapacity.rumbleMotorCount,
+				 id.rumbleCapacity.hasLowFrequencyRumble ? "" : "(unsupported)",
+				 pulses[0].value,
+				 id.rumbleCapacity.hasHighFrequencyRumble ? "" : "(unsupported)",
+				 pulses[1].value,
+				 id.rumbleCapacity.hasLeftTriggerRumble ? "" : "(unsupported)",
+				 pulses[2].value,
+				 id.rumbleCapacity.hasRightTriggerRumble ? "" : "(unsupported)",
+				 pulses[3].value );
 
 	std::printf( "Buttons:\n" );
 	for( const auto& entry : state.buttons )
@@ -414,10 +433,10 @@ void RenderState(
 		}
 
 		std::printf( "  %5u %-20s %-20s: %-8s\n",
-			static_cast<uint32_t>( entry.first.descriptor ),
-			ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
-			GlyphAt( entry.first.descriptor, id.family ),
-			ButtonStateName( logical ) );
+					 static_cast<uint32_t>( entry.first.descriptor ),
+					 ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
+					 GlyphAt( entry.first.descriptor, id.family ),
+					 ButtonStateName( logical ) );
 	}
 
 	std::printf( "\nAxes:\n" );
@@ -425,11 +444,11 @@ void RenderState(
 	{
 		const Events::Axis& axis = entry.second;
 		std::printf( "  %5u %-20s %-20s: %s %+.3f\n",
-			static_cast<uint32_t>( entry.first.descriptor ),
-			ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
-			GlyphAt( entry.first.descriptor, id.family ),
-			RenderAxisBar( axis.value ).c_str(),
-			axis.value );
+					 static_cast<uint32_t>( entry.first.descriptor ),
+					 ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
+					 GlyphAt( entry.first.descriptor, id.family ),
+					 RenderAxisBar( axis.value ).c_str(),
+					 axis.value );
 	}
 
 	std::printf( "\nSwitches:\n" );
@@ -437,10 +456,10 @@ void RenderState(
 	{
 		const Events::Switch& switchState = entry.second;
 		std::printf( "  %5u %-20s %-20s: %s\n",
-			static_cast<uint32_t>( entry.first.descriptor ),
-			ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
-			GlyphAt( entry.first.descriptor, id.family ),
-			SwitchPositionName( switchState.position ) );
+					 static_cast<uint32_t>( entry.first.descriptor ),
+					 ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
+					 GlyphAt( entry.first.descriptor, id.family ),
+					 SwitchPositionName( switchState.position ) );
 	}
 
 	std::fflush( stdout );
@@ -503,12 +522,12 @@ int main( int /*argc*/, char** /*argv*/ )
 				for( size_t i = 0; i < maxShown; ++i )
 				{
 					std::printf( "  [%zu] %s  (id=%s, buttons=%zu, axes=%zu, switches=%zu)\n",
-						i + 1,
-						DescribeDevice( snapshot[i] ).c_str(),
-						snapshot[i].deviceID.c_str(),
-						snapshot[i].buttonElements.size(),
-						snapshot[i].axisElements.size(),
-						snapshot[i].switchElements.size() );
+								 i + 1,
+								 DescribeDevice( snapshot[i] ).c_str(),
+								 snapshot[i].deviceID.c_str(),
+								 snapshot[i].buttonElements.size(),
+								 snapshot[i].axisElements.size(),
+								 snapshot[i].switchElements.size() );
 				}
 				std::printf( "\nPress 1-%zu to connect.\n", maxShown );
 			}

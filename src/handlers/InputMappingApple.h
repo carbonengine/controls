@@ -48,18 +48,24 @@ struct ButtonSource
 	/// @brief Which profile dictionary - and, for a dpad, which component - supplies this button.
 	enum class Kind : uint8_t
 	{
-		None,          ///< Not present on this device; always reads as unpressed.
+		None, ///< Not present on this device; always reads as unpressed.
 		ProfileButton, ///< Sample profile.buttons[key].isPressed.
-		DpadDirection  ///< Sample profile.dpads[key].<direction>.isPressed.
+		DpadDirection ///< Sample profile.dpads[key].<direction>.isPressed.
 	};
 
 	/// @brief Which digital component of a dpad to sample; only meaningful when kind is DpadDirection.
-	enum class DpadDirection : uint8_t { Up, Down, Left, Right };
+	enum class DpadDirection : uint8_t
+	{
+		Up,
+		Down,
+		Left,
+		Right
+	};
 
 	Kind kind = Kind::None;
 	__strong NSString* key = nil; ///< Key into profile.buttons or profile.dpads identifying this element.
 	DpadDirection direction = DpadDirection::Up; ///< Component to sample when kind is DpadDirection.
-	DeviceEnums::ElementKey element {}; ///< Identity this button is published under.
+	DeviceEnums::ElementKey element{}; ///< Identity this button is published under.
 };
 
 std::vector<ButtonSource> GetButtonSources( GCController* controller );
@@ -79,15 +85,15 @@ struct AxisSource
 	/// @brief Which profile dictionary - and, for a dpad, which component - supplies this axis.
 	enum class Kind : uint8_t
 	{
-		ProfileAxis,   ///< Sample profile.axes[key].value.
-		DpadAxis,      ///< Sample profile.dpads[key].xAxis/yAxis.value, per isXAxis.
-		TriggerButton  ///< Sample profile.buttons[key].value (an analog trigger read as an axis).
+		ProfileAxis, ///< Sample profile.axes[key].value.
+		DpadAxis, ///< Sample profile.dpads[key].xAxis/yAxis.value, per isXAxis.
+		TriggerButton ///< Sample profile.buttons[key].value (an analog trigger read as an axis).
 	};
 
 	Kind kind = Kind::ProfileAxis;
 	__strong NSString* key = nil; ///< Key into profile.axes, profile.dpads or profile.buttons identifying this element.
 	bool isXAxis = true; ///< Which dpad component to sample when kind is DpadAxis.
-	DeviceEnums::ElementKey element {}; ///< Identity this axis is published under.
+	DeviceEnums::ElementKey element{}; ///< Identity this axis is published under.
 };
 
 std::vector<AxisSource> GetAxisSources( GCController* controller );
@@ -105,7 +111,7 @@ namespace SwitchHandling
 struct SwitchSource
 {
 	__strong NSString* key = nil; ///< Key into profile.dpads identifying this element.
-	DeviceEnums::ElementKey element {}; ///< Identity this switch is published under.
+	DeviceEnums::ElementKey element{}; ///< Identity this switch is published under.
 };
 
 std::vector<SwitchSource> GetSwitchSources( GCController* controller );

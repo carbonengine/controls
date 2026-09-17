@@ -84,7 +84,7 @@ void InputDevice::Update( IInputHandler* inputHandler )
 	if( m_triggersDirty )
 	{
 		m_sortedTriggers.clear();
-		for( auto& trigger: m_triggers )
+		for( auto& trigger : m_triggers )
 		{
 			m_sortedTriggers.push_back( trigger );
 		}
@@ -93,7 +93,7 @@ void InputDevice::Update( IInputHandler* inputHandler )
 		} );
 		m_triggersDirty = false;
 	}
-	
+
 	auto states = inputHandler->Update( m_deviceIdentifier.deviceID );
 	if( !states.empty() )
 	{

@@ -1,28 +1,29 @@
 #include "ControllerSwitchInputEvent.h"
 
-namespace {
-
-Events::Switch* GetSwitchState( Events::State& state, DeviceEnums::ElementKey key)
+namespace
 {
-    auto it = state.switches.find( key );
-    if( it != state.switches.end() )
-    {
-        return &it->second;
-    }
-    CCP_LOGERR( "Switch state not found for switch %s", DeviceEnums::ToKeyString( key.descriptor ) );
-    return nullptr;
+
+Events::Switch* GetSwitchState( Events::State& state, DeviceEnums::ElementKey key )
+{
+	auto it = state.switches.find( key );
+	if( it != state.switches.end() )
+	{
+		return &it->second;
+	}
+	CCP_LOGERR( "Switch state not found for switch %s", DeviceEnums::ToKeyString( key.descriptor ) );
+	return nullptr;
 }
 
 
 const Events::Switch* GetSwitchState( const Events::State& state, DeviceEnums::ElementKey key )
 {
-    auto it = state.switches.find( key );
-    if( it != state.switches.end() )
-    {
-        return &it->second;
-    }
-    CCP_LOGERR( "Switch state not found for switch %s", DeviceEnums::ToKeyString( key.descriptor ) );
-    return nullptr;
+	auto it = state.switches.find( key );
+	if( it != state.switches.end() )
+	{
+		return &it->second;
+	}
+	CCP_LOGERR( "Switch state not found for switch %s", DeviceEnums::ToKeyString( key.descriptor ) );
+	return nullptr;
 }
 }
 
@@ -43,11 +44,11 @@ bool ControllerSwitchInputEvent::JustMatched()
 
 bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 {
-	if( m_attached  )
+	if( m_attached )
 	{
 		if( const auto* switchState = GetSwitchState( state, m_key ) )
 		{
-			if( !switchState->matched && (switchState->position == m_event || m_event == Events::SwitchPosition::Any) )
+			if( !switchState->matched && ( switchState->position == m_event || m_event == Events::SwitchPosition::Any ) )
 			{
 				m_state = switchState->position;
 				return true;

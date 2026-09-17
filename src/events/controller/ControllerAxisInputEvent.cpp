@@ -1,27 +1,28 @@
 #include "ControllerAxisInputEvent.h"
 
-namespace{
+namespace
+{
 
 Events::Axis* GetAxisState( Events::State& state, DeviceEnums::ElementKey key )
 {
-    auto it = state.axis.find( key );
-    if( it != state.axis.end() )
-    {
-        return &(it->second);
-    }
-    CCP_LOGERR( "Axis state not found for axis %s", DeviceEnums::ToKeyString( key.descriptor ) );
-    return nullptr;
+	auto it = state.axis.find( key );
+	if( it != state.axis.end() )
+	{
+		return &( it->second );
+	}
+	CCP_LOGERR( "Axis state not found for axis %s", DeviceEnums::ToKeyString( key.descriptor ) );
+	return nullptr;
 }
 
 const Events::Axis* GetAxisState( const Events::State& state, DeviceEnums::ElementKey key )
 {
-    auto it = state.axis.find( key );
-    if( it != state.axis.end() )
-    {
-        return &(it->second);
-    }
-    CCP_LOGERR( "Axis state not found for axis %s", DeviceEnums::ToKeyString( key.descriptor ) );
-    return nullptr;
+	auto it = state.axis.find( key );
+	if( it != state.axis.end() )
+	{
+		return &( it->second );
+	}
+	CCP_LOGERR( "Axis state not found for axis %s", DeviceEnums::ToKeyString( key.descriptor ) );
+	return nullptr;
 }
 
 }
@@ -73,7 +74,7 @@ void ControllerAxisInputEvent::Own( Events::State& state )
 		CCP_LOGERR( "ControllerAxisInputEvent::Own: Cannot own axis state because no input element is attached." );
 		return;
 	}
-	
+
 	if( auto* axis = GetAxisState( state, m_key ) )
 	{
 		m_delta = axis->value - m_value;

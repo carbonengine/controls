@@ -13,7 +13,6 @@ BLUE_CLASS( ControllerButtonInputEvent ) :
 	public InputEvent
 {
 public:
-
 	EXPOSE_TO_BLUE();
 
 	ControllerButtonInputEvent( IRoot* lockobj = nullptr );
@@ -37,7 +36,7 @@ private:
 	bool m_previouslyMatched{ false }; ///< Result of the evaluation before the most recent one.
 
 	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
-	bool m_previouslyPressed = false;          ///< Whether the button was pressed on the previous update.
+	bool m_previouslyPressed = false; ///< Whether the button was pressed on the previous update.
 	uint64_t m_previousStateChangeTimestamp = 0; ///< Timestamp of the last press/release transition.
 };
 

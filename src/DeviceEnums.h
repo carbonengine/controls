@@ -18,11 +18,11 @@ namespace DeviceEnums
  */
 enum class DeviceFamily : uint32_t
 {
-    Unknown = 0,
-    Generic,
-    Xbox,
-    PlayStation,
-    Nintendo
+	Unknown = 0,
+	Generic,
+	Xbox,
+	PlayStation,
+	Nintendo
 };
 
 /**
@@ -39,89 +39,117 @@ enum class DeviceFamily : uint32_t
  */
 enum class InputElementDescriptor : uint32_t
 {
-    Unknown = 0,
+	Unknown = 0,
 
-    // Face buttons, by compass slot.
-    FaceSouth = 140,
-    FaceEast,
-    FaceWest,
-    FaceNorth,
+	// Face buttons, by compass slot.
+	FaceSouth = 140,
+	FaceEast,
+	FaceWest,
+	FaceNorth,
 
-    // Shoulders, triggers and stick buttons.
-    LeftShoulder = 240,
-    LeftTriggerButton,
-    LeftStickButton,
-    RightShoulder,
-    RightTriggerButton,
-    RightStickButton,
+	// Shoulders, triggers and stick buttons.
+	LeftShoulder = 240,
+	LeftTriggerButton,
+	LeftStickButton,
+	RightShoulder,
+	RightTriggerButton,
+	RightStickButton,
 
-    // System buttons.
-    Start = 320,
-    Select,
-    Guide,
+	// System buttons.
+	Start = 320,
+	Select,
+	Guide,
 
-    // Directional pad. No family variation.
-    DPadUp = 400,
-    DPadDown,
-    DPadLeft,
-    DPadRight,
-    DPad,
+	// Directional pad. No family variation.
+	DPadUp = 400,
+	DPadDown,
+	DPadLeft,
+	DPadRight,
+	DPad,
 
-    // Paddles.
-    PaddleLeft1 = 500,
-    PaddleLeft2,
-    PaddleRight1,
-    PaddleRight2,
+	// Paddles.
+	PaddleLeft1 = 500,
+	PaddleLeft2,
+	PaddleRight1,
+	PaddleRight2,
 
-    // Analog axes.
-    LeftStickX = 600,
-    LeftStickY,
-    RightStickX,
-    RightStickY,
-    LeftTriggerAxis,
-    RightTriggerAxis,
+	// Analog axes.
+	LeftStickX = 600,
+	LeftStickY,
+	RightStickX,
+	RightStickY,
+	LeftTriggerAxis,
+	RightTriggerAxis,
 
-    // Label-defined elements: devices whose controls are identified purely by
-    // the glyph printed on them (arcade sticks, flight gear). Not positional,
-    // and carrying no family variation.
-    LetterA = 700,
-    LetterB, LetterC, LetterD, LetterE, LetterF, LetterG, LetterH, LetterI,
-    LetterJ, LetterK, LetterL, LetterM, LetterN, LetterO, LetterP, LetterQ,
-    LetterR, LetterS, LetterT, LetterU, LetterV, LetterW, LetterX, LetterY,
-    LetterZ,
+	// Label-defined elements: devices whose controls are identified purely by
+	// the glyph printed on them (arcade sticks, flight gear). Not positional,
+	// and carrying no family variation.
+	LetterA = 700,
+	LetterB,
+	LetterC,
+	LetterD,
+	LetterE,
+	LetterF,
+	LetterG,
+	LetterH,
+	LetterI,
+	LetterJ,
+	LetterK,
+	LetterL,
+	LetterM,
+	LetterN,
+	LetterO,
+	LetterP,
+	LetterQ,
+	LetterR,
+	LetterS,
+	LetterT,
+	LetterU,
+	LetterV,
+	LetterW,
+	LetterX,
+	LetterY,
+	LetterZ,
 
-    // Vendor-neutral numeric labels.
-    Number0 = 800,
-    Number1, Number2, Number3, Number4,
-    Number5, Number6, Number7, Number8, Number9,
+	// Vendor-neutral numeric labels.
+	Number0 = 800,
+	Number1,
+	Number2,
+	Number3,
+	Number4,
+	Number5,
+	Number6,
+	Number7,
+	Number8,
+	Number9,
 
-    // Vendor-neutral arrow labels.
-    ArrowUp = 900,
-    ArrowUpRight,
-    ArrowRight,
-    ArrowDownRight,
-    ArrowDown,
-    ArrowDownLeft,
-    ArrowLeft,
-    ArrowUpLeft,
-    ArrowUpDown,
-    ArrowLeftRight,
-    ArrowUpDownLeftRight,
-    ArrowClockwise,
-    ArrowCounterClockwise,
-    ArrowReturn,
+	// Vendor-neutral arrow labels.
+	ArrowUp = 900,
+	ArrowUpRight,
+	ArrowRight,
+	ArrowDownRight,
+	ArrowDown,
+	ArrowDownLeft,
+	ArrowLeft,
+	ArrowUpLeft,
+	ArrowUpDown,
+	ArrowLeftRight,
+	ArrowUpDownLeftRight,
+	ArrowClockwise,
+	ArrowCounterClockwise,
+	ArrowReturn,
 
-    // Vendor-neutral icon labels.
-    IconBranding = 1000,
-    IconStar,
-    IconPlus,
-    IconMinus,
-    IconSuspension,
-    IconDialClockwise,
-    IconDialCounterClockwise,
-    IconSliderLeftRight,
-    IconSliderUpDown,
-    IconWheelUpDown
+	// Vendor-neutral icon labels.
+	IconBranding = 1000,
+	IconStar,
+	IconPlus,
+	IconMinus,
+	IconSuspension,
+	IconDialClockwise,
+	IconDialCounterClockwise,
+	IconSliderLeftRight,
+	IconSliderUpDown,
+	IconWheelUpDown
 };
 
 /**
@@ -191,11 +219,11 @@ inline ElementKey MakeElementKey( InputElementDescriptor descriptor, uint32_t& u
  */
 struct RumbleCapacity
 {
-	bool hasLowFrequencyRumble = false;  ///< Whether the device supports low-frequency rumble.
+	bool hasLowFrequencyRumble = false; ///< Whether the device supports low-frequency rumble.
 	bool hasHighFrequencyRumble = false; ///< Whether the device supports high-frequency rumble.
-	bool hasLeftTriggerRumble = false;   ///< Whether the left trigger supports rumble.
-	bool hasRightTriggerRumble = false;  ///< Whether the right trigger supports rumble.
-	uint32_t rumbleMotorCount = 0;       ///< Number of rumble motors available on the device.
+	bool hasLeftTriggerRumble = false; ///< Whether the left trigger supports rumble.
+	bool hasRightTriggerRumble = false; ///< Whether the right trigger supports rumble.
+	uint32_t rumbleMotorCount = 0; ///< Number of rumble motors available on the device.
 };
 
 /**
@@ -206,9 +234,9 @@ struct RumbleCapacity
  */
 struct DeviceIdentifier
 {
-	BlueSharedString name;      ///< Human-readable device name.
-	BlueSharedString deviceID;  ///< Unique identifier for this device instance.
-	BlueSharedString vendorID;  ///< Vendor identifier.
+	BlueSharedString name; ///< Human-readable device name.
+	BlueSharedString deviceID; ///< Unique identifier for this device instance.
+	BlueSharedString vendorID; ///< Vendor identifier.
 	BlueSharedString productID; ///< Product identifier.
 
 	/// @brief Hardware family. Presentation metadata only; element identity
@@ -222,7 +250,7 @@ struct DeviceIdentifier
 	/// Published switch keys, in the order the handler emits them into Events::State.
 	std::vector<ElementKey> switchElements;
 
-	RumbleCapacity rumbleCapacity {}; ///< Rumble capabilities of the device.
+	RumbleCapacity rumbleCapacity{}; ///< Rumble capabilities of the device.
 };
 
 }

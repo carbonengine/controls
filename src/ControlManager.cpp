@@ -2,7 +2,7 @@
 
 #ifdef WIN32
 #include "handlers/InputHandlerWin.h"
-#elif defined(__APPLE__)
+#elif defined( __APPLE__ )
 #include "handlers/InputHandlerApple.h"
 #else
 #include "handlers/InputHandlerStub.h"
@@ -14,7 +14,7 @@ ControlManager::ControlManager( IRoot* lockobj ) :
 	PARENTLOCK( m_activeDevices ),
 #ifdef WIN32
 	m_inputHandler( new InputHandlerWin() )
-#elif defined(__APPLE__)
+#elif defined( __APPLE__ )
 	m_inputHandler( new InputHandlerApple() )
 #else
 	m_inputHandler( new InputHandlerStub() )
@@ -46,7 +46,7 @@ void ControlManager::OnDeviceAdded( DeviceEnums::DeviceIdentifier& deviceIdentif
 	m_addedDevices.push_back( deviceIdentifier );
 }
 
-void ControlManager::OnDeviceRemoved( DeviceEnums::DeviceIdentifier & deviceIdentifier )
+void ControlManager::OnDeviceRemoved( DeviceEnums::DeviceIdentifier& deviceIdentifier )
 {
 	std::lock_guard<std::mutex> lock( m_deviceChangedMutex );
 	m_removedDevices.push_back( deviceIdentifier );
@@ -71,7 +71,7 @@ IRootPtr ControlManager::Activate( BlueSharedString deviceID )
 
 		return foundDevice->GetRawRoot();
 	}
-	
+
 	CCP_LOGERR( "Device with ID: %s is not connected", deviceID.c_str() );
 	return nullptr;
 }

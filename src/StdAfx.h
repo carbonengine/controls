@@ -11,4 +11,3 @@
 #include <BlueListUtil.h>
 
 #include <CCPLog.h>
-

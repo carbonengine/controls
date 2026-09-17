@@ -1,27 +1,28 @@
 #include "ControllerButtonInputEvent.h"
 
-namespace{
+namespace
+{
 
 Events::Button* GetButtonState( Events::State& state, DeviceEnums::ElementKey key )
 {
-    auto it = state.buttons.find( key );
-    if( it != state.buttons.end() )
-    {
-        return &it->second;
-    }
-    CCP_LOGERR( "Button state not found for key %s", DeviceEnums::ToKeyString( key.descriptor ) );
-    return nullptr;
+	auto it = state.buttons.find( key );
+	if( it != state.buttons.end() )
+	{
+		return &it->second;
+	}
+	CCP_LOGERR( "Button state not found for key %s", DeviceEnums::ToKeyString( key.descriptor ) );
+	return nullptr;
 }
 
 const Events::Button* GetButtonState( const Events::State& state, DeviceEnums::ElementKey key )
 {
-    auto it = state.buttons.find( key );
-    if( it != state.buttons.end() )
-    {
-        return &it->second;
-    }
-    CCP_LOGERR( "Button state not found for key %s", DeviceEnums::ToKeyString( key.descriptor ) );
-    return nullptr;
+	auto it = state.buttons.find( key );
+	if( it != state.buttons.end() )
+	{
+		return &it->second;
+	}
+	CCP_LOGERR( "Button state not found for key %s", DeviceEnums::ToKeyString( key.descriptor ) );
+	return nullptr;
 }
 }
 
@@ -108,7 +109,7 @@ void ControllerButtonInputEvent::Own( Events::State& state )
 	if( auto* button = GetButtonState( state, m_key ) )
 	{
 		button->matched = true;
-	}	
+	}
 }
 
 bool ControllerButtonInputEvent::AcceptsElement( DeviceEnums::InputElementDescriptor element ) const

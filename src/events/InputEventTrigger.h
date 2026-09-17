@@ -46,9 +46,9 @@ public:
 	size_t GetEventCount() const;
 
 private:
-	BlueScriptCallback m_callback;  ///< Script callback invoked when all events match.
-	PInputEventVector m_events;     ///< Collection of input event conditions.
-	bool m_repeat{ false };         ///< Whether the callback fires for every matching state instead of only the first one.
+	BlueScriptCallback m_callback; ///< Script callback invoked when all events match.
+	PInputEventVector m_events; ///< Collection of input event conditions.
+	bool m_repeat{ false }; ///< Whether the callback fires for every matching state instead of only the first one.
 };
 
 TYPEDEF_BLUECLASS( InputEventTrigger );
