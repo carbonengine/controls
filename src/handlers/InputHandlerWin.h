@@ -7,7 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include "../events/IInputEvent.h"
+#include "../events/Events.h"
 #include "InputMappingWin.h"
 
 using namespace GameInput::v3;

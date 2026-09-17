@@ -1,8 +1,7 @@
 #pragma once
 
 #include "../../StdAfx.h"
-#include "../IInputEvent.h"
-#include "../../InputElement.h"
+#include "../InputEvent.h"
 
 /**
  * @brief Input event that matches a controller button reaching a specific ButtonState.
@@ -11,7 +10,7 @@
  * Pressed (short tap), Held (long press), Released, Up, and Down states.
  */
 BLUE_CLASS( ControllerButtonInputEvent ) :
-	public IInputEvent
+	public InputEvent
 {
 public:
 
@@ -19,30 +18,23 @@ public:
 
 	ControllerButtonInputEvent( IRoot* lockobj = nullptr );
 
-	/** @copydoc IInputEvent::Match() */
-	bool Match( const Events::State& state ) override;
-
-	/** @copydoc IInputEvent::Own() */
+	/** @copydoc InputEvent::Own() */
 	void Own( Events::State& state ) override;
 
-	/** @copydoc IInputEvent::JustMatched() */
+	/** @copydoc InputEvent::JustMatched() */
 	bool JustMatched() override;
 
-	void AttachTo( const InputElement* input );
-
 private:
-	/**
-	 * @brief Evaluates the match condition and updates the internal tracking state.
-	 * @param state The current device state to evaluate.
-	 * @return true if the state satisfies the event condition, false otherwise.
-	 */
-	bool Evaluate( const Events::State& state );
+	/** @copydoc InputEvent::BeforeEvaluate() */
+	void BeforeEvaluate() override;
 
-	bool m_matched{ false };           ///< Result of the most recent evaluation.
+	/** @copydoc InputEvent::Evaluate() */
+	bool Evaluate( const Events::State& state ) override;
+
+	/** @copydoc InputEvent::AcceptsElement() */
+	bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const override;
+
 	bool m_previouslyMatched{ false }; ///< Result of the evaluation before the most recent one.
-	DeviceEnums::InputElementDescriptor m_element{ DeviceEnums::InputElementDescriptor::Unknown }; ///< Input element to monitor for switch position changes.
-	uint32_t m_index{ 0 }; ///< Index of the input element in the device's element array.
-	bool m_attached{ false }; ///< Whether the input element has been attached to a physical input.
 
 	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
 	bool m_previouslyPressed = false;          ///< Whether the button was pressed on the previous update.

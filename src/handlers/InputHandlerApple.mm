@@ -454,15 +454,15 @@ Events::State InputHandlerApple::SampleSlotState( const DeviceSlot& slot )
 	// so each sample only walks the precomputed extraction plan.
 	for( const auto& source : slot.buttonSources )
 	{
-		state.buttons.insert( { static_cast<uint32_t>( source.descriptor ) + source.elementIndex, ButtonHandling::Handle( source, profile ) } );
+		state.buttons.insert( { { source.descriptor, source.elementIndex }, ButtonHandling::Handle( source, profile ) } );
 	}
 	for( const auto& source : slot.axisSources )
 	{
-		state.axis.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, AxisHandling::Handle( source, profile ) } );
+		state.axis.insert( { { source.descriptor, source.index }, AxisHandling::Handle( source, profile ) } );
 	}
 	for( const auto& source : slot.switchSources )
 	{
-		state.switches.insert( { static_cast<uint32_t>( source.descriptor ) + source.index, SwitchHandling::Handle( source, profile ) } );
+		state.switches.insert( { { source.descriptor, source.index }, SwitchHandling::Handle( source, profile ) } );
 	}
 	return state;
 }

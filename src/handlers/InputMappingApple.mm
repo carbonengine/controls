@@ -241,8 +241,6 @@ std::vector<ButtonSource> GetButtonSources( GCController* controller )
 Events::Button Handle( const ButtonSource& source, GCPhysicalInputProfile* profile )
 {
 	Events::Button button;
-	button.descriptor = source.descriptor;
-	button.index = source.elementIndex;
 	if( profile == nil || source.key == nil )
 	{
 		return button;
@@ -379,8 +377,6 @@ std::vector<AxisSource> GetAxisSources( GCController* controller )
 Events::Axis Handle( const AxisSource& source, GCPhysicalInputProfile* profile )
 {
 	Events::Axis axis;
-	axis.descriptor = source.descriptor;
-	axis.index = source.index;
 	if( profile == nil || source.key == nil )
 	{
 		return axis;
@@ -478,8 +474,6 @@ std::vector<SwitchSource> GetSwitchSources( GCController* controller )
 Events::Switch Handle( const SwitchSource& source, GCPhysicalInputProfile* profile )
 {
 	Events::Switch sw;
-	sw.descriptor = source.descriptor;
-	sw.index = source.index;
 	GCControllerDirectionPad* dpad = ( profile != nil && source.key != nil ) ? profile.dpads[source.key] : nil;
 	sw.position = MapDpadPosition( dpad );
 	return sw;

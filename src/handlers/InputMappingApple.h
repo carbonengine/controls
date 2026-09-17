@@ -1,7 +1,7 @@
 #pragma once
 #ifdef __APPLE__
 #include "IInputHandler.h"
-#include "../events/IInputEvent.h"
+#include "../events/Events.h"
 
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>

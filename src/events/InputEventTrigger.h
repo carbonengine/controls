@@ -2,12 +2,12 @@
 #include "../StdAfx.h"
 #include <BlueScriptCallback.h>
 
-#include "IInputEvent.h"
+#include "InputEvent.h"
 
 /**
- * @brief Groups one or more IInputEvent conditions and fires a callback when all match.
+ * @brief Groups one or more InputEvent conditions and fires a callback when all match.
  *
- * An InputEventTrigger owns a list of IInputEvent objects. During processing,
+ * An InputEventTrigger owns a list of InputEvent objects. During processing,
  * each event is evaluated against the current device state. If every event
  * matches, the trigger's script callback is invoked and the matched portions
  * of the state are marked as owned to prevent duplicate firing.
@@ -40,14 +40,14 @@ public:
 	void Process( Events::State& state );
 
 	/**
-	 * @brief Returns the number of IInputEvent conditions in this trigger.
+	 * @brief Returns the number of InputEvent conditions in this trigger.
 	 * @return Event count.
 	 */
 	size_t GetEventCount() const;
 
 private:
 	BlueScriptCallback m_callback;  ///< Script callback invoked when all events match.
-	PIInputEventVector m_events;    ///< Collection of input event conditions.
+	PInputEventVector m_events;     ///< Collection of input event conditions.
 	bool m_repeat{ false };         ///< Whether the callback fires for every matching state instead of only the first one.
 };
 

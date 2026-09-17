@@ -29,7 +29,9 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/StdAfx.h
     src/events/Events.h
     src/events/Events.cpp
-    src/events/IInputEvent.h
+    src/events/InputEvent_Blue.cpp
+    src/events/InputEvent.cpp
+    src/events/InputEvent.h
     src/events/InputEventTrigger_Blue.cpp
     src/events/InputEventTrigger.cpp
     src/events/InputEventTrigger.h

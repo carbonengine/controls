@@ -1,14 +1,39 @@
 #include "ControllerButtonInputEvent.h"
 
-ControllerButtonInputEvent::ControllerButtonInputEvent( IRoot* lockobj )
+namespace{
+
+Events::Button* GetButtonState( Events::State& state, Events::ElementKey key )
+{
+    auto it = state.buttons.find( key );
+    if( it != state.buttons.end() )
+    {
+        return &it->second;
+    }
+    CCP_LOGERR( "Button state not found for key %s", DeviceEnums::ToKeyString( key.descriptor ) );
+    return nullptr;
+}
+
+const Events::Button* GetButtonState( const Events::State& state, Events::ElementKey key )
+{
+    auto it = state.buttons.find( key );
+    if( it != state.buttons.end() )
+    {
+        return &it->second;
+    }
+    CCP_LOGERR( "Button state not found for key %s", DeviceEnums::ToKeyString( key.descriptor ) );
+    return nullptr;
+}
+}
+
+
+ControllerButtonInputEvent::ControllerButtonInputEvent( IRoot* lockobj ) :
+	InputEvent( lockobj )
 {
 }
 
-bool ControllerButtonInputEvent::Match( const Events::State& state )
+void ControllerButtonInputEvent::BeforeEvaluate()
 {
 	m_previouslyMatched = m_matched;
-	m_matched = Evaluate( state );
-	return m_matched;
 }
 
 bool ControllerButtonInputEvent::JustMatched()
@@ -18,54 +43,52 @@ bool ControllerButtonInputEvent::JustMatched()
 
 bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 {
-	if( m_attached && state.buttons.size() > 0 )
+	if( m_attached )
 	{
-		auto it = state.buttons.find( static_cast< uint32_t >( m_element ) + m_index );
-
-		if( it == state.buttons.end() )
+		const auto* button = GetButtonState( state, m_key );
+		if( !button )
 		{
-			CCP_LOGERR( "ControllerButtonInputEvent::Match: Could not find button state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
 			return false;
 		}
 
-		auto& button = it->second;
 		if( m_previousStateChangeTimestamp == 0 )
 		{
 			m_previousStateChangeTimestamp = state.timestamp;
 		}
 
+		bool pressed = button->pressed;
 		bool matched = false;
 		bool isHeld = state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds;
 		switch( m_event )
 		{
 		case Events::ButtonState::Up:
-			matched = !button.pressed && !m_previouslyPressed;
+			matched = !pressed && !m_previouslyPressed;
 			break;
 		case Events::ButtonState::Down:
-			matched = button.pressed && m_previouslyPressed;
+			matched = pressed && m_previouslyPressed;
 			break;
 		case Events::ButtonState::Released:
-			matched = !button.pressed && m_previouslyPressed && isHeld;
+			matched = !pressed && m_previouslyPressed && isHeld;
 			break;
 		case Events::ButtonState::Held:
-			matched = button.pressed && m_previouslyPressed && isHeld;
+			matched = pressed && m_previouslyPressed && isHeld;
 			break;
 		case Events::ButtonState::Pressed:
-			matched = !button.pressed && m_previouslyPressed && !isHeld;
+			matched = !pressed && m_previouslyPressed && !isHeld;
 			break;
 		default:
 			break;
 		}
 
-		if( m_previouslyPressed != button.pressed )
+		if( m_previouslyPressed != pressed )
 		{
 			m_previousStateChangeTimestamp = state.timestamp;
-			m_previouslyPressed = button.pressed;
+			m_previouslyPressed = pressed;
 		}
 
 		// another trigger already consumed this button for this state. The tracking state above is still
 		// updated so that this event does not desync from the actual button, but it cannot match.
-		if( button.matched )
+		if( button->matched )
 		{
 			return false;
 		}
@@ -74,7 +97,6 @@ bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 		{
 			m_currentState = m_event;
 		}
-
 
 		return matched;
 	}
@@ -88,48 +110,26 @@ void ControllerButtonInputEvent::Own( Events::State& state )
 		CCP_LOGERR( "ControllerButtonInputEvent::Own: Cannot own button state because no input element is attached." );
 		return;
 	}
-	auto it = state.buttons.find( static_cast<uint32_t>( m_element ) + m_index );
-
-	if( it == state.buttons.end() )
+	if( auto* button = GetButtonState( state, m_key ) )
 	{
-		CCP_LOGERR( "ControllerButtonInputEvent::Own: Could not find button state for element %s index %d", DeviceEnums::ToKeyString( m_element ), m_index );
-		return;
-	}
-
-	auto& button = it->second;
-	button.matched = true;
+		button->matched = true;
+	}	
 }
 
-void ControllerButtonInputEvent::AttachTo( const InputElement* input )
+bool ControllerButtonInputEvent::AcceptsElement( DeviceEnums::InputElementDescriptor element ) const
 {
-	m_attached = false;
-	m_element = DeviceEnums::InputElementDescriptor::Unknown;
-	m_index = 0;
-
-	// check if the input is valid and is an axis
-	if( input )
+	switch( element )
 	{
-		auto element = input->GetElement();
-
-		switch( element )
-		{
-		case DeviceEnums::InputElementDescriptor::LeftStickX:
-		case DeviceEnums::InputElementDescriptor::LeftStickY:
-		case DeviceEnums::InputElementDescriptor::RightStickX:
-		case DeviceEnums::InputElementDescriptor::RightStickY:
-		case DeviceEnums::InputElementDescriptor::LeftTriggerAxis:
-		case DeviceEnums::InputElementDescriptor::RightTriggerAxis:
-		case DeviceEnums::InputElementDescriptor::DPad:
-			// invalid input element for button
-			CCP_LOGERR( "ControllerButtonInputEvent::SetInput: Invalid input element for button: %s. Ignoring the assignment", DeviceEnums::ToKeyString( element ) );
-			return;
-		default:
-			// everything else is valid
-			break;
-		}
-
-		m_element = element;
-		m_index = input->GetIndex();
-		m_attached = true;
+	case DeviceEnums::InputElementDescriptor::LeftStickX:
+	case DeviceEnums::InputElementDescriptor::LeftStickY:
+	case DeviceEnums::InputElementDescriptor::RightStickX:
+	case DeviceEnums::InputElementDescriptor::RightStickY:
+	case DeviceEnums::InputElementDescriptor::LeftTriggerAxis:
+	case DeviceEnums::InputElementDescriptor::RightTriggerAxis:
+	case DeviceEnums::InputElementDescriptor::DPad:
+		CCP_LOGERR( "ControllerButtonInputEvent::AttachTo: Invalid input element for button: %s. Ignoring the assignment", DeviceEnums::ToKeyString( element ) );
+		return false;
+	default:
+		return true;
 	}
 }

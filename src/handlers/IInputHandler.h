@@ -1,7 +1,7 @@
 #pragma once
 #include "../StdAfx.h"
 #include "../DeviceEnums.h"
-#include "../events/IInputEvent.h"
+#include "../events/Events.h"
 
 /// @brief Callback function type invoked when devices are added or removed.
 typedef std::function<void( DeviceEnums::DeviceIdentifier& )> DeviceChangedCallback;

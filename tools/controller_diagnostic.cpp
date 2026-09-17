@@ -192,7 +192,7 @@ struct ButtonLogicalTracker
 
 // Keyed by the same state-map key the handler publishes, so trackers stay correct for
 // devices whose element keys are not a dense 0..N range.
-using ButtonTrackerMap = std::map<uint32_t, ButtonLogicalTracker>;
+using ButtonTrackerMap = std::map<Events::ElementKey, ButtonLogicalTracker>;
 
 uint64_t NowMicros()
 {
@@ -406,7 +406,6 @@ void RenderState(
 	std::printf( "Buttons:\n" );
 	for( const auto& entry : state.buttons )
 	{
-		const Events::Button& button = entry.second;
 		Events::ButtonState logical = Events::ButtonState::Up;
 		const auto tracker = buttonTrackers.find( entry.first );
 		if( tracker != buttonTrackers.end() )
@@ -415,9 +414,9 @@ void RenderState(
 		}
 
 		std::printf( "  %5u %-20s %-20s: %-8s\n",
-			entry.first,
-			ElementLabel( button.descriptor, button.index ).c_str(),
-			GlyphAt( button.descriptor, id.family ),
+			static_cast<uint32_t>( entry.first.descriptor ),
+			ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
+			GlyphAt( entry.first.descriptor, id.family ),
 			ButtonStateName( logical ) );
 	}
 
@@ -426,9 +425,9 @@ void RenderState(
 	{
 		const Events::Axis& axis = entry.second;
 		std::printf( "  %5u %-20s %-20s: %s %+.3f\n",
-			entry.first,
-			ElementLabel( axis.descriptor, axis.index ).c_str(),
-			GlyphAt( axis.descriptor, id.family ),
+			static_cast<uint32_t>( entry.first.descriptor ),
+			ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
+			GlyphAt( entry.first.descriptor, id.family ),
 			RenderAxisBar( axis.value ).c_str(),
 			axis.value );
 	}
@@ -438,9 +437,9 @@ void RenderState(
 	{
 		const Events::Switch& switchState = entry.second;
 		std::printf( "  %5u %-20s %-20s: %s\n",
-			entry.first,
-			ElementLabel( switchState.descriptor, switchState.index ).c_str(),
-			GlyphAt( switchState.descriptor, id.family ),
+			static_cast<uint32_t>( entry.first.descriptor ),
+			ElementLabel( entry.first.descriptor, entry.first.index ).c_str(),
+			GlyphAt( entry.first.descriptor, id.family ),
 			SwitchPositionName( switchState.position ) );
 	}
 

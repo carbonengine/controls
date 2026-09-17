@@ -8,7 +8,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include "../events/IInputEvent.h"
 
 using namespace GameInput::v3;
 

@@ -371,8 +371,6 @@ std::vector<ButtonSource> GetButtonSources( const GameInputControllerInfo* info,
 Events::Button Handle( const ButtonSource& source, const GameInputGamepadState& gamepadState, const bool* rawButtons, uint32_t buttonCount )
 {
 	Events::Button button;
-	button.descriptor = source.descriptor;
-	button.index = source.elementIndex;
 	switch( source.kind )
 	{
 	case ButtonSource::Kind::GamepadMask:
@@ -475,8 +473,6 @@ std::vector<AxisSource> GetAxisSources( const GameInputControllerInfo* info, con
 Events::Axis Handle( const AxisSource& source, const GameInputGamepadState& gamepadState, const float* rawAxes, uint32_t axisCount )
 {
 	Events::Axis axis;
-	axis.descriptor = source.descriptor;
-	axis.index = source.elementIndex;
 	switch( source.kind )
 	{
 	case AxisSource::Kind::GamepadField:
@@ -533,7 +529,6 @@ std::vector<uint32_t> GetSwitchSources( const GameInputControllerInfo* info )
 Events::Switch Handle( const uint32_t& sourceIndex, const GameInputSwitchPosition* rawSwitches, uint32_t switchCount )
 {
 	Events::Switch sw;
-	sw.index = sourceIndex;
 	if( sourceIndex < switchCount )
 	{
 		const auto position = rawSwitches[sourceIndex];

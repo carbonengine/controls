@@ -494,22 +494,20 @@ std::optional<Events::State> InputHandlerWin::ReadDeviceState( IGameInputReading
 	// handle the buttons
 	for( const auto& source : slot.buttonSources )
 	{
-		// Keyed by elementIndex (published index), matching InputDevice's element identifiers -
 		// rawIndex is only where the bit/array entry is sampled from, not how it is identified.
-		state.buttons.insert( { static_cast<uint32_t>(source.descriptor) + source.elementIndex, ButtonHandling::Handle( source, gamepadState, rawButtons.get(), buttonCount ) } );
+		state.buttons.insert( { { source.descriptor, source.elementIndex }, ButtonHandling::Handle( source, gamepadState, rawButtons.get(), buttonCount ) } );
 	}
 
 	// handle the axes
 	for( const auto& source : slot.axisSources )
 	{
-		state.axis.insert( { static_cast<uint32_t>(source.descriptor) + source.elementIndex, AxisHandling::Handle( source, gamepadState, rawAxes.get(), axisCount ) } );
+		state.axis.insert( { { source.descriptor, source.elementIndex }, AxisHandling::Handle( source, gamepadState, rawAxes.get(), axisCount ) } );
 	}
 
 	// handle the switches
 	for( const auto& sourceIndex : slot.switchSources )
 	{
-		// Matches the DPad descriptor lookup key ControllerSwitchInputEvent computes.
-		state.switches.insert( { static_cast<uint32_t>( DeviceEnums::InputElementDescriptor::DPad ) + sourceIndex, SwitchHandling::Handle( sourceIndex, rawSwitches.get(), switchCount ) } );
+		state.switches.insert( { { DeviceEnums::InputElementDescriptor::DPad, sourceIndex }, SwitchHandling::Handle( sourceIndex, rawSwitches.get(), switchCount ) } );
 	}
 
 	return state;
