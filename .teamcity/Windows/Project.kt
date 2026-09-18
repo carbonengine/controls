@@ -47,8 +47,6 @@ class CarbonBuildWindows(buildName: String, configType: String, preset: String, 
         param("github_checkout_folder", "github")
         param("env.CTEST_JUNIT_OUTPUT_FILE", "ctest_results.xml")
         param("VS_DEV_BAT_SWITCHES", vsDevBatSwitches)
-        select("env.VISUAL_STUDIO_PLATFORM_TOOLSET", "v143", label = "Visual Studio Platform Toolset", description = "Specify the toolset for the build. e.g. v141 or v143.",
-                options = listOf("v141 (2017)" to "v141", "v143 (2022)" to "v143"))
         param("env.CMAKE_BUILD_TARGETS", "all")
         param("env.CMAKE_INSTALL_PREFIX", ".build-artifact")
         param("env.CMAKE_CONFIG_TYPE", configType)
