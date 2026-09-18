@@ -88,8 +88,7 @@ class CarbonBuildWindows(buildName: String, configType: String, preset: String, 
             scriptContent = """
                 REM unfortunately ninja does not find the VS environment otherwise
                 REM NB: the exported PATH also contains the location where we installed sentry-cli, e.g. teamcity.agent.work.dir
-                echo ##teamcity[message text='Initializing visual studio toolset v143']
-                call "%%ProgramFiles(x86)%%\Microsoft Visual Studio\2022\BuildTools\vc\Auxiliary\Build\vcvarsall.bat" x64 10.0.19041.0 -vcvars_ver=14.4
+                call "%env.VSDEV_BAT_PATH%" %VS_DEV_BAT_SWITCHES%
                 echo ##teamcity[setParameter name='env.INCLUDE' value='%%INCLUDE%%']
                 echo ##teamcity[setParameter name='env.LIB' value='%%LIB%%']
                 echo ##teamcity[setParameter name='env.LIBPATH' value='%%LIBPATH%%']
