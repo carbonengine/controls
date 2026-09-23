@@ -38,6 +38,11 @@ bool ControllerAxisInputEvent::JustMatched()
 	return m_matched;
 }
 
+void ControllerAxisInputEvent::BeforeEvaluate()
+{
+	m_matched = false;
+}
+
 bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
 {
 	if( m_attached )
@@ -60,7 +65,7 @@ bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
 			{
 				return false; // ignore small changes in axis value
 			}
-
+			m_matched = true;
 			return true;
 		}
 	}

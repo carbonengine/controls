@@ -300,7 +300,7 @@ std::string GetStringValueFromHKLM( const std::string& regSubKey, const std::str
 	while( rc == ERROR_MORE_DATA )
 	{
 		// Get a buffer that is big enough.
-		cbData /= sizeof( wchar_t );
+		cbData /= sizeof( char );
 		if( cbData > static_cast<DWORD>( bufferSize ) )
 		{
 			bufferSize = static_cast<size_t>( cbData );
@@ -308,7 +308,7 @@ std::string GetStringValueFromHKLM( const std::string& regSubKey, const std::str
 		else
 		{
 			bufferSize *= 2;
-			cbData = static_cast<DWORD>( bufferSize * sizeof( wchar_t ) );
+			cbData = static_cast<DWORD>( bufferSize * sizeof( char ) );
 		}
 		valueBuf.resize( bufferSize );
 		rc = RegGetValueA(
@@ -322,7 +322,7 @@ std::string GetStringValueFromHKLM( const std::string& regSubKey, const std::str
 	}
 	if( rc == ERROR_SUCCESS )
 	{
-		cbData /= sizeof( wchar_t );
+		cbData /= sizeof( char );
 		valueBuf.resize( static_cast<size_t>( cbData - 1 ) ); // remove end null character
 		return valueBuf;
 	}

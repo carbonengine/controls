@@ -24,6 +24,7 @@ public:
 	bool JustMatched() override;
 
 private:
+	void BeforeEvaluate() override;
 	/** @copydoc InputEvent::Evaluate() */
 	bool Evaluate( const Events::State& state ) override;
 
