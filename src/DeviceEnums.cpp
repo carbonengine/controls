@@ -206,84 +206,52 @@ const char* ToGlyphKeyString( InputElementDescriptor element, DeviceFamily famil
 {
 	const bool playstation = ( family == DeviceFamily::PlayStation );
 	const bool nintendo = ( family == DeviceFamily::Nintendo );
+	auto getSpecificButtonName = [family]( const char* playstationName, const char* nintendoName, const char* xboxName, const char* other ) -> const char* {
+		switch( family )
+		{
+		case DeviceFamily::Xbox:
+			return xboxName;
+		case DeviceFamily::PlayStation:
+			return playstationName;
+		case DeviceFamily::Nintendo:
+			return nintendoName;
+		default:
+			return other;
+		}
+	};
 
 	switch( element )
 	{
 	// Nintendo swaps both face pairs relative to the Xbox letter layout.
 	case InputElementDescriptor::FaceSouth:
-		if( playstation )
-			return "FaceButtonCross";
-		return nintendo ? "FaceButtonB" : "FaceButtonA";
+		return getSpecificButtonName( "FaceButtonCross", "FaceButtonB", "FaceButtonA", "FaceButtonA" );
 	case InputElementDescriptor::FaceEast:
-		if( playstation )
-			return "FaceButtonCircle";
-		return nintendo ? "FaceButtonA" : "FaceButtonB";
+		return getSpecificButtonName( "FaceButtonCircle", "FaceButtonA", "FaceButtonB", "FaceButtonB" );
 	case InputElementDescriptor::FaceWest:
-		if( playstation )
-			return "FaceButtonSquare";
-		return nintendo ? "FaceButtonY" : "FaceButtonX";
+		return getSpecificButtonName( "FaceButtonSquare", "FaceButtonY", "FaceButtonX", "FaceButtonX" );
 	case InputElementDescriptor::FaceNorth:
-		if( playstation )
-			return "FaceButtonTriangle";
-		return nintendo ? "FaceButtonX" : "FaceButtonY";
+		return getSpecificButtonName( "FaceButtonTriangle", "FaceButtonX", "FaceButtonY", "FaceButtonY" );
 
 	// Switch pads print L/ZL/R/ZR on the shoulders and leave the stick buttons unmarked.
 	case InputElementDescriptor::LeftShoulder:
-		if( playstation )
-			return "L1";
-		return nintendo ? "L" : "LB";
+		return getSpecificButtonName( "L1", "L", "LB", "LB" );
 	case InputElementDescriptor::LeftTriggerButton:
-		if( playstation )
-			return "L2";
-		return nintendo ? "ZL" : "LT";
+		return getSpecificButtonName( "L2", "ZL", "LT", "LT" );
 	case InputElementDescriptor::LeftStickButton:
-		return playstation ? "L3" : "LSB";
+		return getSpecificButtonName( "L3", "LSB", "LSB", "LSB" );
 	case InputElementDescriptor::RightShoulder:
-		if( playstation )
-			return "R1";
-		return nintendo ? "R" : "RB";
+		return getSpecificButtonName( "R1", "R", "RB", "RB" );
 	case InputElementDescriptor::RightTriggerButton:
-		if( playstation )
-			return "R2";
-		return nintendo ? "ZR" : "RT";
+		return getSpecificButtonName( "R2", "ZR", "RT", "RT" );
 	case InputElementDescriptor::RightStickButton:
-		return playstation ? "R3" : "RSB";
+		return getSpecificButtonName( "R3", "RSB", "RSB", "RSB" );
 
 	case InputElementDescriptor::Start:
-		switch( family )
-		{
-		case DeviceFamily::PlayStation:
-			return "Options";
-		case DeviceFamily::Xbox:
-			return "Menu";
-		case DeviceFamily::Nintendo:
-			return "IconPlus";
-		default:
-			return "Start";
-		}
+		return getSpecificButtonName( "Options", "IconPlus", "Menu", "Start" );
 	case InputElementDescriptor::Select:
-		switch( family )
-		{
-		case DeviceFamily::PlayStation:
-			return "Share";
-		case DeviceFamily::Xbox:
-			return "View";
-		case DeviceFamily::Nintendo:
-			return "IconMinus";
-		default:
-			return "Back";
-		}
+		return getSpecificButtonName( "Share", "IconMinus", "View", "Back" );
 	case InputElementDescriptor::Guide:
-		switch( family )
-		{
-		case DeviceFamily::Xbox:
-			return "Guide";
-		case DeviceFamily::PlayStation:
-		case DeviceFamily::Nintendo:
-			return "Home";
-		default:
-			return "Mode";
-		}
+		return getSpecificButtonName( "Home", "Home", "Guide", "Mode" );
 
 	// Everything else reads identically on every family.
 	default:

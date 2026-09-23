@@ -71,10 +71,6 @@ public:
 	 */
 	BlueSharedString GetName() const;
 
-	BlueSharedString GetButtonName( uint32_t index ) const;
-	BlueSharedString GetAxisName( uint32_t index ) const;
-	BlueSharedString GetSwitchName( uint32_t index ) const;
-
 	/**
 	* @brief Gets the current intensity of the high frequency rumble motor.
 	*/
