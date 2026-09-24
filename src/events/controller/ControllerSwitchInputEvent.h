@@ -17,7 +17,7 @@ public:
 	ControllerSwitchInputEvent( IRoot* lockobj = nullptr );
 
 	/** @copydoc InputEvent::Own() */
-	void Own( Events::State& state ) override;
+	void Own( Events::State& state, bool combo ) override;
 
 	/** @copydoc InputEvent::JustMatched() */
 	bool JustMatched() override;
@@ -33,8 +33,10 @@ private:
 	bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const override;
 
 	Events::SwitchPosition m_event{ Events::SwitchPosition::Any }; ///< Target switch position to match.
-	Events::SwitchPosition m_state{ Events::SwitchPosition::Center }; ///< Currently matched switch position.
-	Events::SwitchPosition m_previousState{ Events::SwitchPosition::Center }; ///< Last matched switch position.
+	Events::SwitchPosition m_state{ Events::SwitchPosition::Center }; ///< Switch position seen in the most recent evaluation.
+	Events::SwitchPosition m_previousState{ Events::SwitchPosition::Center }; ///< Switch position seen in the evaluation before the most recent one.
+	bool m_conditionsMet{ false }; ///< Whether the condition was met in the most recent evaluation, regardless of ownership.
+	bool m_previouslyConditionsMet{ false }; ///< Raw condition result of the evaluation before the most recent one.
 };
 
 TYPEDEF_BLUECLASS( ControllerSwitchInputEvent );

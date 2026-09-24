@@ -37,7 +37,7 @@ void InputEvent::BeforeEvaluate()
 	CCP_ASSERT_M( false, "InputEvent::BeforeEvaluate: Subclasses must implement BeforeEvaluate to capture per-type tracking state." );
 }
 
-void InputEvent::Own( Events::State& state )
+void InputEvent::Own( Events::State& /*state*/, bool /*combo*/ )
 {
 	CCP_ASSERT_M( false, "InputEvent::Own: Subclasses must implement Own to claim matched state." );
 }

@@ -18,7 +18,7 @@ public:
 	ControllerAxisInputEvent( IRoot* lockobj = nullptr );
 
 	/** @copydoc InputEvent::Own() */
-	void Own( Events::State & state ) override;
+	void Own( Events::State& state, bool combo ) override;
 
 	/** @copydoc InputEvent::JustMatched() */
 	bool JustMatched() override;

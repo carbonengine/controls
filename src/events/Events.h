@@ -21,7 +21,7 @@ extern uint64_t g_holdTimeInMicroSeconds;
  *
  * State transitions:
  * - Up: Button is not pressed and was not pressed previously.
- * - Down: Button is pressed and was pressed previously.
+ * - Down: Button is pressed.
  * - Released: Button was released after being held longer than the hold threshold.
  * - Held: Button has been held down longer than the hold threshold.
  * - Pressed: Button was released before the hold threshold elapsed (a short press/tap).
@@ -49,7 +49,8 @@ enum class SwitchPosition : uint32_t
 	DownLeft, ///< Down-left diagonal position.
 	Left, ///< Left position.
 	UpLeft, ///< Up-left diagonal position.
-	Any ///< Matches any non-center position.
+	NonCenter, ///< Matches any non-center position.
+	Any ///< Matches every position, including center; a new match is reported on every position change.
 };
 
 /**
@@ -58,6 +59,7 @@ enum class SwitchPosition : uint32_t
 struct Button
 {
 	bool matched = false; ///< Whether this button has already been claimed by an event trigger.
+	bool comboOwned = false; ///< Whether the claiming trigger combines more than one event.
 	bool pressed = false; ///< Whether the button is currently pressed.
 };
 

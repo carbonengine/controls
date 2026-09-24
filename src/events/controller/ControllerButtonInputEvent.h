@@ -18,7 +18,7 @@ public:
 	ControllerButtonInputEvent( IRoot* lockobj = nullptr );
 
 	/** @copydoc InputEvent::Own() */
-	void Own( Events::State& state ) override;
+	void Own( Events::State& state, bool combo ) override;
 
 	/** @copydoc InputEvent::JustMatched() */
 	bool JustMatched() override;
@@ -33,10 +33,12 @@ private:
 	/** @copydoc InputEvent::AcceptsElement() */
 	bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const override;
 
-	bool m_previouslyMatched{ false }; ///< Result of the evaluation before the most recent one.
+	bool m_previouslyConditionsMet{ false }; ///< Raw condition result of the evaluation before the most recent one.
 
 	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
-	bool m_previouslyPressed = false; ///< Whether the button was pressed on the previous update.
+	bool m_conditionsMet = false; ///< Whether the condition was met in the most recent evaluation, regardless of ownership.
+	bool m_previouslyPressed = false; ///< Whether the button was pressed on the previous evaluation.
+	bool m_hasTimestamp = false; ///< Whether m_previousStateChangeTimestamp has been initialized.
 	uint64_t m_previousStateChangeTimestamp = 0; ///< Timestamp of the last press/release transition.
 };
 

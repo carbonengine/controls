@@ -13,7 +13,21 @@
  * of the state are marked as owned to prevent duplicate firing.
  *
  * Triggers with more events are processed first so that more-specific
- * combinations take priority over less-specific ones.
+ * combinations take priority over less-specific ones. Triggers with the same
+ * number of events are processed in the order they were added.
+ *
+ * Ownership rules:
+ * - A trigger that fired keeps owning its elements for as long as all of its
+ *   events keep matching, so smaller triggers stay blocked while it is active.
+ * - A button owned by a trigger with more than one event is "spent": its release
+ *   will not produce Pressed/Released matches on any trigger.
+ * - A disabled trigger (or one without a callback) keeps tracking its events but
+ *   never fires or owns anything.
+ *
+ * Limitation: every input change is evaluated as its own state, in the order it
+ * was reported. Inputs that change "together" are therefore seen one after the
+ * other, and a smaller trigger can complete (and fire) before the state that
+ * would complete a larger combination arrives.
  */
 BLUE_CLASS( InputEventTrigger ) : public IRoot
 {
@@ -49,6 +63,8 @@ private:
 	BlueScriptCallback m_callback; ///< Script callback invoked when all events match.
 	PInputEventVector m_events; ///< Collection of input event conditions.
 	bool m_repeat{ false }; ///< Whether the callback fires for every matching state instead of only the first one.
+	bool m_enabled{ true }; ///< Whether the trigger is currently enabled and can fire.
+	bool m_firedAndStillMatching{ false }; ///< Whether the trigger fired and all of its events have kept matching since.
 };
 
 TYPEDEF_BLUECLASS( InputEventTrigger );

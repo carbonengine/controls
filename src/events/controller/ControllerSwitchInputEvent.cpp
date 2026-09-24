@@ -35,31 +35,48 @@ ControllerSwitchInputEvent::ControllerSwitchInputEvent( IRoot* lockobj ) :
 void ControllerSwitchInputEvent::BeforeEvaluate()
 {
 	m_previousState = m_state;
+	m_previouslyConditionsMet = m_conditionsMet;
 }
 
 bool ControllerSwitchInputEvent::JustMatched()
 {
-	return m_matched && m_previousState != m_state;
+	if( m_event == Events::SwitchPosition::Any )
+	{
+		return m_matched && m_previousState != m_state;
+	}
+	return m_matched && !m_previouslyConditionsMet;
 }
 
 bool ControllerSwitchInputEvent::Evaluate( const Events::State& state )
 {
+	m_conditionsMet = false;
 	if( m_attached )
 	{
 		if( const auto* switchState = GetSwitchState( state, m_key ) )
 		{
-			if( !switchState->matched && ( switchState->position == m_event || m_event == Events::SwitchPosition::Any ) )
+			// the position is always tracked, even when it does not match or is owned elsewhere, so that
+			// edges are reported against what the switch actually did
+			m_state = switchState->position;
+			switch( m_event )
 			{
-				m_state = switchState->position;
-				return true;
+			case Events::SwitchPosition::Any:
+				m_conditionsMet = true;
+				break;
+			case Events::SwitchPosition::NonCenter:
+				m_conditionsMet = m_state != Events::SwitchPosition::Center;
+				break;
+			default:
+				m_conditionsMet = m_state == m_event;
+				break;
 			}
+			return m_conditionsMet && !switchState->matched;
 		}
 	}
 
 	return false;
 }
 
-void ControllerSwitchInputEvent::Own( Events::State& state )
+void ControllerSwitchInputEvent::Own( Events::State& state, bool /*combo*/ )
 {
 	if( !m_attached )
 	{

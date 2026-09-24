@@ -34,16 +34,19 @@ ControllerButtonInputEvent::ControllerButtonInputEvent( IRoot* lockobj ) :
 
 void ControllerButtonInputEvent::BeforeEvaluate()
 {
-	m_previouslyMatched = m_matched;
+	m_previouslyConditionsMet = m_conditionsMet;
 }
 
 bool ControllerButtonInputEvent::JustMatched()
 {
-	return m_matched && !m_previouslyMatched;
+	// edges are detected on the raw condition so that losing ownership to another trigger for a
+	// while does not look like a fresh match once that trigger lets go
+	return m_matched && !m_previouslyConditionsMet;
 }
 
 bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 {
+	m_conditionsMet = false;
 	if( m_attached )
 	{
 		const auto* button = GetButtonState( state, m_key );
@@ -52,54 +55,53 @@ bool ControllerButtonInputEvent::Evaluate( const Events::State& state )
 			return false;
 		}
 
-		if( m_previousStateChangeTimestamp == 0 )
+		if( !m_hasTimestamp )
 		{
 			m_previousStateChangeTimestamp = state.timestamp;
+			m_hasTimestamp = true;
 		}
 
-		bool pressed = button->pressed;
+		// saturate so that a timestamp going backwards (e.g. a clock source switch) never reads as a long hold
+		const uint64_t elapsed = state.timestamp >= m_previousStateChangeTimestamp ? state.timestamp - m_previousStateChangeTimestamp : 0;
+		const bool isHeld = elapsed >= Events::g_holdTimeInMicroSeconds;
+		const bool pressed = button->pressed;
+		const bool wasPressed = m_previouslyPressed;
+
 		bool matched = false;
-		bool isHeld = state.timestamp - m_previousStateChangeTimestamp >= Events::g_holdTimeInMicroSeconds;
 		switch( m_event )
 		{
 		case Events::ButtonState::Up:
-			matched = !pressed && !m_previouslyPressed;
+			matched = !pressed && !wasPressed;
 			break;
 		case Events::ButtonState::Down:
-			matched = pressed && m_previouslyPressed;
+			matched = pressed && wasPressed;
 			break;
 		case Events::ButtonState::Released:
-			matched = !pressed && m_previouslyPressed && isHeld;
+			matched = !pressed && wasPressed && isHeld;
 			break;
 		case Events::ButtonState::Held:
-			matched = pressed && m_previouslyPressed && isHeld;
+			matched = pressed && wasPressed && isHeld;
 			break;
 		case Events::ButtonState::Pressed:
-			matched = !pressed && m_previouslyPressed && !isHeld;
+			matched = !pressed && wasPressed && !isHeld;
 			break;
 		default:
 			break;
 		}
 
-		if( m_previouslyPressed != pressed )
+		if( pressed != wasPressed )
 		{
 			m_previousStateChangeTimestamp = state.timestamp;
 			m_previouslyPressed = pressed;
 		}
 
-		// another trigger already consumed this button for this state. The tracking state above is still
-		// updated so that this event does not desync from the actual button, but it cannot match.
-		if( button->matched )
-		{
-			return false;
-		}
-
-		return matched;
+		m_conditionsMet = matched;
+		return matched && !button->matched;
 	}
 	return false;
 }
 
-void ControllerButtonInputEvent::Own( Events::State& state )
+void ControllerButtonInputEvent::Own( Events::State& state, bool combo )
 {
 	if( !m_attached )
 	{
@@ -109,6 +111,7 @@ void ControllerButtonInputEvent::Own( Events::State& state )
 	if( auto* button = GetButtonState( state, m_key ) )
 	{
 		button->matched = true;
+		button->comboOwned |= combo;
 	}
 }
 

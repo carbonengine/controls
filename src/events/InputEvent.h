@@ -26,8 +26,10 @@ public:
 
 	/**
 	 * @brief Marks this event's element in @p state as claimed so other triggers skip it.
+	 * @param state The state being evaluated.
+	 * @param combo Whether the owning trigger combines more than one event.
 	 */
-	virtual void Own( Events::State& state );
+	virtual void Own( Events::State& state, bool combo );
 
 	/**
 	 * @brief Checks whether the event has just matched since the last evaluation.

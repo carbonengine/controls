@@ -49,30 +49,30 @@ bool ControllerAxisInputEvent::Evaluate( const Events::State& state )
 	{
 		if( const auto* axis = GetAxisState( state, m_key ) )
 		{
-			if( axis->matched )
-			{
-				return false; // already matched by another event
-			}
 			if( !m_initialized )
 			{
 				// There is nothing to compare the first reading against, so adopt it as the baseline.
 				m_initialized = true;
+
 				m_value = axis->value;
 				m_delta = 0.0f;
 				return false;
 			}
 			if( std::abs( axis->value - m_value ) < Events::AXIS_THRESHOLD )
 			{
-				return false; // ignore small changes in axis value
+				return false; // ignore small changes in axis value; they accumulate until the threshold is crossed
 			}
-			m_matched = true;
-			return true;
+			// the movement is consumed whether or not this event gets to act on it, so that it is never
+			// replayed later when the rest of the trigger (or another trigger's ownership) changes
+			m_delta = axis->value - m_value;
+			m_value = axis->value;
+			return !axis->matched;
 		}
 	}
 	return false;
 }
 
-void ControllerAxisInputEvent::Own( Events::State& state )
+void ControllerAxisInputEvent::Own( Events::State& state, bool /*combo*/ )
 {
 	if( !m_attached )
 	{
@@ -82,8 +82,6 @@ void ControllerAxisInputEvent::Own( Events::State& state )
 
 	if( auto* axis = GetAxisState( state, m_key ) )
 	{
-		m_delta = axis->value - m_value;
-		m_value = axis->value;
 		axis->matched = true;
 	}
 }

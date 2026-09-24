@@ -13,7 +13,8 @@ Be::VarChooser SwitchPositionChooser[] = {
 	{ "DownLeft", BeCast( Events::SwitchPosition::DownLeft ), "Down and Left" },
 	{ "Left", BeCast( Events::SwitchPosition::Left ), "Left" },
 	{ "UpLeft", BeCast( Events::SwitchPosition::UpLeft ), "Up and Left" },
-	{ "Any", BeCast( Events::SwitchPosition::Any ), "Any" },
+	{ "NonCenter", BeCast( Events::SwitchPosition::NonCenter ), "Any position except center" },
+	{ "Any", BeCast( Events::SwitchPosition::Any ), "Any position, including center" },
 	{ 0 }
 };
 BLUE_REGISTER_ENUM_EX( "SwitchPosition", Events::SwitchPosition, SwitchPositionChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );

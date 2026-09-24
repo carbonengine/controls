@@ -7,41 +7,44 @@ InputEventTrigger::InputEventTrigger( IRoot* lockobj ) :
 
 void InputEventTrigger::Process( Events::State& state )
 {
-	if( !m_callback )
-	{
-		return;
-	}
-
 	bool matches = true;
 	bool justMatched = false;
-	// need to check all events, even if one fails, to properly update their internal state (e.g. for held events)
+	// need to check all events, even if one fails or the trigger is disabled, to properly update their
+	// internal state (e.g. for held events) so that re-enabling does not report stale edges
 	for( auto& event : m_events )
 	{
 		matches &= event->Match( state );
 		justMatched |= event->JustMatched();
 	}
 
-	if( !matches )
+	if( !m_callback || !m_enabled || !matches || m_events.size() == 0 )
 	{
+		m_firedAndStillMatching = false;
 		return;
 	}
 
-	// the combination of events only just became true if at least one of them changed to matching,
-	// otherwise this is a continuation of a match that was already reported
-	if( !m_repeat && !justMatched )
+	const bool fire = m_repeat || justMatched;
+	if( !fire && !m_firedAndStillMatching )
 	{
-		// the state is deliberately left unowned because this trigger is not acting on it,
-		// so other triggers may still consume it
+		// matching, but the match was never acted on (e.g. it started while another trigger owned the
+		// state), so leave the state for other triggers
 		return;
 	}
 
-	// tag the state with the events that matched so that they won't be considered for identical events
+	// tag the state with the events that matched so that they won't be considered for identical events.
+	// A trigger that already fired keeps owning the state for as long as it keeps matching, so smaller
+	// triggers stay blocked while the combination is still active.
+	const bool combo = m_events.size() > 1;
 	for( auto& event : m_events )
 	{
-		event->Own( state );
+		event->Own( state, combo );
 	}
+	m_firedAndStillMatching = true;
 
-	m_callback.CallVoid( m_events.GetRawRoot() );
+	if( fire )
+	{
+		m_callback.CallVoid( m_events.GetRawRoot() );
+	}
 }
 
 size_t InputEventTrigger::GetEventCount() const

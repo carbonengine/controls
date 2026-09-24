@@ -124,6 +124,7 @@ void InputDevice::UpdateState( const Events::State& state )
 	for( auto& button : m_currentState.buttons )
 	{
 		button.second.matched = false;
+		button.second.comboOwned = false;
 	}
 	for( auto& axis : m_currentState.axis )
 	{
@@ -134,9 +135,38 @@ void InputDevice::UpdateState( const Events::State& state )
 		switchState.second.matched = false;
 	}
 
+	// a button that was part of a combination is spent: its release must not also be reported as a
+	// Pressed/Released of that button on its own. While it is still pressed the combination keeps
+	// owning it, so it only needs blocking in the state where it is released.
+	for( auto it = m_spentButtons.begin(); it != m_spentButtons.end(); )
+	{
+		auto button = m_currentState.buttons.find( *it );
+		if( button == m_currentState.buttons.end() )
+		{
+			it = m_spentButtons.erase( it );
+		}
+		else if( !button->second.pressed )
+		{
+			button->second.matched = true;
+			it = m_spentButtons.erase( it );
+		}
+		else
+		{
+			++it;
+		}
+	}
+
 	for( const auto& trigger : m_sortedTriggers )
 	{
 		trigger->Process( m_currentState );
+	}
+
+	for( const auto& button : m_currentState.buttons )
+	{
+		if( button.second.comboOwned && button.second.pressed )
+		{
+			m_spentButtons.insert( button.first );
+		}
 	}
 }
 

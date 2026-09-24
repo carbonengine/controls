@@ -6,6 +6,8 @@
 #include "events/InputEventTrigger.h"
 #include "handlers/IInputHandler.h"
 
+#include <set>
+
 BLUE_DECLARE_VECTOR( InputEventTrigger );
 
 /// @brief Type alias for a raw portion of a device identifier.
@@ -135,6 +137,7 @@ private:
 	std::vector<InputEventTrigger*> m_sortedTriggers; ///< Triggers sorted by event count (descending).
 	Events::State m_currentState; ///< Latest device state.
 	bool m_triggersDirty = false; ///< Whether the sorted trigger cache needs rebuilding.
+	std::set<DeviceEnums::ElementKey> m_spentButtons; ///< Held buttons claimed by a combination; their release is suppressed.
 
 	Events::Rumble m_rumble{}; ///< Current rumble motor intensities.
 	bool m_updateRumble = false; ///< Whether rumble values have changed since last Update().
