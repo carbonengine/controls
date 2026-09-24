@@ -1,6 +1,8 @@
 #include "ControlManager.h"
 
-#ifdef WIN32
+#if CARBON_CONTROLS_MOCK_INPUT
+#include "handlers/MockInputHandler.h"
+#elif defined( WIN32 )
 #include "handlers/InputHandlerWin.h"
 #elif defined( __APPLE__ )
 #include "handlers/InputHandlerApple.h"
@@ -12,7 +14,9 @@
 ControlManager::ControlManager( IRoot* lockobj ) :
 	PARENTLOCK( m_devices ),
 	PARENTLOCK( m_activeDevices ),
-#ifdef WIN32
+#if CARBON_CONTROLS_MOCK_INPUT
+	m_inputHandler( new MockInputHandler() )
+#elif defined( WIN32 )
 	m_inputHandler( new InputHandlerWin() )
 #elif defined( __APPLE__ )
 	m_inputHandler( new InputHandlerApple() )
@@ -188,3 +192,88 @@ void ControlManager::SetBackgroundEventsEnabled( bool enabled )
 {
 	m_inputHandler->SetBackgroundEventsEnabled( enabled );
 }
+
+#if CARBON_CONTROLS_MOCK_INPUT
+
+namespace
+{
+bool GetMockKey( const InputElement* element, DeviceEnums::ElementKey& key )
+{
+	if( !element )
+	{
+		CCP_LOGERR( "ControlManager: No input element given" );
+		return false;
+	}
+	key = element->GetKey();
+	return true;
+}
+}
+
+bool ControlManager::MockAddDevice( BlueSharedString deviceID, BlueSharedString name )
+{
+	using Descriptor = DeviceEnums::InputElementDescriptor;
+
+	DeviceEnums::DeviceIdentifier identifier;
+	identifier.deviceID = deviceID;
+	identifier.name = name;
+	identifier.vendorID = BlueSharedString( "mock" );
+	identifier.productID = BlueSharedString( "mock" );
+	identifier.family = DeviceEnums::DeviceFamily::Generic;
+
+	for( auto descriptor : { Descriptor::FaceSouth, Descriptor::FaceEast, Descriptor::FaceWest, Descriptor::FaceNorth,
+							 Descriptor::LeftShoulder, Descriptor::LeftTriggerButton, Descriptor::LeftStickButton,
+							 Descriptor::RightShoulder, Descriptor::RightTriggerButton, Descriptor::RightStickButton,
+							 Descriptor::Start, Descriptor::Select, Descriptor::Guide,
+							 Descriptor::DPadUp, Descriptor::DPadDown, Descriptor::DPadLeft, Descriptor::DPadRight } )
+	{
+		identifier.buttonElements.push_back( { descriptor, 0 } );
+	}
+	for( auto descriptor : { Descriptor::LeftStickX, Descriptor::LeftStickY, Descriptor::RightStickX, Descriptor::RightStickY,
+							 Descriptor::LeftTriggerAxis, Descriptor::RightTriggerAxis } )
+	{
+		identifier.axisElements.push_back( { descriptor, 0 } );
+	}
+	identifier.switchElements.push_back( { Descriptor::DPad, 0 } );
+
+	return static_cast<MockInputHandler*>( m_inputHandler.get() )->AddDevice( identifier );
+}
+
+bool ControlManager::MockRemoveDevice( BlueSharedString deviceID )
+{
+	return static_cast<MockInputHandler*>( m_inputHandler.get() )->RemoveDevice( deviceID );
+}
+
+bool ControlManager::MockSetButton( BlueSharedString deviceID, const InputElement* element, bool pressed )
+{
+	DeviceEnums::ElementKey key;
+	return GetMockKey( element, key ) && static_cast<MockInputHandler*>( m_inputHandler.get() )->SetButton( deviceID, key, pressed );
+}
+
+bool ControlManager::MockSetAxis( BlueSharedString deviceID, const InputElement* element, float value )
+{
+	DeviceEnums::ElementKey key;
+	return GetMockKey( element, key ) && static_cast<MockInputHandler*>( m_inputHandler.get() )->SetAxis( deviceID, key, value );
+}
+
+bool ControlManager::MockSetSwitch( BlueSharedString deviceID, const InputElement* element, uint32_t position )
+{
+	if( position >= static_cast<uint32_t>( Events::SwitchPosition::NonCenter ) )
+	{
+		CCP_LOGERR( "ControlManager::MockSetSwitch: Invalid switch position %u", position );
+		return false;
+	}
+	DeviceEnums::ElementKey key;
+	return GetMockKey( element, key ) && static_cast<MockInputHandler*>( m_inputHandler.get() )->SetSwitch( deviceID, key, static_cast<Events::SwitchPosition>( position ) );
+}
+
+void ControlManager::MockAdvanceTimeMs( uint64_t milliseconds )
+{
+	static_cast<MockInputHandler*>( m_inputHandler.get() )->AdvanceTime( milliseconds * 1000 );
+}
+
+bool ControlManager::MockIsDeviceActive( BlueSharedString deviceID ) const
+{
+	return static_cast<const MockInputHandler*>( m_inputHandler.get() )->IsDeviceActive( deviceID );
+}
+
+#endif

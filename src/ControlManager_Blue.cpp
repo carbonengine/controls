@@ -2,6 +2,8 @@
 
 BLUE_DEFINE( ControlManager );
 
+
+
 const Be::ClassInfo* ControlManager::ExposeToBlue()
 {
 	EXPOSURE_BEGIN( ControlManager, "Input Controller Manager" )
@@ -17,5 +19,16 @@ const Be::ClassInfo* ControlManager::ExposeToBlue()
 		MAP_ATTRIBUTE( "activeDeviceLostCallback", m_activeDeviceLostCallback, "The callback that will be executed when the active device is lost. The callback needs to accept a deviceid as a parameter", Be::READWRITE )
 		MAP_ATTRIBUTE( "deviceAddedCallback", m_deviceAddedCallback, "The callback that will be executed when a device is added. The callback needs to accept a deviceid as a parameter", Be::READWRITE )
 		MAP_ATTRIBUTE( "deviceRemovedCallback", m_deviceRemovedCallback, "The callback that will be executed when a device is removed. The callback needs to accept a deviceid as a parameter", Be::READWRITE )
+
+#if CARBON_CONTROLS_MOCK_INPUT
+		MAP_METHOD_AND_WRAP( "MockAddDevice", MockAddDevice, "Connects a fake gamepad with a standard layout. Takes a device ID and a name" )
+		MAP_METHOD_AND_WRAP( "MockRemoveDevice", MockRemoveDevice, "Disconnects a fake device" )
+		MAP_METHOD_AND_WRAP( "MockSetButton", MockSetButton, "Sets the pressed state of a button. Takes a device ID, an InputElement and a bool" )
+		MAP_METHOD_AND_WRAP( "MockSetAxis", MockSetAxis, "Sets the value of an axis. Takes a device ID, an InputElement and a float" )
+		MAP_METHOD_AND_WRAP( "MockSetSwitch", MockSetSwitch, "Sets the position of a switch. Takes a device ID, an InputElement and a SwitchPosition value" )
+		MAP_METHOD_AND_WRAP( "MockAdvanceTimeMs", MockAdvanceTimeMs, "Advances the mock clock used to timestamp input changes" )
+		MAP_METHOD_AND_WRAP( "MockIsDeviceActive", MockIsDeviceActive, "Returns whether the mock input handler considers the device active" )
+#endif
+
 	EXPOSURE_END()
 }

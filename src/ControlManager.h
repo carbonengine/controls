@@ -63,6 +63,29 @@ public:
 	 */
 	void SetBackgroundEventsEnabled( bool enabled );
 
+#if CARBON_CONTROLS_MOCK_INPUT
+	/// @brief Connects a fake gamepad with a standard layout to the mock input handler.
+	bool MockAddDevice( BlueSharedString deviceID, BlueSharedString name );
+
+	/// @brief Disconnects a fake device from the mock input handler.
+	bool MockRemoveDevice( BlueSharedString deviceID );
+
+	/// @brief Sets the pressed state of a button on a fake device.
+	bool MockSetButton( BlueSharedString deviceID, const InputElement* element, bool pressed );
+
+	/// @brief Sets the value of an axis on a fake device.
+	bool MockSetAxis( BlueSharedString deviceID, const InputElement* element, float value );
+
+	/// @brief Sets the position of a switch on a fake device.
+	bool MockSetSwitch( BlueSharedString deviceID, const InputElement* element, uint32_t position );
+
+	/// @brief Advances the mock clock used to timestamp input changes.
+	void MockAdvanceTimeMs( uint64_t milliseconds );
+
+	/// @brief Returns whether the mock input handler considers the device active.
+	bool MockIsDeviceActive( BlueSharedString deviceID ) const;
+#endif
+
 private:
 	/**
 	 * @brief Sets the hold-time threshold for button state transitions.
