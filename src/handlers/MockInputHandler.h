@@ -4,7 +4,7 @@
 /**
  * @brief Test implementation of IInputHandler whose devices and input state are driven by the caller.
  *
- * Only compiled into the mock flavor of the module (CARBON_CONTROLS_MOCK_INPUT). Devices are
+ * Installed at runtime through ControlManager::EnableMockInputHandler(), exposed to Blue as _EnableMockInputHandler. Devices are
  * added and removed explicitly, and every input change produces a state snapshot that is
  * returned from the next Update() call. Time is driven by an internal clock that only moves
  * when AdvanceTime() is called, so hold-time based events are deterministic.

@@ -163,6 +163,7 @@ def report_rumble_capacity(device):
 
 def main():
     manager = cc.GetControlManager()
+    manager.Initialize()
     manager.SetBackgroundEventsEnabled(True)
     manager.holdTimeMs = 500
 

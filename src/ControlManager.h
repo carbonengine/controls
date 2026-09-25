@@ -34,6 +34,12 @@ public:
 	ControlManager( IRoot* lockobj = nullptr );
 
 	/**
+	 * @brief Initializes the ControlManager and enumerates connected devices.
+	 * @return true if initialization succeeded, false otherwise.
+	 */
+	bool Initialize();
+
+	/**
 	 * @brief Activates an input device so that it is polled each frame.
 	 * @param deviceID Unique string identifier of the device to activate.
 	 * @return A pointer to the activated InputDevice, or nullptr if the device is not connected.
@@ -63,7 +69,10 @@ public:
 	 */
 	void SetBackgroundEventsEnabled( bool enabled );
 
-#if CARBON_CONTROLS_MOCK_INPUT
+private:
+
+	void EnableMockInputHandler( );
+
 	/// @brief Connects a fake gamepad with a standard layout to the mock input handler.
 	bool MockAddDevice( BlueSharedString deviceID, BlueSharedString name );
 
@@ -84,9 +93,7 @@ public:
 
 	/// @brief Returns whether the mock input handler considers the device active.
 	bool MockIsDeviceActive( BlueSharedString deviceID ) const;
-#endif
 
-private:
 	/**
 	 * @brief Sets the hold-time threshold for button state transitions.
 	 * @param holdTime Time in milliseconds after which a pressed button transitions to Held.

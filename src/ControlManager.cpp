@@ -1,8 +1,8 @@
 #include "ControlManager.h"
 
-#if CARBON_CONTROLS_MOCK_INPUT
 #include "handlers/MockInputHandler.h"
-#elif defined( WIN32 )
+
+#if defined( WIN32 )
 #include "handlers/InputHandlerWin.h"
 #elif defined( __APPLE__ )
 #include "handlers/InputHandlerApple.h"
@@ -14,24 +14,30 @@
 ControlManager::ControlManager( IRoot* lockobj ) :
 	PARENTLOCK( m_devices ),
 	PARENTLOCK( m_activeDevices ),
-#if CARBON_CONTROLS_MOCK_INPUT
-	m_inputHandler( new MockInputHandler() )
-#elif defined( WIN32 )
-	m_inputHandler( new InputHandlerWin() )
-#elif defined( __APPLE__ )
-	m_inputHandler( new InputHandlerApple() )
-#else
-	m_inputHandler( new InputHandlerStub() )
-#endif
+	m_inputHandler( nullptr )
 {
+}
+
+bool ControlManager::Initialize()
+{
+	if( !m_inputHandler )
+	{
+#if defined( WIN32 )
+		m_inputHandler.reset( new InputHandlerWin() );
+#elif defined( __APPLE__ )
+		m_inputHandler.reset( new InputHandlerApple() );
+#else
+		m_inputHandler.reset( new InputHandlerStub() );
+#endif
+	}
+
 	m_inputHandler->RegisterForDeviceAdded( [this]( DeviceEnums::DeviceIdentifier& deviceIdentifiers ) {
 		OnDeviceAdded( deviceIdentifiers );
 	} );
 	m_inputHandler->RegisterForDeviceRemoved( [this]( DeviceEnums::DeviceIdentifier& deviceIdentifiers ) {
 		OnDeviceRemoved( deviceIdentifiers );
 	} );
-
-	m_inputHandler->Initialize();
+	return m_inputHandler->Initialize();
 }
 
 void ControlManager::SetHoldTimeInMs( uint64_t holdTime )
@@ -193,8 +199,7 @@ void ControlManager::SetBackgroundEventsEnabled( bool enabled )
 	m_inputHandler->SetBackgroundEventsEnabled( enabled );
 }
 
-#if CARBON_CONTROLS_MOCK_INPUT
-
+// Helper functions for unit testing
 namespace
 {
 bool GetMockKey( const InputElement* element, DeviceEnums::ElementKey& key )
@@ -207,6 +212,13 @@ bool GetMockKey( const InputElement* element, DeviceEnums::ElementKey& key )
 	key = element->GetKey();
 	return true;
 }
+}
+
+void ControlManager::EnableMockInputHandler()
+{
+	m_inputHandler.reset( new MockInputHandler() );
+	// reinitialize the mock input handler to ensure it is ready for use
+	Initialize();
 }
 
 bool ControlManager::MockAddDevice( BlueSharedString deviceID, BlueSharedString name )
@@ -276,4 +288,3 @@ bool ControlManager::MockIsDeviceActive( BlueSharedString deviceID ) const
 	return static_cast<const MockInputHandler*>( m_inputHandler.get() )->IsDeviceActive( deviceID );
 }
 
-#endif

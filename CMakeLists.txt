@@ -45,6 +45,8 @@ set(CARBON_CONTROLS_SOURCE_FILES
     src/events/controller/ControllerSwitchInputEvent.cpp
     src/events/controller/ControllerSwitchInputEvent.h
     src/handlers/IInputHandler.h
+    src/handlers/MockInputHandler.h
+    src/handlers/MockInputHandler.cpp
 )
 
 set(CARBON_CONTROLS_PLATFORM_SOURCE_FILES
@@ -60,13 +62,7 @@ set(CARBON_CONTROLS_PLATFORM_SOURCE_FILES
     src/handlers/InputMappingWin.h
 )
 
-# Sources only compiled into the mock flavor of the module used by the tests.
-set(CARBON_CONTROLS_MOCK_SOURCE_FILES
-    src/handlers/MockInputHandler.h
-    src/handlers/MockInputHandler.cpp
-)
-
-# Applies the configuration shared by the real and the mock flavor of the module.
+# Applies the configuration for the module.
 function(configure_carbon_controls_target target)
     set_build_flavor(${target})
     add_trinity_dev_debug_flags(${target})
@@ -90,7 +86,6 @@ function(configure_carbon_controls_target target)
     endif()
 endfunction()
 
-set(CARBON_CONTROLS_COMMON_SOURCE_FILES ${CARBON_CONTROLS_SOURCE_FILES})
 list(APPEND CARBON_CONTROLS_SOURCE_FILES ${CARBON_CONTROLS_PLATFORM_SOURCE_FILES})
 ccp_add_library(_carbon_controls SHARED ${CARBON_CONTROLS_SOURCE_FILES})
 configure_carbon_controls_target(_carbon_controls)
@@ -114,7 +109,7 @@ endif()
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
         PREFIX "Sources"
-        FILES ${CARBON_CONTROLS_SOURCE_FILES} ${CARBON_CONTROLS_MOCK_SOURCE_FILES}
+        FILES ${CARBON_CONTROLS_SOURCE_FILES}
 )
 
 if( WIN32 )
@@ -205,16 +200,6 @@ if(BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-    ccp_add_library(_carbon_controls_mock SHARED ${CARBON_CONTROLS_COMMON_SOURCE_FILES} ${CARBON_CONTROLS_MOCK_SOURCE_FILES})
-    configure_carbon_controls_target(_carbon_controls_mock)
-    target_compile_definitions(_carbon_controls_mock PRIVATE CARBON_CONTROLS_MOCK_INPUT=1)
-    # Same module name as the real flavor, so it lives in its own folder that the tests put on the path.
-    set_target_properties(_carbon_controls_mock PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mock"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mock"
-        FOLDER "Tests"
-    )
-
     # Find exefile tool, which is used to run the tests
     if (DEFINED CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE MATCHES "Release")
         string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
@@ -244,8 +229,13 @@ if(BUILD_TESTING)
                 COMMAND ${CMAKE_COMMAND} -E copy ${exefile_tool} $<TARGET_FILE_DIR:${TEST_TARGET}>
         )
         set(exefile_tool $<TARGET_FILE_DIR:${TEST_TARGET}>/${EXEFILE_TOOL_NAME}.exe)
+        # Guarded so the copy is skipped when there are no runtime DLLs.
         add_custom_command(TARGET ${TEST_TARGET} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:_carbon_controls_mock> $<TARGET_FILE_DIR:${TEST_TARGET}>
+                COMMAND "$<$<BOOL:$<TARGET_RUNTIME_DLLS:_carbon_controls>>:${CMAKE_COMMAND};-E;copy_if_different;$<TARGET_RUNTIME_DLLS:_carbon_controls>;$<TARGET_FILE_DIR:${TEST_TARGET}>>"
+                COMMAND_EXPAND_LISTS
+        )
+        add_custom_command(TARGET ${TEST_TARGET} POST_BUILD
+                COMMAND "$<$<BOOL:$<TARGET_RUNTIME_DLLS:${TEST_TARGET}>>:${CMAKE_COMMAND};-E;copy_if_different;$<TARGET_RUNTIME_DLLS:${TEST_TARGET}>;$<TARGET_FILE_DIR:${TEST_TARGET}>>"
                 COMMAND_EXPAND_LISTS
         )
         set(PATH_SEPARATOR "\\;")
@@ -254,7 +244,7 @@ if(BUILD_TESTING)
     endif()
 
     set(PYTHON_LIB_PATH
-        "$<TARGET_FILE_DIR:_carbon_controls_mock>"
+        "$<TARGET_FILE_DIR:_carbon_controls>"
         "$<TARGET_FILE_DIR:${TEST_TARGET}>"
         "${PYTHON_TEST_DIR}/tests"
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
@@ -276,7 +266,7 @@ if(BUILD_TESTING)
     )
     target_include_directories(${TEST_TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(${TEST_TARGET} PRIVATE GTest::gtest)
-    add_dependencies(${TEST_TARGET} _carbon_controls_mock)
+    add_dependencies(${TEST_TARGET} _carbon_controls)
     set_target_properties(${TEST_TARGET} PROPERTIES FOLDER "Tests")
     gtest_discover_tests(${TEST_TARGET} DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 30 TEST_PREFIX ${TEST_TARGET}.)
 endif()

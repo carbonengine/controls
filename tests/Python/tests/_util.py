@@ -1,8 +1,41 @@
-﻿import unittest
+import unittest
 
 import blue
 
 carbon_controls = blue.LoadExtension("_carbon_controls")
+
+
+class _MockInput(object):
+    """Forwards mock input calls to the test-only helpers exposed on the ControlManager."""
+
+    def __init__(self, controlManager):
+        self._cm = controlManager
+        self.connectedDeviceIds = set()
+
+    def AddDevice(self, deviceId, name):
+        added = self._cm._MockAddDevice(deviceId, name)
+        if added:
+            self.connectedDeviceIds.add(deviceId)
+        return added
+
+    def RemoveDevice(self, deviceId):
+        self.connectedDeviceIds.discard(deviceId)
+        return self._cm._MockRemoveDevice(deviceId)
+
+    def SetButton(self, deviceId, element, pressed):
+        return self._cm._MockSetButton(deviceId, element, pressed)
+
+    def SetAxis(self, deviceId, element, value):
+        return self._cm._MockSetAxis(deviceId, element, value)
+
+    def SetSwitch(self, deviceId, element, position):
+        return self._cm._MockSetSwitch(deviceId, element, position)
+
+    def AdvanceTimeMs(self, milliseconds):
+        self._cm._MockAdvanceTimeMs(milliseconds)
+
+    def IsDeviceActive(self, deviceId):
+        return self._cm._MockIsDeviceActive(deviceId)
 
 
 class MockDeviceTestCase(unittest.TestCase):
@@ -19,15 +52,20 @@ class MockDeviceTestCase(unittest.TestCase):
         MockDeviceTestCase._deviceCounter += 1
         self.deviceId = "mock-device-%d" % MockDeviceTestCase._deviceCounter
         self.controlManager = carbon_controls.GetControlManager()
+        self.controlManager._EnableMockInputHandler()
+        self.controlManager.Initialize()
+        self.mockInput = _MockInput(self.controlManager)
         self._savedHoldTimeMs = self.controlManager.holdTimeMs
-        self.assertTrue(self.controlManager.MockAddDevice(self.deviceId, "Mock Device"))
+        self.assertTrue(self.mockInput.AddDevice(self.deviceId, "Mock Device"))
         self.controlManager.Update()
         self.device = self.controlManager.Activate(self.deviceId)
         self.assertIsNotNone(self.device)
 
     def tearDown(self):
-        self.controlManager.Deactivate(self.deviceId)
-        self.controlManager.MockRemoveDevice(self.deviceId)
+        # Some tests disconnect the device themselves.
+        if self.deviceId in self.mockInput.connectedDeviceIds:
+            self.controlManager.Deactivate(self.deviceId)
+            self.mockInput.RemoveDevice(self.deviceId)
         self.controlManager.Update()
         self.controlManager.holdTimeMs = self._savedHoldTimeMs
 
@@ -80,23 +118,23 @@ class MockDeviceTestCase(unittest.TestCase):
         return event
 
     def SetButton(self, descriptor, pressed):
-        self.assertTrue(self.controlManager.MockSetButton(self.deviceId, self.GetButton(descriptor), pressed))
+        self.assertTrue(self.mockInput.SetButton(self.deviceId, self.GetButton(descriptor), pressed))
 
     def SetAxis(self, descriptor, value):
-        self.assertTrue(self.controlManager.MockSetAxis(self.deviceId, self.GetAxis(descriptor), value))
+        self.assertTrue(self.mockInput.SetAxis(self.deviceId, self.GetAxis(descriptor), value))
 
     def SetSwitch(self, descriptor, position):
-        self.assertTrue(self.controlManager.MockSetSwitch(self.deviceId, self.GetSwitch(descriptor), int(position)))
+        self.assertTrue(self.mockInput.SetSwitch(self.deviceId, self.GetSwitch(descriptor), int(position)))
 
     def Update(self, count=1):
         for _ in range(count):
             self.controlManager.Update()
 
     def AdvanceBeforeHoldTime(self):
-        self.controlManager.MockAdvanceTimeMs(self.controlManager.holdTimeMs - 1)
+        self.mockInput.AdvanceTimeMs(self.controlManager.holdTimeMs - 1)
 
     def AdvancePastHoldTime(self):
-        self.controlManager.MockAdvanceTimeMs(self.controlManager.holdTimeMs + 1)
+        self.mockInput.AdvanceTimeMs(self.controlManager.holdTimeMs + 1)
 
     def TapButton(self, descriptor):
         self.SetButton(descriptor, True)

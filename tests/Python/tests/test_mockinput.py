@@ -8,12 +8,12 @@ class DeviceConnectionTest(MockDeviceTestCase):
     def test_deviceIsListedAndActive(self):
         deviceIds = [device.deviceID for device in self.controlManager.devices]
         self.assertIn(self.deviceId, deviceIds)
-        self.assertTrue(self.controlManager.MockIsDeviceActive(self.deviceId))
+        self.assertTrue(self.mockInput.IsDeviceActive(self.deviceId))
 
     def test_activeDeviceLostCallback(self):
         lost = []
         self.controlManager.activeDeviceLostCallback = lambda deviceId: lost.append(deviceId)
-        self.controlManager.MockRemoveDevice(self.deviceId)
+        self.mockInput.RemoveDevice(self.deviceId)
         self.controlManager.Update()
         self.assertEqual(lost, [self.deviceId])
 
@@ -24,11 +24,11 @@ class ButtonInputTest(MockDeviceTestCase):
         calls = self.AddTrigger(self.ButtonEvent(carbon_controls.InputElementDescriptor.FaceSouth, carbon_controls.ButtonState.Pressed))
         button = self.GetButton(carbon_controls.InputElementDescriptor.FaceSouth)
 
-        self.controlManager.MockSetButton(self.deviceId, button, True)
+        self.mockInput.SetButton(self.deviceId, button, True)
         self.controlManager.Update()
         self.assertEqual(len(calls), 0)
 
-        self.controlManager.MockSetButton(self.deviceId, button, False)
+        self.mockInput.SetButton(self.deviceId, button, False)
         self.controlManager.Update()
         self.assertEqual(len(calls), 1)
 
@@ -36,11 +36,11 @@ class ButtonInputTest(MockDeviceTestCase):
         calls = self.AddTrigger(self.ButtonEvent(carbon_controls.InputElementDescriptor.FaceEast, carbon_controls.ButtonState.Held))
         button = self.GetButton(carbon_controls.InputElementDescriptor.FaceEast)
 
-        self.controlManager.MockSetButton(self.deviceId, button, True)
+        self.mockInput.SetButton(self.deviceId, button, True)
         self.controlManager.Update()
         self.assertEqual(len(calls), 0)
 
-        self.controlManager.MockAdvanceTimeMs(self.controlManager.holdTimeMs + 1)
+        self.mockInput.AdvanceTimeMs(self.controlManager.holdTimeMs + 1)
         self.controlManager.Update()
         self.assertEqual(len(calls), 1)
 
@@ -48,10 +48,10 @@ class ButtonInputTest(MockDeviceTestCase):
         calls = self.AddTrigger(self.ButtonEvent(carbon_controls.InputElementDescriptor.FaceWest, carbon_controls.ButtonState.Pressed))
         button = self.GetButton(carbon_controls.InputElementDescriptor.FaceWest)
 
-        self.controlManager.MockSetButton(self.deviceId, button, True)
+        self.mockInput.SetButton(self.deviceId, button, True)
         self.controlManager.Update()
-        self.controlManager.MockAdvanceTimeMs(self.controlManager.holdTimeMs + 1)
-        self.controlManager.MockSetButton(self.deviceId, button, False)
+        self.mockInput.AdvanceTimeMs(self.controlManager.holdTimeMs + 1)
+        self.mockInput.SetButton(self.deviceId, button, False)
         self.controlManager.Update()
         self.assertEqual(len(calls), 0)
 
