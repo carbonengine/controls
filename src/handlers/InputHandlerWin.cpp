@@ -81,7 +81,14 @@ bool InputHandlerWin::Initialize()
 	HRESULT hr = GameInputCreate( &m_gameInput );
 	if( FAILED( hr ) || !m_gameInput )
 	{
-		CCP_LOGERR( "InputHandlerWin: GameInputCreate failed (0x%08X)", hr );
+		if( hr == E_NOINTERFACE )
+		{
+			CCP_LOGWARN( "InputHandlerWin: GameInput runtime not detected (error 0x%08X). Please install GameInputRedist to enable gamepad support", hr );
+		}
+		else
+		{
+			CCP_LOGERR( "InputHandlerWin: GameInputCreate failed (0x%08X)", hr );
+		}
 		return false;
 	}
 
