@@ -19,38 +19,34 @@ namespace InputMapping
 {
 DeviceEnums::InputElementDescriptor ElementForKey( NSString* key )
 {
-	using Element = DeviceEnums::InputElementDescriptor;
+    using Element = DeviceEnums::InputElementDescriptor;
 
-	if( key == nil )
+	static const NSDictionary<NSString*, NSNumber*>* keyTable = @{
+		GCInputButtonA: @( (uint32_t)Element::FaceSouth ),
+		GCInputButtonB: @( (uint32_t)Element::FaceEast ),
+		GCInputButtonX: @( (uint32_t)Element::FaceWest ),
+		GCInputButtonY: @( (uint32_t)Element::FaceNorth ),
+		GCInputLeftShoulder: @( (uint32_t)Element::LeftShoulder ),
+		GCInputRightShoulder: @( (uint32_t)Element::RightShoulder ),
+		GCInputLeftThumbstickButton: @( (uint32_t)Element::LeftStickButton ),
+		GCInputRightThumbstickButton: @( (uint32_t)Element::RightStickButton ),
+		GCInputButtonMenu: @( (uint32_t)Element::Start ),
+		GCInputButtonOptions: @( (uint32_t)Element::Select ),
+		GCInputButtonHome: @( (uint32_t)Element::Guide ),
+		GCInputDirectionPad: @( (uint32_t)Element::DPad ),
+		GCInputLeftTrigger: @( (uint32_t)Element::LeftTriggerAxis ),
+		GCInputRightTrigger: @( (uint32_t)Element::RightTriggerAxis ),
+		GCInputXboxPaddleOne: @( (uint32_t)Element::PaddleLeft1 ),
+		GCInputXboxPaddleTwo: @( (uint32_t)Element::PaddleLeft2 ),
+		GCInputXboxPaddleThree: @( (uint32_t)Element::PaddleRight1 ),
+		GCInputXboxPaddleFour: @( (uint32_t)Element::PaddleRight2 ),
+	};
+    
+    NSNumber* value = keyTable[key];
+	if( value != nil )
 	{
-		return Element::Unknown;
+		return static_cast<Element>( value.unsignedIntValue );
 	}
-
-	if( [key isEqualToString:GCInputButtonA] ) return Element::FaceSouth;
-	if( [key isEqualToString:GCInputButtonB] ) return Element::FaceEast;
-	if( [key isEqualToString:GCInputButtonX] ) return Element::FaceWest;
-	if( [key isEqualToString:GCInputButtonY] ) return Element::FaceNorth;
-
-	if( [key isEqualToString:GCInputLeftShoulder] ) return Element::LeftShoulder;
-	if( [key isEqualToString:GCInputRightShoulder] ) return Element::RightShoulder;
-	if( [key isEqualToString:GCInputLeftThumbstickButton] ) return Element::LeftStickButton;
-	if( [key isEqualToString:GCInputRightThumbstickButton] ) return Element::RightStickButton;
-
-	if( [key isEqualToString:GCInputButtonMenu] ) return Element::Start;
-	if( [key isEqualToString:GCInputButtonOptions] ) return Element::Select;
-	if( [key isEqualToString:GCInputButtonHome] ) return Element::Guide;
-
-	if( [key isEqualToString:GCInputDirectionPad] ) return Element::DPad;
-
-	// Triggers are analog, so they live in the axis dimension.
-	if( [key isEqualToString:GCInputLeftTrigger] ) return Element::LeftTriggerAxis;
-	if( [key isEqualToString:GCInputRightTrigger] ) return Element::RightTriggerAxis;
-
-	if( [key isEqualToString:GCInputXboxPaddleOne] ) return Element::PaddleLeft1;
-	if( [key isEqualToString:GCInputXboxPaddleTwo] ) return Element::PaddleLeft2;
-	if( [key isEqualToString:GCInputXboxPaddleThree] ) return Element::PaddleRight1;
-	if( [key isEqualToString:GCInputXboxPaddleFour] ) return Element::PaddleRight2;
-
 	return Element::Unknown;
 }
 
@@ -78,9 +74,12 @@ DeviceEnums::InputElementDescriptor TriggerButtonElement( DeviceEnums::InputElem
 	using Element = DeviceEnums::InputElementDescriptor;
 	switch( axisElement )
 	{
-	case Element::LeftTriggerAxis: return Element::LeftTriggerButton;
-	case Element::RightTriggerAxis: return Element::RightTriggerButton;
-	default: return Element::Unknown;
+	case Element::LeftTriggerAxis: 
+		return Element::LeftTriggerButton;
+	case Element::RightTriggerAxis: 
+		return Element::RightTriggerButton;
+	default: 
+		return Element::Unknown;
 	}
 }
 
@@ -257,10 +256,18 @@ Events::Button Handle( const ButtonSource& source, GCPhysicalInputProfile* profi
 		{
 			switch( source.direction )
 			{
-			case ButtonSource::DpadDirection::Up: buttonInput = dpad.up; break;
-			case ButtonSource::DpadDirection::Down: buttonInput = dpad.down; break;
-			case ButtonSource::DpadDirection::Left: buttonInput = dpad.left; break;
-			case ButtonSource::DpadDirection::Right: buttonInput = dpad.right; break;
+			case ButtonSource::DpadDirection::Up: 
+				buttonInput = dpad.up; 
+				break;
+			case ButtonSource::DpadDirection::Down: 
+				buttonInput = dpad.down; 
+				break;
+			case ButtonSource::DpadDirection::Left: 
+				buttonInput = dpad.left; 
+				break;
+			case ButtonSource::DpadDirection::Right: 
+				buttonInput = dpad.right; 
+				break;
 			}
 		}
 		break;
@@ -404,30 +411,42 @@ Events::Axis Handle( const AxisSource& source, GCPhysicalInputProfile* profile )
 
 namespace SwitchHandling
 {
-namespace
-{
 Events::SwitchPosition MapDpadPosition( GCControllerDirectionPad* dpad )
 {
-	if( dpad == nil )
-	{
-		return Events::SwitchPosition::Center;
-	}
+    if( dpad == nil )
+    {
+        return Events::SwitchPosition::Center;
+    }
+    
+    auto directionIdentifier = []( bool up, bool down, bool left, bool right ) -> uint8_t {
+        return ( up ? 1 : 0 ) | ( down ? 2 : 0 ) | ( left ? 4 : 0 ) | ( right ? 8 : 0 );
+    };
+        
+	// tuple of directions, up, down, left, right -> SwitchPosition
+	static const std::unordered_map<uint8_t, Events::SwitchPosition> dpadPositionMap = {
+		{ directionIdentifier( false, false, false, false ), Events::SwitchPosition::Center },
+		{ directionIdentifier( true, false, false, false ), Events::SwitchPosition::Up },
+		{ directionIdentifier( false, true, false, false ), Events::SwitchPosition::Down },
+		{ directionIdentifier( false, false, true, false ), Events::SwitchPosition::Left },
+		{ directionIdentifier( false, false, false, true ), Events::SwitchPosition::Right },
+		{ directionIdentifier( true, false, true, false ), Events::SwitchPosition::UpLeft },
+		{ directionIdentifier( true, false, false, true ), Events::SwitchPosition::UpRight },
+		{ directionIdentifier( false, true, true, false ), Events::SwitchPosition::DownLeft },
+		{ directionIdentifier( false, true, false, true ), Events::SwitchPosition::DownRight },
+	};
 
 	const bool up = dpad.up.isPressed;
 	const bool down = dpad.down.isPressed;
 	const bool right = dpad.right.isPressed;
 	const bool left = dpad.left.isPressed;
 
-	if( up && right ) return Events::SwitchPosition::UpRight;
-	if( up && left ) return Events::SwitchPosition::UpLeft;
-	if( down && right ) return Events::SwitchPosition::DownRight;
-	if( down && left ) return Events::SwitchPosition::DownLeft;
-	if( up ) return Events::SwitchPosition::Up;
-	if( down ) return Events::SwitchPosition::Down;
-	if( right ) return Events::SwitchPosition::Right;
-	if( left ) return Events::SwitchPosition::Left;
+    const auto it = dpadPositionMap.find( directionIdentifier( up, down, left, right ) );
+	if( it != dpadPositionMap.end() )
+	{
+		return it->second;
+	}
+
 	return Events::SwitchPosition::Center;
-}
 }
 
 std::vector<SwitchSource> GetSwitchSources( GCController* controller )
