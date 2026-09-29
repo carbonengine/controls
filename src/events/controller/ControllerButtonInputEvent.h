@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../StdAfx.h"
-#include "../IInputEvent.h"
+#include "../InputEvent.h"
 
 /**
  * @brief Input event that matches a controller button reaching a specific ButtonState.
@@ -10,36 +10,35 @@
  * Pressed (short tap), Held (long press), Released, Up, and Down states.
  */
 BLUE_CLASS( ControllerButtonInputEvent ) :
-	public IInputEvent
+	public InputEvent
 {
 public:
-
 	EXPOSE_TO_BLUE();
 
-	/**
-	 * @brief Constructs a ControllerButtonInputEvent.
-	 * @param lockobj Optional parent lock object for thread safety.
-	 */
 	ControllerButtonInputEvent( IRoot* lockobj = nullptr );
 
-	/**
-	 * @brief Tests whether the configured button has reached the target ButtonState.
-	 * @param state The current device state.
-	 * @return true if the button matches the configured event state, false otherwise.
-	 */
-	bool Match( const Events::State& state ) override;
+	/** @copydoc InputEvent::Own() */
+	void Own( Events::State& state, bool combo ) override;
 
-	/**
-	 * @brief Marks the matched button as owned in the device state.
-	 * @param state The device state to modify.
-	 */
-	void Own( Events::State& state ) override;
+	/** @copydoc InputEvent::JustMatched() */
+	bool JustMatched() override;
 
 private:
-	uint32_t m_buttonIndex = 0;                            ///< Index of the button to monitor.
-	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
+	/** @copydoc InputEvent::BeforeEvaluate() */
+	void BeforeEvaluate() override;
 
-	bool m_previouslyPressed = false;          ///< Whether the button was pressed on the previous update.
+	/** @copydoc InputEvent::Evaluate() */
+	bool Evaluate( const Events::State& state ) override;
+
+	/** @copydoc InputEvent::AcceptsElement() */
+	bool AcceptsElement( DeviceEnums::InputElementDescriptor element ) const override;
+
+	bool m_previouslyConditionsMet{ false }; ///< Raw condition result of the evaluation before the most recent one.
+
+	Events::ButtonState m_event{ Events::ButtonState::Pressed }; ///< Target button state to match.
+	bool m_conditionsMet = false; ///< Whether the condition was met in the most recent evaluation, regardless of ownership.
+	bool m_previouslyPressed = false; ///< Whether the button was pressed on the previous evaluation.
+	bool m_hasTimestamp = false; ///< Whether m_previousStateChangeTimestamp has been initialized.
 	uint64_t m_previousStateChangeTimestamp = 0; ///< Timestamp of the last press/release transition.
 };
 

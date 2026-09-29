@@ -11,7 +11,10 @@ BlueStructureDefinition RawDeviceIdDef[] = {
 
 InputDevice::InputDevice( IRoot* lockobj ) :
 	PARENTLOCK( m_rawDeviceId ),
-	PARENTLOCK( m_triggers )
+	PARENTLOCK( m_triggers ),
+	PARENTLOCK( m_buttons ),
+	PARENTLOCK( m_axes ),
+	PARENTLOCK( m_switches )
 {
 	m_rawDeviceId.SetStructureDefinition( RawDeviceIdDef );
 	m_rawDeviceId.SetDefaultValue( 0 );
@@ -33,7 +36,37 @@ void InputDevice::OnListModified(
 
 void InputDevice::SetIdentifier( DeviceEnums::DeviceIdentifier identifier )
 {
-	m_deviceIdentifier = identifier;
+	m_deviceIdentifier = std::move( identifier );
+
+	auto appendElements = []( const std::vector<DeviceEnums::ElementKey>& keys, PInputElementVector& target ) {
+		for( const auto& key : keys )
+		{
+			InputElementPtr element;
+			element.CreateInstance();
+			element->Initialize( key );
+			target.Append( element );
+		}
+	};
+
+	appendElements( m_deviceIdentifier.buttonElements, m_buttons );
+	appendElements( m_deviceIdentifier.axisElements, m_axes );
+	appendElements( m_deviceIdentifier.switchElements, m_switches );
+
+	// Seeded neutral so events evaluated before the first hardware reading arrives still find
+	// an entry for their element instead of reporting a missing state.
+	m_currentState.timestamp = Events::GetTimestamp();
+	for( const auto& key : m_deviceIdentifier.buttonElements )
+	{
+		m_currentState.buttons.emplace( key, Events::Button{} );
+	}
+	for( const auto& key : m_deviceIdentifier.axisElements )
+	{
+		m_currentState.axis.emplace( key, Events::Axis{} );
+	}
+	for( const auto& key : m_deviceIdentifier.switchElements )
+	{
+		m_currentState.switches.emplace( key, Events::Switch{} );
+	}
 }
 
 BlueSharedString InputDevice::GetDeviceID() const
@@ -51,7 +84,7 @@ void InputDevice::Update( IInputHandler* inputHandler )
 	if( m_triggersDirty )
 	{
 		m_sortedTriggers.clear();
-		for( auto& trigger: m_triggers )
+		for( auto& trigger : m_triggers )
 		{
 			m_sortedTriggers.push_back( trigger );
 		}
@@ -60,7 +93,7 @@ void InputDevice::Update( IInputHandler* inputHandler )
 		} );
 		m_triggersDirty = false;
 	}
-	
+
 	auto states = inputHandler->Update( m_deviceIdentifier.deviceID );
 	if( !states.empty() )
 	{
@@ -85,9 +118,55 @@ void InputDevice::Update( IInputHandler* inputHandler )
 void InputDevice::UpdateState( const Events::State& state )
 {
 	m_currentState = state;
+
+	// ownership is only valid for a single evaluation pass. m_currentState is re-processed when the
+	// handler reports no new state, so stale flags would permanently block events on those elements.
+	for( auto& button : m_currentState.buttons )
+	{
+		button.second.matched = false;
+		button.second.comboOwned = false;
+	}
+	for( auto& axis : m_currentState.axis )
+	{
+		axis.second.matched = false;
+	}
+	for( auto& switchState : m_currentState.switches )
+	{
+		switchState.second.matched = false;
+	}
+
+	// a button that was part of a combination is spent: its release must not also be reported as a
+	// Pressed/Released of that button on its own. While it is still pressed the combination keeps
+	// owning it, so it only needs blocking in the state where it is released.
+	for( auto it = m_spentButtons.begin(); it != m_spentButtons.end(); )
+	{
+		auto button = m_currentState.buttons.find( *it );
+		if( button == m_currentState.buttons.end() )
+		{
+			it = m_spentButtons.erase( it );
+		}
+		else if( !button->second.pressed )
+		{
+			button->second.matched = true;
+			it = m_spentButtons.erase( it );
+		}
+		else
+		{
+			++it;
+		}
+	}
+
 	for( const auto& trigger : m_sortedTriggers )
 	{
 		trigger->Process( m_currentState );
+	}
+
+	for( const auto& button : m_currentState.buttons )
+	{
+		if( button.second.comboOwned && button.second.pressed )
+		{
+			m_spentButtons.insert( button.first );
+		}
 	}
 }
 
@@ -133,4 +212,15 @@ void InputDevice::SetRightTriggerRumble( float value )
 {
 	m_rumble.rightTrigger = value;
 	m_updateRumble = true;
+}
+
+void InputDevice::ResetRumble()
+{
+	m_rumble = Events::Rumble{};
+	m_updateRumble = false;
+}
+
+DeviceEnums::DeviceFamily InputDevice::GetDeviceFamily() const
+{
+	return m_deviceIdentifier.family;
 }

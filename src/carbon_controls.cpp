@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "ControlManager.h"
 
-const char* g_moduleName = "_carbon_controls";
+BLUE_STANDARD_MODULE_INIT( _carbon_controls )
 
 static void StartDLL()
 {
@@ -10,29 +10,6 @@ static void StartDLL()
 }
 
 #if BLUE_WITH_PYTHON
-
-PyMODINIT_FUNC
-	CCP_CONCATENATE( CCP_CONCATENATE( PyInit_, _carbon_controls ), CCP_BUILD_FLAVOR )()
-{
-	StartDLL();
-	static PyMethodDef dummyMethods[] = { 0 };
-
-	// put myself into python as a module
-	static struct PyModuleDef carbonControlsDef = {
-		PyModuleDef_HEAD_INIT,
-		CCP_STRINGIZE( CCP_CONCATENATE( _carbon_controls, CCP_BUILD_FLAVOR ) ),
-		"",
-		-1,
-		dummyMethods
-	};
-	PyObject* module = PyModule_Create( &carbonControlsDef );
-	if( module )
-	{
-		BlueRegisterToModule( module, BlueRegistration::GetClassRegs(), BlueRegistration::GetFuncRegs(), BlueRegistration::GetEnumRegs(), BlueRegistration::GetTestRegs(), BlueRegistration::GetThunkerRegs(), BlueRegistration::GetFuncSignatures() );
-		BlueRegisterObjectsToModule( module, BlueRegistration::GetObjectRegs() );
-	}
-	return module;
-}
 
 ControlManagerPtr GetControlManager()
 {

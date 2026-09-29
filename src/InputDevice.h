@@ -1,9 +1,12 @@
 #pragma once
 #include "StdAfx.h"
 #include "DeviceEnums.h"
+#include "InputElement.h"
 #include "events/Events.h"
 #include "events/InputEventTrigger.h"
 #include "handlers/IInputHandler.h"
+
+#include <set>
 
 BLUE_DECLARE_VECTOR( InputEventTrigger );
 
@@ -102,7 +105,7 @@ public:
 	* Ensures that the value gets sent to the input handler on the next Update() call.
 	*/
 	void SetLeftTriggerRumble( float value );
-	
+
 	/**
 	* @brief Gets the current intensity of the right trigger rumble motor.
 	*/
@@ -114,6 +117,12 @@ public:
 	*/
 	void SetRightTriggerRumble( float value );
 
+	/// @brief Zeroes all rumble intensities without scheduling a hardware write.
+	void ResetRumble();
+
+	/// @brief Hardware family this device belongs to.
+	DeviceEnums::DeviceFamily GetDeviceFamily() const;
+
 private:
 	/**
 	 * @brief Processes a single state snapshot through all sorted triggers.
@@ -121,16 +130,20 @@ private:
 	 */
 	void UpdateState( const Events::State& state );
 
-	DeviceEnums::DeviceIdentifier m_deviceIdentifier {}; ///< Device metadata.
-	PRawDeviceIdPartStructureList m_rawDeviceId;          ///< Raw device ID parts exposed to script.
+	DeviceEnums::DeviceIdentifier m_deviceIdentifier{}; ///< Device metadata.
+	PRawDeviceIdPartStructureList m_rawDeviceId; ///< Raw device ID parts exposed to script.
 
-	PInputEventTriggerVector m_triggers;                  ///< Event triggers attached to this device.
-	std::vector<InputEventTrigger*> m_sortedTriggers;     ///< Triggers sorted by event count (descending).
-	Events::State m_currentState;                         ///< Latest device state.
-	bool m_triggersDirty = false;                          ///< Whether the sorted trigger cache needs rebuilding.
+	PInputEventTriggerVector m_triggers; ///< Event triggers attached to this device.
+	std::vector<InputEventTrigger*> m_sortedTriggers; ///< Triggers sorted by event count (descending).
+	Events::State m_currentState; ///< Latest device state.
+	bool m_triggersDirty = false; ///< Whether the sorted trigger cache needs rebuilding.
+	std::set<DeviceEnums::ElementKey> m_spentButtons; ///< Held buttons claimed by a combination; their release is suppressed.
 
-	Events::Rumble m_rumble{};   ///< Current rumble motor intensities.
+	Events::Rumble m_rumble{}; ///< Current rumble motor intensities.
 	bool m_updateRumble = false; ///< Whether rumble values have changed since last Update().
+	PInputElementVector m_buttons;
+	PInputElementVector m_axes;
+	PInputElementVector m_switches;
 };
 
 TYPEDEF_BLUECLASS( InputDevice );

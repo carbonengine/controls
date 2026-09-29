@@ -36,8 +36,8 @@ object Project : Project({
 })
 
 
-class CarbonBuildWindows(buildName: String, configType: String, preset: String) : BuildType({
-    id(buildName.toId())
+class CarbonBuildWindows(buildName: String, configType: String, preset: String, vsDevBatSwitches: String = "-arch=x64 -vcvars_ver=14.51") : BuildType({
+        id(buildName.toId())
     this.name = buildName
 
     artifactRules = "%env.CMAKE_INSTALL_PREFIX%"
@@ -46,8 +46,7 @@ class CarbonBuildWindows(buildName: String, configType: String, preset: String) 
         param("env.GIT_TAG_HASH_OVERRIDE", "")
         param("github_checkout_folder", "github")
         param("env.CTEST_JUNIT_OUTPUT_FILE", "ctest_results.xml")
-        select("env.VISUAL_STUDIO_PLATFORM_TOOLSET", "v143", label = "Visual Studio Platform Toolset", description = "Specify the toolset for the build. e.g. v141 or v143.",
-                options = listOf("v141 (2017)" to "v141", "v143 (2022)" to "v143"))
+        param("VS_DEV_BAT_SWITCHES", vsDevBatSwitches)
         param("env.CMAKE_BUILD_TARGETS", "all")
         param("env.CMAKE_INSTALL_PREFIX", ".build-artifact")
         param("env.CMAKE_CONFIG_TYPE", configType)
@@ -89,8 +88,7 @@ class CarbonBuildWindows(buildName: String, configType: String, preset: String) 
             scriptContent = """
                 REM unfortunately ninja does not find the VS environment otherwise
                 REM NB: the exported PATH also contains the location where we installed sentry-cli, e.g. teamcity.agent.work.dir
-                echo ##teamcity[message text='Initializing visual studio toolset v143']
-                call "%%ProgramFiles(x86)%%\Microsoft Visual Studio\2022\BuildTools\vc\Auxiliary\Build\vcvarsall.bat" x64 10.0.19041.0 -vcvars_ver=14.4
+                call "%env.VSDEV_BAT_PATH%" %VS_DEV_BAT_SWITCHES%
                 echo ##teamcity[setParameter name='env.INCLUDE' value='%%INCLUDE%%']
                 echo ##teamcity[setParameter name='env.LIB' value='%%LIB%%']
                 echo ##teamcity[setParameter name='env.LIBPATH' value='%%LIBPATH%%']
@@ -111,7 +109,7 @@ class CarbonBuildWindows(buildName: String, configType: String, preset: String) 
             name = "Run Tests"
             workingDir = "%env.CMAKE_BUILD_FOLDER%"
             path = "ctest"
-            arguments = "-C %env.CMAKE_CONFIG_TYPE% -V --output-on-failure --output-junit %env.CTEST_JUNIT_OUTPUT_FILE%"
+            arguments = "-C %env.CMAKE_CONFIG_TYPE% -V --output-on-failure --timeout 30 --output-junit %env.CTEST_JUNIT_OUTPUT_FILE%"
         }
         exec {
             name = "Package artifact"

@@ -29,4 +29,7 @@ public:
 
 	/** @copydoc IInputHandler::Rumble() */
 	void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) override;
+
+	/** @copydoc IInputHandler::SetBackgroundEventsEnabled() */
+	void SetBackgroundEventsEnabled( bool enabled ) override;
 };

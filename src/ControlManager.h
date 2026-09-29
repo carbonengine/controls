@@ -34,6 +34,12 @@ public:
 	ControlManager( IRoot* lockobj = nullptr );
 
 	/**
+	 * @brief Initializes the ControlManager and enumerates connected devices.
+	 * @return true if initialization succeeded, false otherwise.
+	 */
+	bool Initialize();
+
+	/**
 	 * @brief Activates an input device so that it is polled each frame.
 	 * @param deviceID Unique string identifier of the device to activate.
 	 * @return A pointer to the activated InputDevice, or nullptr if the device is not connected.
@@ -57,7 +63,37 @@ public:
 	 */
 	void Deactivate( BlueSharedString deviceID );
 
+	/**
+	 * @brief Enables or disables background event processing for the input handlers.
+	 * @param enabled true to enable background events, false to disable.
+	 */
+	void SetBackgroundEventsEnabled( bool enabled );
+
 private:
+
+	void EnableMockInputHandler( );
+
+	/// @brief Connects a fake gamepad with a standard layout to the mock input handler.
+	bool MockAddDevice( BlueSharedString deviceID, BlueSharedString name );
+
+	/// @brief Disconnects a fake device from the mock input handler.
+	bool MockRemoveDevice( BlueSharedString deviceID );
+
+	/// @brief Sets the pressed state of a button on a fake device.
+	bool MockSetButton( BlueSharedString deviceID, const InputElement* element, bool pressed );
+
+	/// @brief Sets the value of an axis on a fake device.
+	bool MockSetAxis( BlueSharedString deviceID, const InputElement* element, float value );
+
+	/// @brief Sets the position of a switch on a fake device.
+	bool MockSetSwitch( BlueSharedString deviceID, const InputElement* element, uint32_t position );
+
+	/// @brief Advances the mock clock used to timestamp input changes.
+	void MockAdvanceTimeMs( uint64_t milliseconds );
+
+	/// @brief Returns whether the mock input handler considers the device active.
+	bool MockIsDeviceActive( BlueSharedString deviceID ) const;
+
 	/**
 	 * @brief Sets the hold-time threshold for button state transitions.
 	 * @param holdTime Time in milliseconds after which a pressed button transitions to Held.
@@ -101,15 +137,15 @@ private:
 	 */
 	InputDevicePtr FindActiveDevice( BlueSharedString deviceID ) const;
 
-	PInputDeviceVector m_devices;                     ///< All known (connected) devices.
-	std::unique_ptr<IInputHandler> m_inputHandler;    ///< Platform-specific input handler.
-	PInputDeviceVector m_activeDevices;                ///< Devices currently being polled.
-	BlueScriptCallback m_activeDeviceLostCallback;    ///< Callback when an active device disconnects.
-	BlueScriptCallback m_deviceAddedCallback;         ///< Callback when a new device is connected.
-	BlueScriptCallback m_deviceRemovedCallback;       ///< Callback when an inactive device disconnects.
-	std::mutex m_deviceChangedMutex;                  ///< Protects the add/remove queues.
+	PInputDeviceVector m_devices; ///< All known (connected) devices.
+	std::unique_ptr<IInputHandler> m_inputHandler; ///< Platform-specific input handler.
+	PInputDeviceVector m_activeDevices; ///< Devices currently being polled.
+	BlueScriptCallback m_activeDeviceLostCallback; ///< Callback when an active device disconnects.
+	BlueScriptCallback m_deviceAddedCallback; ///< Callback when a new device is connected.
+	BlueScriptCallback m_deviceRemovedCallback; ///< Callback when an inactive device disconnects.
+	std::mutex m_deviceChangedMutex; ///< Protects the add/remove queues.
 
-	std::vector<DeviceEnums::DeviceIdentifier> m_addedDevices;   ///< Queued device-added events.
+	std::vector<DeviceEnums::DeviceIdentifier> m_addedDevices; ///< Queued device-added events.
 	std::vector<DeviceEnums::DeviceIdentifier> m_removedDevices; ///< Queued device-removed events.
 
 	bool m_initialDevicesProcessed = false; ///< Whether the initial device enumeration has been processed.

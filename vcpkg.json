@@ -4,27 +4,35 @@
       "version>=": "3.12.9#1"
     },
     {
-      "name": "carbon-blueexposure",
-      "version>=": "2.0.4"
+      "name": "carbon-core",
+      "version>=": "3.0.0"
     },
     {
-      "name": "carbon-core",
-      "version>=": "2.5.0"
+      "name": "carbon-blue",
+      "version>=": "6.2.0"
+    },
+    {
+      "name": "carbon-blueexposure",
+      "version>=": "2.2.0"
     },
     {
       "name": "gameinput",
       "version>=": "3.1.26100.6879",
       "platform": "windows"
-    }
-  ],
-  "overrides": [
-    {
-      "name": "protobuf",
-      "version": "3.6.0.1"
     },
     {
+      "name": "gtest"
+    },
+    {
+      "name": "carbon-exefile",
+      "version>=": "4.1.1",
+      "host": true
+    }
+  ],
+  "overrides": [  
+    {
       "name": "openssl",
-      "version": "1.1.1k#8"
+      "version": "3.5.0#1"
     }
   ]
 }

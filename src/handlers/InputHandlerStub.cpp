@@ -25,3 +25,7 @@ void InputHandlerStub::SetDeviceActivation( BlueSharedString deviceId, bool acti
 void InputHandlerStub::Rumble( BlueSharedString deviceId, Events::Rumble rumble )
 {
 }
+
+void InputHandlerStub::SetBackgroundEventsEnabled( bool enabled )
+{
+}

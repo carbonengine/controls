@@ -1,13 +1,13 @@
 #pragma once
+#include <string>
+#include <shared_mutex>
+#include <vector>
+#include <BlueExposure.h>
+#include <Blue.h>
+#include <IBlueOS.h>
 
-#if BLUE_WITH_PYTHON
-#include <Python.h>
-#endif
+#include <IBluePersist.h>
+#include <BlueStatistics.h>
+#include <BlueListUtil.h>
 
-#include "BlueSharedString.h"
-#include "IBlueClasses.h"
-#include "INotify.h"
-
-#include "BlueRegistration.h"
-#include "BlueListUtil.h"
-#include "BlueStructureList.h"
+#include <CCPLog.h>

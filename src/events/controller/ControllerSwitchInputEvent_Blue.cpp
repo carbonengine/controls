@@ -13,7 +13,8 @@ Be::VarChooser SwitchPositionChooser[] = {
 	{ "DownLeft", BeCast( Events::SwitchPosition::DownLeft ), "Down and Left" },
 	{ "Left", BeCast( Events::SwitchPosition::Left ), "Left" },
 	{ "UpLeft", BeCast( Events::SwitchPosition::UpLeft ), "Up and Left" },
-	{ "Any", BeCast( Events::SwitchPosition::Any ), "Any" },
+	{ "NonCenter", BeCast( Events::SwitchPosition::NonCenter ), "Any position except center" },
+	{ "Any", BeCast( Events::SwitchPosition::Any ), "Any position, including center" },
 	{ 0 }
 };
 BLUE_REGISTER_ENUM_EX( "SwitchPosition", Events::SwitchPosition, SwitchPositionChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
@@ -23,10 +24,8 @@ const Be::ClassInfo* ControllerSwitchInputEvent::ExposeToBlue()
 {
 	EXPOSURE_BEGIN( ControllerSwitchInputEvent, "Controller switch input event" )
 		MAP_INTERFACE( ControllerSwitchInputEvent )
-		MAP_INTERFACE( IInputEvent )
 
-		MAP_ATTRIBUTE( "switchIndex", m_switchIndex, "The switch to listen to", Be::READWRITE )
 		MAP_ATTRIBUTE_WITH_CHOOSER( "event", m_event, "The event to listen to", Be::READWRITE | Be::ENUM, SwitchPositionChooser )
 		MAP_ATTRIBUTE_WITH_CHOOSER( "state", m_state, "The current state of the switch", Be::READWRITE | Be::ENUM, SwitchPositionChooser )
-	EXPOSURE_END()
+	EXPOSURE_CHAINTO( InputEvent )
 }

@@ -1,5 +1,7 @@
 #pragma once
 #include "../StdAfx.h"
+#include "../DeviceEnums.h"
+
 
 /**
  * @brief Namespace containing event types and state structures for input devices.
@@ -7,28 +9,30 @@
 namespace Events
 {
 /// @brief Threshold below which axis value changes are ignored.
-const float AXIS_THRESHOLD = 0.005f;
+constexpr float AXIS_THRESHOLD = 0.01f;
 
 /// @brief The time in microseconds after which a button state changes from Pressed to Held.
-static uint64_t g_holdTimeInMicroSeconds = 300 * 1000;
+/// One definition for the whole module: `static` here would give every translation unit its
+/// own copy, so ControlManager::SetHoldTimeInMs would never reach the event matchers.
+extern uint64_t g_holdTimeInMicroSeconds;
 
 /**
  * @brief Represents the logical state of a button.
  *
  * State transitions:
  * - Up: Button is not pressed and was not pressed previously.
- * - Down: Button is pressed and was pressed previously.
+ * - Down: Button is pressed.
  * - Released: Button was released after being held longer than the hold threshold.
  * - Held: Button has been held down longer than the hold threshold.
  * - Pressed: Button was released before the hold threshold elapsed (a short press/tap).
  */
 enum class ButtonState
 {
-	Up,       ///< Button is not pressed.
-	Down,     ///< Button is continuously held down.
+	Up, ///< Button is not pressed.
+	Down, ///< Button is continuously held down.
 	Released, ///< Button was released after being held.
-	Held,     ///< Button has been held past the hold threshold.
-	Pressed   ///< Button was tapped (released before hold threshold).
+	Held, ///< Button has been held past the hold threshold.
+	Pressed ///< Button was tapped (released before hold threshold).
 };
 
 /**
@@ -36,16 +40,17 @@ enum class ButtonState
  */
 enum class SwitchPosition : uint32_t
 {
-	Center,    ///< Centered (neutral) position.
-	Up,        ///< Up position.
-	UpRight,   ///< Up-right diagonal position.
-	Right,     ///< Right position.
+	Center, ///< Centered (neutral) position.
+	Up, ///< Up position.
+	UpRight, ///< Up-right diagonal position.
+	Right, ///< Right position.
 	DownRight, ///< Down-right diagonal position.
-	Down,      ///< Down position.
-	DownLeft,  ///< Down-left diagonal position.
-	Left,      ///< Left position.
-	UpLeft,    ///< Up-left diagonal position.
-	Any        ///< Matches any non-center position.
+	Down, ///< Down position.
+	DownLeft, ///< Down-left diagonal position.
+	Left, ///< Left position.
+	UpLeft, ///< Up-left diagonal position.
+	NonCenter, ///< Matches any non-center position.
+	Any ///< Matches every position, including center; a new match is reported on every position change.
 };
 
 /**
@@ -53,8 +58,9 @@ enum class SwitchPosition : uint32_t
  */
 struct Button
 {
-	bool matched = false;  ///< Whether this button has already been claimed by an event trigger.
-	bool pressed = false;  ///< Whether the button is currently pressed.
+	bool matched = false; ///< Whether this button has already been claimed by an event trigger.
+	bool comboOwned = false; ///< Whether the claiming trigger combines more than one event.
+	bool pressed = false; ///< Whether the button is currently pressed.
 };
 
 /**
@@ -63,7 +69,7 @@ struct Button
 struct Axis
 {
 	bool matched = false; ///< Whether this axis has already been claimed by an event trigger.
-	float value = 0.0f;   ///< Current axis value, typically in the range [-1.0, 1.0].
+	float value = 0.0f; ///< Current axis value, typically in the range [-1.0, 1.0].
 };
 
 /**
@@ -71,8 +77,8 @@ struct Axis
  */
 struct Switch
 {
-	bool matched = false;                              ///< Whether this switch has already been claimed by an event trigger.
-	SwitchPosition position = SwitchPosition::Center;  ///< Current switch position.
+	bool matched = false; ///< Whether this switch has already been claimed by an event trigger.
+	SwitchPosition position = SwitchPosition::Center; ///< Current switch position.
 };
 
 /**
@@ -80,10 +86,10 @@ struct Switch
  */
 struct State
 {
-	uint64_t timestamp = 0;            ///< Timestamp in microseconds when this state was captured.
-	std::vector<Button> buttons;       ///< Button states for all buttons on the device.
-	std::vector<Axis> axis;            ///< Axis states for all analog axes on the device.
-	std::vector<Switch> switches;      ///< Switch states for all hat/d-pad switches on the device.
+	uint64_t timestamp = 0; ///< Timestamp in microseconds when this state was captured.
+	std::map<DeviceEnums::ElementKey, Button> buttons; ///< Button states for all buttons on the device.
+	std::map<DeviceEnums::ElementKey, Axis> axis; ///< Axis states for all analog axes on the device.
+	std::map<DeviceEnums::ElementKey, Switch> switches; ///< Switch states for all hat/d-pad switches on the device.
 };
 
 /**
@@ -93,10 +99,10 @@ struct State
  */
 struct Rumble
 {
-	float lowFrequency = 0.0f;  ///< Low-frequency rumble motor intensity.
+	float lowFrequency = 0.0f; ///< Low-frequency rumble motor intensity.
 	float highFrequency = 0.0f; ///< High-frequency rumble motor intensity.
-	float leftTrigger = 0.0f;   ///< Left trigger rumble motor intensity.
-	float rightTrigger = 0.0f;  ///< Right trigger rumble motor intensity.
+	float leftTrigger = 0.0f; ///< Left trigger rumble motor intensity.
+	float rightTrigger = 0.0f; ///< Right trigger rumble motor intensity.
 
 	/**
 	 * @brief Checks whether all rumble values are zero.

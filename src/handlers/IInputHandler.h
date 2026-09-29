@@ -1,7 +1,7 @@
 #pragma once
 #include "../StdAfx.h"
 #include "../DeviceEnums.h"
-#include "../events/IInputEvent.h"
+#include "../events/Events.h"
 
 /// @brief Callback function type invoked when devices are added or removed.
 typedef std::function<void( DeviceEnums::DeviceIdentifier& )> DeviceChangedCallback;
@@ -59,4 +59,10 @@ public:
 	 * @param rumble Rumble motor intensities to apply.
 	 */
 	virtual void Rumble( BlueSharedString deviceId, Events::Rumble rumble ) = 0;
+
+	/**
+	 * @brief Enables or disables background event processing for the specified device. When enabled, the handler will continue 
+	 * to process input events even when the application is not in focus.
+	 */
+	virtual void SetBackgroundEventsEnabled( bool enabled ) = 0;
 };

@@ -1,0 +1,110 @@
+#include "InputElement.h"
+
+namespace
+{
+
+Be::VarChooser InputElementDescriptorChooser[] = {
+	{ "Unknown", BeCast( DeviceEnums::InputElementDescriptor::Unknown ), "Unknown" },
+	{ "FaceSouth", BeCast( DeviceEnums::InputElementDescriptor::FaceSouth ), "FaceSouth" },
+	{ "FaceEast", BeCast( DeviceEnums::InputElementDescriptor::FaceEast ), "FaceEast" },
+	{ "FaceWest", BeCast( DeviceEnums::InputElementDescriptor::FaceWest ), "FaceWest" },
+	{ "FaceNorth", BeCast( DeviceEnums::InputElementDescriptor::FaceNorth ), "FaceNorth" },
+	{ "LeftShoulder", BeCast( DeviceEnums::InputElementDescriptor::LeftShoulder ), "LeftShoulder" },
+	{ "LeftTrigger", BeCast( DeviceEnums::InputElementDescriptor::LeftTriggerButton ), "LeftTrigger" },
+	{ "LeftStickButton", BeCast( DeviceEnums::InputElementDescriptor::LeftStickButton ), "LeftStickButton" },
+	{ "RightShoulder", BeCast( DeviceEnums::InputElementDescriptor::RightShoulder ), "RightShoulder" },
+	{ "RightTrigger", BeCast( DeviceEnums::InputElementDescriptor::RightTriggerButton ), "RightTrigger" },
+	{ "RightStickButton", BeCast( DeviceEnums::InputElementDescriptor::RightStickButton ), "RightStickButton" },
+	{ "Start", BeCast( DeviceEnums::InputElementDescriptor::Start ), "Start" },
+	{ "Select", BeCast( DeviceEnums::InputElementDescriptor::Select ), "Select" },
+	{ "Guide", BeCast( DeviceEnums::InputElementDescriptor::Guide ), "Guide" },
+	{ "DPadUp", BeCast( DeviceEnums::InputElementDescriptor::DPadUp ), "DPadUp" },
+	{ "DPadDown", BeCast( DeviceEnums::InputElementDescriptor::DPadDown ), "DPadDown" },
+	{ "DPadLeft", BeCast( DeviceEnums::InputElementDescriptor::DPadLeft ), "DPadLeft" },
+	{ "DPadRight", BeCast( DeviceEnums::InputElementDescriptor::DPadRight ), "DPadRight" },
+	{ "DPad", BeCast( DeviceEnums::InputElementDescriptor::DPad ), "DPad" },
+	{ "PaddleLeft1", BeCast( DeviceEnums::InputElementDescriptor::PaddleLeft1 ), "PaddleLeft1" },
+	{ "PaddleLeft2", BeCast( DeviceEnums::InputElementDescriptor::PaddleLeft2 ), "PaddleLeft2" },
+	{ "PaddleRight1", BeCast( DeviceEnums::InputElementDescriptor::PaddleRight1 ), "PaddleRight1" },
+	{ "PaddleRight2", BeCast( DeviceEnums::InputElementDescriptor::PaddleRight2 ), "PaddleRight2" },
+	{ "LeftStickX", BeCast( DeviceEnums::InputElementDescriptor::LeftStickX ), "LeftStickX" },
+	{ "LeftStickY", BeCast( DeviceEnums::InputElementDescriptor::LeftStickY ), "LeftStickY" },
+	{ "RightStickX", BeCast( DeviceEnums::InputElementDescriptor::RightStickX ), "RightStickX" },
+	{ "RightStickY", BeCast( DeviceEnums::InputElementDescriptor::RightStickY ), "RightStickY" },
+	{ "LeftTriggerAxis", BeCast( DeviceEnums::InputElementDescriptor::LeftTriggerAxis ), "LeftTriggerAxis" },
+	{ "RightTriggerAxis", BeCast( DeviceEnums::InputElementDescriptor::RightTriggerAxis ), "RightTriggerAxis" },
+	{ "LetterA", BeCast( DeviceEnums::InputElementDescriptor::LetterA ), "LetterA" },
+	{ "LetterB", BeCast( DeviceEnums::InputElementDescriptor::LetterB ), "LetterB" },
+	{ "LetterC", BeCast( DeviceEnums::InputElementDescriptor::LetterC ), "LetterC" },
+	{ "LetterD", BeCast( DeviceEnums::InputElementDescriptor::LetterD ), "LetterD" },
+	{ "LetterE", BeCast( DeviceEnums::InputElementDescriptor::LetterE ), "LetterE" },
+	{ "LetterF", BeCast( DeviceEnums::InputElementDescriptor::LetterF ), "LetterF" },
+	{ "LetterG", BeCast( DeviceEnums::InputElementDescriptor::LetterG ), "LetterG" },
+	{ "LetterH", BeCast( DeviceEnums::InputElementDescriptor::LetterH ), "LetterH" },
+	{ "LetterI", BeCast( DeviceEnums::InputElementDescriptor::LetterI ), "LetterI" },
+	{ "LetterJ", BeCast( DeviceEnums::InputElementDescriptor::LetterJ ), "LetterJ" },
+	{ "LetterK", BeCast( DeviceEnums::InputElementDescriptor::LetterK ), "LetterK" },
+	{ "LetterL", BeCast( DeviceEnums::InputElementDescriptor::LetterL ), "LetterL" },
+	{ "LetterM", BeCast( DeviceEnums::InputElementDescriptor::LetterM ), "LetterM" },
+	{ "LetterN", BeCast( DeviceEnums::InputElementDescriptor::LetterN ), "LetterN" },
+	{ "LetterO", BeCast( DeviceEnums::InputElementDescriptor::LetterO ), "LetterO" },
+	{ "LetterP", BeCast( DeviceEnums::InputElementDescriptor::LetterP ), "LetterP" },
+	{ "LetterQ", BeCast( DeviceEnums::InputElementDescriptor::LetterQ ), "LetterQ" },
+	{ "LetterR", BeCast( DeviceEnums::InputElementDescriptor::LetterR ), "LetterR" },
+	{ "LetterS", BeCast( DeviceEnums::InputElementDescriptor::LetterS ), "LetterS" },
+	{ "LetterT", BeCast( DeviceEnums::InputElementDescriptor::LetterT ), "LetterT" },
+	{ "LetterU", BeCast( DeviceEnums::InputElementDescriptor::LetterU ), "LetterU" },
+	{ "LetterV", BeCast( DeviceEnums::InputElementDescriptor::LetterV ), "LetterV" },
+	{ "LetterW", BeCast( DeviceEnums::InputElementDescriptor::LetterW ), "LetterW" },
+	{ "LetterX", BeCast( DeviceEnums::InputElementDescriptor::LetterX ), "LetterX" },
+	{ "LetterY", BeCast( DeviceEnums::InputElementDescriptor::LetterY ), "LetterY" },
+	{ "LetterZ", BeCast( DeviceEnums::InputElementDescriptor::LetterZ ), "LetterZ" },
+	{ "Number0", BeCast( DeviceEnums::InputElementDescriptor::Number0 ), "Number0" },
+	{ "Number1", BeCast( DeviceEnums::InputElementDescriptor::Number1 ), "Number1" },
+	{ "Number2", BeCast( DeviceEnums::InputElementDescriptor::Number2 ), "Number2" },
+	{ "Number3", BeCast( DeviceEnums::InputElementDescriptor::Number3 ), "Number3" },
+	{ "Number4", BeCast( DeviceEnums::InputElementDescriptor::Number4 ), "Number4" },
+	{ "Number5", BeCast( DeviceEnums::InputElementDescriptor::Number5 ), "Number5" },
+	{ "Number6", BeCast( DeviceEnums::InputElementDescriptor::Number6 ), "Number6" },
+	{ "Number7", BeCast( DeviceEnums::InputElementDescriptor::Number7 ), "Number7" },
+	{ "Number8", BeCast( DeviceEnums::InputElementDescriptor::Number8 ), "Number8" },
+	{ "Number9", BeCast( DeviceEnums::InputElementDescriptor::Number9 ), "Number9" },
+	{ "ArrowUp", BeCast( DeviceEnums::InputElementDescriptor::ArrowUp ), "ArrowUp" },
+	{ "ArrowUpRight", BeCast( DeviceEnums::InputElementDescriptor::ArrowUpRight ), "ArrowUpRight" },
+	{ "ArrowRight", BeCast( DeviceEnums::InputElementDescriptor::ArrowRight ), "ArrowRight" },
+	{ "ArrowDownRight", BeCast( DeviceEnums::InputElementDescriptor::ArrowDownRight ), "ArrowDownRight" },
+	{ "ArrowDown", BeCast( DeviceEnums::InputElementDescriptor::ArrowDown ), "ArrowDown" },
+	{ "ArrowDownLeft", BeCast( DeviceEnums::InputElementDescriptor::ArrowDownLeft ), "ArrowDownLeft" },
+	{ "ArrowLeft", BeCast( DeviceEnums::InputElementDescriptor::ArrowLeft ), "ArrowLeft" },
+	{ "ArrowUpLeft", BeCast( DeviceEnums::InputElementDescriptor::ArrowUpLeft ), "ArrowUpLeft" },
+	{ "ArrowUpDown", BeCast( DeviceEnums::InputElementDescriptor::ArrowUpDown ), "ArrowUpDown" },
+	{ "ArrowLeftRight", BeCast( DeviceEnums::InputElementDescriptor::ArrowLeftRight ), "ArrowLeftRight" },
+	{ "ArrowUpDownLeftRight", BeCast( DeviceEnums::InputElementDescriptor::ArrowUpDownLeftRight ), "ArrowUpDownLeftRight" },
+	{ "ArrowClockwise", BeCast( DeviceEnums::InputElementDescriptor::ArrowClockwise ), "ArrowClockwise" },
+	{ "ArrowCounterClockwise", BeCast( DeviceEnums::InputElementDescriptor::ArrowCounterClockwise ), "ArrowCounterClockwise" },
+	{ "ArrowReturn", BeCast( DeviceEnums::InputElementDescriptor::ArrowReturn ), "ArrowReturn" },
+	{ "IconBranding", BeCast( DeviceEnums::InputElementDescriptor::IconBranding ), "IconBranding" },
+	{ "IconStar", BeCast( DeviceEnums::InputElementDescriptor::IconStar ), "IconStar" },
+	{ "IconPlus", BeCast( DeviceEnums::InputElementDescriptor::IconPlus ), "IconPlus" },
+	{ "IconMinus", BeCast( DeviceEnums::InputElementDescriptor::IconMinus ), "IconMinus" },
+	{ "IconSuspension", BeCast( DeviceEnums::InputElementDescriptor::IconSuspension ), "IconSuspension" },
+	{ "IconDialClockwise", BeCast( DeviceEnums::InputElementDescriptor::IconDialClockwise ), "IconDialClockwise" },
+	{ "IconDialCounterClockwise", BeCast( DeviceEnums::InputElementDescriptor::IconDialCounterClockwise ), "IconDialCounterClockwise" },
+	{ "IconSliderLeftRight", BeCast( DeviceEnums::InputElementDescriptor::IconSliderLeftRight ), "IconSliderLeftRight" },
+	{ "IconSliderUpDown", BeCast( DeviceEnums::InputElementDescriptor::IconSliderUpDown ), "IconSliderUpDown" },
+	{ "IconWheelUpDown", BeCast( DeviceEnums::InputElementDescriptor::IconWheelUpDown ), "IconWheelUpDown" },
+	{ 0 }
+};
+BLUE_REGISTER_ENUM_EX( "InputElementDescriptor", DeviceEnums::InputElementDescriptor, InputElementDescriptorChooser, ENUM_REG_ENUM_OBJECT_ON_MODULE );
+}
+
+BLUE_DEFINE( InputElement );
+
+const Be::ClassInfo* InputElement::ExposeToBlue()
+{
+	EXPOSURE_BEGIN( InputElement, "Input Element" )
+		MAP_INTERFACE( InputElement )
+		MAP_ATTRIBUTE_WITH_CHOOSER( "element", m_key.descriptor, "The canonical element identifier for this input element", Be::READ | Be::ENUM, InputElementDescriptorChooser )
+		MAP_ATTRIBUTE( "index", m_key.index, "Disambiguates elements that share a descriptor", Be::READ )
+	EXPOSURE_END()
+}

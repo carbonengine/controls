@@ -7,25 +7,42 @@ InputEventTrigger::InputEventTrigger( IRoot* lockobj ) :
 
 void InputEventTrigger::Process( Events::State& state )
 {
-	if( !m_callback )
+	bool matches = true;
+	bool justMatched = false;
+	// need to check all events, even if one fails or the trigger is disabled, to properly update their
+	// internal state (e.g. for held events) so that re-enabling does not report stale edges
+	for( auto& event : m_events )
 	{
+		matches &= event->Match( state );
+		justMatched |= event->JustMatched();
+	}
+
+	if( !m_callback || !m_enabled || !matches || m_events.size() == 0 )
+	{
+		m_firedAndStillMatching = false;
 		return;
 	}
 
-	bool matches = true;
-	// need to check all events, even if one fails, to properly update their internal state (e.g. for held events)
-	for( auto &event: m_events )
+	const bool fire = m_repeat || justMatched;
+	if( !fire && !m_firedAndStillMatching )
 	{
-		matches &= event->Match( state );
+		// matching, but the match was never acted on (e.g. it started while another trigger owned the
+		// state), so leave the state for other triggers
+		return;
 	}
 
-	if( m_callback && matches )
+	// tag the state with the events that matched so that they won't be considered for identical events.
+	// A trigger that already fired keeps owning the state for as long as it keeps matching, so smaller
+	// triggers stay blocked while the combination is still active.
+	const bool combo = m_events.size() > 1;
+	for( auto& event : m_events )
 	{
-		// tag the state with the events that matched so that they won't be considered for identical events
-		for( auto& event : m_events )
-		{
-			event->Own( state );
-		}
+		event->Own( state, combo );
+	}
+	m_firedAndStillMatching = true;
+
+	if( fire )
+	{
 		m_callback.CallVoid( m_events.GetRawRoot() );
 	}
 }
