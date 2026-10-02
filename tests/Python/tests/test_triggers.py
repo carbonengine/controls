@@ -1,3 +1,5 @@
+# Copyright © 2026 CCP ehf.
+
 import unittest
 
 from _util import MockDeviceTestCase, carbon_controls

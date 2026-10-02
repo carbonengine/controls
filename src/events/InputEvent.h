@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #pragma once
 #include "../StdAfx.h"
 #include "Events.h"

@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #ifdef WIN32
 #include "InputMappingWin.h"
 #include <algorithm>

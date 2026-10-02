@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #pragma once
 #ifdef __APPLE__
 #include "IInputHandler.h"

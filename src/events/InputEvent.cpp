@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #include "InputEvent.h"
 
 InputEvent::InputEvent( IRoot* lockobj )

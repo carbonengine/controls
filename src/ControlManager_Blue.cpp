@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #include "ControlManager.h"
 
 BLUE_DEFINE( ControlManager );

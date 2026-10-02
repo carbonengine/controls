@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #pragma once
 #ifdef WIN32
 #include "IInputHandler.h"

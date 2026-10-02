@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #ifdef WIN32
 #include "InputHandlerWin.h"
 

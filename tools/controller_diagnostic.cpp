@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>

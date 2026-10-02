@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #ifdef __APPLE__
 #include "InputMappingApple.h"
 

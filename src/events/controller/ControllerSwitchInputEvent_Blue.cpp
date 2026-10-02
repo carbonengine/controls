@@ -1,3 +1,5 @@
+// Copyright © 2026 CCP ehf.
+
 #include "ControllerSwitchInputEvent.h"
 
 BLUE_DEFINE( ControllerSwitchInputEvent );

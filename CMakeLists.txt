@@ -1,3 +1,5 @@
+# Copyright © 2026 CCP ehf.
+
 cmake_minimum_required(VERSION 3.16)
 project(_carbon_controls VERSION 1.0.0)
 

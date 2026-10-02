@@ -1,3 +1,5 @@
+# Copyright © 2026 CCP ehf.
+
 """Controller diagnostic driven through the real carbon_controls pipeline.
 
 ControlManager -> InputDevice -> InputEventTrigger -> IInputEvent
