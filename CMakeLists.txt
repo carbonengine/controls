@@ -319,7 +319,7 @@ if(CMAKE_PROJECT_NAME STREQUAL _carbon_controls)
         # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
         install(
                 TARGETS _carbon_controls
-                EXPORT package_nameTarget
+                EXPORT CarbonControlsTarget
                 CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
                 LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
                 ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
@@ -335,25 +335,22 @@ if(CMAKE_PROJECT_NAME STREQUAL _carbon_controls)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/carbon_controlsConfig.cmake DESTINATION .)
         install(DIRECTORY python DESTINATION . FILES_MATCHING PATTERN "*.py")
     else ()
-        # Install rule for available public headers
+        # Install rule to ensure that our runtime and linker files are in the vcpkg structure
         install(
                 TARGETS _carbon_controls
                 EXPORT CarbonControlsTarget
                 CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
                 DESTINATION ${CMAKE_INSTALL_PREFIX}/share/CarbonControls
-                LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
-                ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
-                RUNTIME DESTINATION bin/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
+                LIBRARY DESTINATION lib
+                ARCHIVE DESTINATION lib
+                RUNTIME DESTINATION bin
         )
 
         install(EXPORT CarbonControlsTarget
                 DESTINATION share/CarbonControls
-                FILE CarbonControls.cmake
+                FILE CarbonControlsConfig.cmake
         )
-
-        install(
-                FILES carbon_controlsConfig.cmake
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/CarbonControls)
+        
     endif()
 
     install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
